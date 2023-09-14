@@ -1,0 +1,8 @@
+@media not print {
+    @media (prefers-color-scheme: dark) {
+        body:not([data-theme="light"]) .highlight {
+            background: #22212c;
+            color: #f8f8f2;
+        }
+    }
+}
