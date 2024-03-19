@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Sequence, Union
 
 import numpy as np
@@ -48,7 +49,6 @@ class Structure:
         link: Union[str, Sequence[str]],
         node: Union[str, Sequence[str]],
     ):
-
         self.out = outfile
         """The Output object from which this structure is derived"""
         self.link = link

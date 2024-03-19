@@ -1,3 +1,4 @@
+from __future__ import annotations
 import re
 from io import StringIO
 from typing import Dict, List, Sequence, Tuple
@@ -224,11 +225,10 @@ class Report:
 
         # convert day and time columns into a single datetime column
         if "Time_of_Max" in df.columns:
-
             # convert time of max to timedelta
-            df["Time_of_Max"] = to_timedelta(df.pop("days").astype(int), unit="D") + to_timedelta(
-                df["Time_of_Max"] + ":00"
-            )
+            df["Time_of_Max"] = to_timedelta(
+                df.pop("days").astype(int), unit="D"
+            ) + to_timedelta(df["Time_of_Max"] + ":00")
         return df
 
     @property
@@ -515,7 +515,7 @@ class Report:
         if not hasattr(self, "_node_depth_summary"):
             header, data = self._split_section(self._sections["Node Depth Summary"])
             self._node_depth_summary = self._parse_table(
-                self._parse_header(header), data, sep = '\s{1,}|\s:\s'
+                self._parse_header(header), data, sep=R"\s{1,}|\s:\s"
             )
         return self._node_depth_summary
 
@@ -630,7 +630,7 @@ class Report:
             header, data = self._split_section(self._sections["Link Flow Summary"])
             header = header.replace("|", " ")
             self._link_flow_summary = self._parse_table(
-                self._parse_header(header), data,sep = '\s{1,}|\s:\s'
+                self._parse_header(header), data, sep=R"\s{1,}|\s:\s"
             )
         return self._link_flow_summary
 

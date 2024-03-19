@@ -107,3 +107,5 @@ ENV/
 
 # IDE settings
 .vscode/
+
+.pdm-python

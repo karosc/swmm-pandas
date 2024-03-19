@@ -1,4 +1,4 @@
-import enum
+from __future__ import annotations
 from aenum import EnumMeta
 import os.path
 import warnings
@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 from typing import Callable, List, NoReturn, Optional, Sequence, Tuple, Union
 from itertools import product
-from io import SEEK_END, SEEK_SET
+from io import SEEK_END
 import struct
 
 import numpy as np

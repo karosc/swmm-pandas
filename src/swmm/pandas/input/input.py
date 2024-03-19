@@ -2,7 +2,7 @@
 # scope:
 #   - high level api for loading, inspecting, changing, and
 #     altering a SWMM input file using pandas dataframes
-
+from __future__ import annotations
 
 from swmm.pandas.input.sections import _sections
 import swmm.pandas.input._section_classes as sc

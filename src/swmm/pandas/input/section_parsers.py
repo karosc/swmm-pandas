@@ -1,9 +1,7 @@
-import re
+from __future__ import annotations
 
 
-import re
 from typing import Callable
-import numpy as np
 
 
 def _coerce_float(data):

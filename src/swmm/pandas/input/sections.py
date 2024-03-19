@@ -1,3 +1,4 @@
+from __future__ import annotations
 from swmm.pandas.input._section_classes import *
 
 _sections = {

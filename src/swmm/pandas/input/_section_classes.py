@@ -1,3 +1,4 @@
+from __future__ import annotations
 import pandas as pd
 from typing import List
 import logging
@@ -144,9 +145,9 @@ class Section(pd.DataFrame):
             .max()
         )
         max_header = self.columns.to_series().apply(len)
-        max_header.iloc[
-            0
-        ] += 2  # add 2 to first header to account for comment formatting
+        max_header.iloc[0] += (
+            2  # add 2 to first header to account for comment formatting
+        )
         col_widths = pd.concat([max_header, max_data], axis=1).max(axis=1) + 2
 
         data_format = ""
@@ -492,9 +493,9 @@ class Storage(Section):
             return out
         elif out[cls._headings.index("Shape")].lower() == "tabular":
             out[cls._headings.index("CurveName")] = line.pop(0)
-            out[
-                cls._headings.index("N/A") : cls._headings.index("N/A") + len(line)
-            ] = line
+            out[cls._headings.index("N/A") : cls._headings.index("N/A") + len(line)] = (
+                line
+            )
             return out
         else:
             raise ValueError(f"Unexpected line in storage section ({line})")
