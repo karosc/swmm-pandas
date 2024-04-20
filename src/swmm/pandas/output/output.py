@@ -147,7 +147,7 @@ class Output:
         # output objects opened in the same python session if they
         # have different pollutant names
 
-        self.node_attributes = Enum(
+        self.node_attributes:shared_enum.NodeAttribute = Enum(
             "node_attributes",
             list(shared_enum.NodeAttribute.__members__.keys())[:-1],
             start=0,
@@ -161,7 +161,7 @@ class Output:
         'total_inflow',
         'flooding_losses'
         """
-        self.link_attributes = Enum(
+        self.link_attributes:shared_enum.LinkAttribute = Enum(
             "link_attributes",
             list(shared_enum.LinkAttribute.__members__.keys())[:-1],
             start=0,

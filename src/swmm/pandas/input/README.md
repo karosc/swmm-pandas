@@ -1,0 +1,58 @@
+## progress
+- [ ] TITLE
+- [x] OPTIONS
+- [ ] REPORT
+- [ ] EVENT
+- [ ] FILES
+- [x] RAINGAGES
+- [x] EVAPORATION (TODO: better column names)
+- [x] TEMPERATURE
+- [x] ADJUSTMENTS
+- [x] SUBCATCHMENTS
+- [x] SUBAREAS
+- [x] INFILTRATION (TODO: better column names)
+- [x] LID_CONTROLS (TODO: better testing)
+- [x] LID_USAGE (TODO: better testing)
+- [x] AQUIFERS
+- [x] GROUNDWATER
+- [ ] GWF
+- [x] SNOWPACKS
+- [x] JUNCTIONS
+- [x] OUTFALLS
+- [x] DIVIDERS (TODO: test this)
+- [x] STORAGE
+- [x] CONDUITS
+- [x] PUMPS
+- [x] ORIFICES
+- [x] WEIRS
+- [x] OUTLETS (TODO: test this)
+- [x] XSECTIONS (TODO: better testing)
+- [ ] TRANSECTS
+- [x] STREETS (TODO: test)
+- [x] INLETS (TODO: test)
+- [x] INLET_USAGE (TODO: test)
+- [x] LOSSES
+- [ ] CONTROLS
+- [x] POLLUTANTS
+- [x] LANDUSES (TODO: better testing)
+- [x] COVERAGES
+- [x] LOADINGS (TODO: test)
+- [x] BUILDUP (TODO: test)
+- [x] WASHOFF (TODO: test)
+- [x] TREATMENT (TODO: test)
+- [x] INFLOWS (TODO: test)
+- [x] DWF
+- [x] RDII
+- [ ] HYDROGRAPHS
+- [ ] CURVES
+- [ ] TIMESERIES
+- [ ] PATTERNS
+- [ ] MAP 
+- [x] POLYGONS
+- [x] COORDINATES
+- [x] VERTICIES
+- [x] LABELS
+- [x] SYMBOLS
+- [ ] BACKDROP
+- [ ] PROFILE
+- [x] TAGS

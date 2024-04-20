@@ -1,27 +1,46 @@
 from __future__ import annotations
+from tkinter import N
+
 import pandas as pd
-from typing import List
+from typing import List, Self
 import logging
 
 _logger = logging.getLogger(__name__)
 
 
-def _coerce_float(data):
+def _coerce_numeric(data: str) -> str | float | int:
     try:
-        return float(data)
+        number = float(data)
+        number = int(number) if number.is_integer() else number
+        if str(number) == data:
+            return number
     except ValueError:
-        return data
+        pass
+
+    return data
 
 
-def _strip_comment(line: str):
+def _strip_comment(line: str) -> tuple[str, str]:
+    """
+    Splits a line into its data and comments
+
+
+    Examples
+    ---------
+    >>> _strip_comment(" JUNC1  1.5  10.25  0  0  5000 ; This is my fav junction ")
+    ["JUNC1  1.5  10.25  0  0  5000 ", "This is my fav junction"]
+
+
+    """
     try:
-        return line[: line.index(";")], line[line.index(";") :]
+        return line[: line.index(";")].strip(), line[line.index(";") + 1 :].strip()
 
     except ValueError:
         return line, ""
 
 
-def _is_line_comment(line: str):
+def _is_line_comment(line: str) -> bool:
+    """Determines if a line in the inp file is a comment line"""
     try:
         return line.strip()[0] == ";"
     except IndexError:
@@ -29,6 +48,10 @@ def _is_line_comment(line: str):
 
 
 def _is_data(line: str):
+    """
+    Determines if an inp file line has data by checking if the line
+    is a table header (starting with `;;`) or a section header (starting with a `[`)
+    """
     if len(line) == 0 or line.strip()[0:2] == ";;" or line.strip()[0] == "[":
         return False
     return True
@@ -48,6 +71,7 @@ class Section(pd.DataFrame):
     _metadata = ["_ncol", "_headings", "headings"]
     _ncol = 0
     _headings = []
+    _index_col = None
 
     @classmethod
     @property
@@ -60,44 +84,76 @@ class Section(pd.DataFrame):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return text
+        """Construct an instance of the class from the section inp text"""
+        raise NotImplementedError
 
     @classmethod
-    def _from_section_text(cls, text: str, ncols: int, headings: List[str]):
+    def _from_section_text(cls, text: str, ncols: int, headings: List[str]) -> Self:
+        """
+
+        Parse the SWMM section t ext into a dataframe
+
+        This is a generic parser that assumes the SWMM section is tabular with the each row
+        having the same number of tokens (i.e. columns). Comments preceeding a row in the inp file
+        are added to the dataframe in a comments column.
+
+        """
         rows = text.split("\n")
         data = []
         line_comment = ""
         for row in rows:
+            # check if row contains data
             if not _is_data(row):
                 continue
 
-            elif row.strip()[0] == ";":
-                # print(row)
-                line_comment += row.replace(";", "").strip() + "\n"
+            elif _is_line_comment(row):
+                line_comment += _strip_comment(row)[1] + "\n"
                 continue
 
             line, comment = _strip_comment(row)
             if len(comment) > 0:
-                line_comment += comment.replace(";", "").strip() + "\n"
+                line_comment += comment + "\n"
 
+            # create and empty row
             row_data = [""] * (ncols + 1)
-            # print(row_data)
-            split_data = [_coerce_float(val) for val in line.split()]
-            row_data[:ncols] = cls._assigner(split_data)
+
+            # split row into tokens coercing numerics into floats
+            split_data = [_coerce_numeric(val) for val in line.split()]
+
+            # parse tokenzied data into uniform tabular shape so each
+            # row has the same number of columns
+            row_data[:ncols] = cls._tabulate(split_data)
+            # add comments to last column
             row_data[-1] = line_comment
             data.append(row_data)
             line_comment = ""
 
+        # instantiate DataFrame
         return cls(data=data, columns=cls.headings)
+        # if cls._index_col is not None:
+        #     df.set_index(cls._index_col)
+        # return df
 
     @classmethod
-    def _assigner(cls, line: list):
+    def _tabulate(cls, line: list[str | float]) -> list[str | float]:
+        """
+        Function to convert tokenized data into a table row with an expected number of columns
+
+        This function allows the parser to accomodate lines in a SWWM section that might have
+        different numbers of tokens.
+
+        This is the generic version of the method that assumes all tokens in the line
+        are assign the front of the table row and any left over spaces in the row are left
+        blank. Various sections require custom implementations of thie method.
+
+        """
         out = [""] * cls._ncol
         out[: len(line)] = line
         return out
 
     @classmethod
     def _new_empty(cls):
+        """Construct and empty instance"""
         return cls(data=[], columns=cls.headings)
 
     @classmethod
@@ -124,19 +180,27 @@ class Section(pd.DataFrame):
 
     @property
     def _constructor(self):
+        # required override for pandas
+        # https://pandas.pydata.org/docs/development/extending.html#override-constructor-properties
         return Section
 
     @property
     def _constructor_sliced(self):
+        # required override for pandas
+        # https://pandas.pydata.org/docs/development/extending.html#override-constructor-properties
         return SectionSeries
 
     def to_swmm_string(self):
+        """Create a string representation of section"""
+
         def comment_formatter(line):
             if len(line) > 0:
                 line = ";" + line.strip().strip("\n")
                 line = line.replace("\n", "\n;") + "\n"
             return line
 
+        # determine the longest variable in each column of the table
+        # used to figure out how wide to make the columns
         max_data = (
             self.astype(str)
             .map(
@@ -144,24 +208,30 @@ class Section(pd.DataFrame):
             )
             .max()
         )
+        # determine the length of the header names
         max_header = self.columns.to_series().apply(len)
+
         max_header.iloc[0] += (
             2  # add 2 to first header to account for comment formatting
         )
+
+        # determine the column widths by finding the max legnth out of data
+        # and headers
         col_widths = pd.concat([max_header, max_data], axis=1).max(axis=1) + 2
 
-        data_format = ""
+        # create format strings for header, divider, and data
         header_format = ""
-        header_sep = ""
+        header_divider = ""
+        data_format = ""
         for i, col in enumerate(col_widths.drop("desc")):
             data_format += f"{{:<{col}}}"
-
             header_format += f";;{{:<{col-2}}}" if i == 0 else f"{{:<{col}}}"
-            header_sep += f";;{'-'*(col-4)}  " if i == 0 else f"{'-'*(col-2)}  "
+            header_divider += f";;{'-'*(col-4)}  " if i == 0 else f"{'-'*(col-2)}  "
         data_format += "\n"
         header_format += "\n"
-        header_sep += "\n"
+        header_divider += "\n"
 
+        # loop over data and format each each row of data as a string
         outstr = ""
         for i, row in enumerate(self.drop("desc", axis=1).values):
             desc = self.loc[i, "desc"]
@@ -171,12 +241,14 @@ class Section(pd.DataFrame):
 
         header = header_format.format(*self.drop("desc", axis=1).columns)
 
-        return header + header_sep + outstr
+        # concatenate the header, divider, and data
+        return header + header_divider + outstr
 
 
 class Option(Section):
     _ncol = 2
     _headings = ["Option", "Value"]
+    _index_col = "Option"
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -194,6 +266,7 @@ class Option(Section):
 class Evap(Section):
     _ncol = 13
     _headings = ["Type"]
+    _index_col = "Type"
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -211,6 +284,7 @@ class Evap(Section):
 class Temperature(Section):
     _ncol = 14
     _headings = ["Option"]
+    _index_col = "Option"
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -237,6 +311,7 @@ class Raingage(Section):
         "Station",
         "Units",
     ]
+    _index_col = "Name"
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -264,6 +339,7 @@ class Subcatchment(Section):
         "CurbLeng",
         "SnowPack",
     ]
+    _index_col = "Name"
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -290,6 +366,7 @@ class Subarea(Section):
         "RouteTo",
         "PctRouted",
     ]
+    _index_col = "Subcatchment"
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -307,6 +384,7 @@ class Subarea(Section):
 class Infil(Section):
     _ncol = 6
     _headings = ["Subcatchment"]
+    _index_col = "Subcatchment"
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -339,6 +417,7 @@ class Aquifer(Section):
         "Umc",
         "ETupat",
     ]
+    _index_col = "Name"
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -371,6 +450,7 @@ class Groundwater(Section):
         "Wgr",
         "Umc",
     ]
+    _index_col = "Subcatchment"
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -388,6 +468,7 @@ class Groundwater(Section):
 class Snowpack(Section):
     _ncol = 9
     _headings = ["Name", "Surface"]
+    _index_col = "Name"
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -412,6 +493,7 @@ class Junc(Section):
         "SurDepth",
         "Aponded",
     ]
+    _index_col = "Name"
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -429,9 +511,10 @@ class Junc(Section):
 class Outfall(Section):
     _ncol = 6
     _headings = ["Name", "Elevation", "Type", "StageData", "Gated", "RouteTo"]
+    _index_col = "Name"
 
     @classmethod
-    def _assigner(cls, line: list):
+    def _tabulate(cls, line: list):
         out = [""] * Outfall._ncol
 
         # pop first three entries in the line
@@ -472,30 +555,32 @@ class Storage(Section):
         "InitDepth",
         "Shape",
         "CurveName",
-        "A1",
-        "A2",
-        "A0",
-        "N/A",
+        "A1/L",
+        "A2/W",
+        "A0/Z",
+        "SurDepth",
         "Fevap",
         "Psi",
         "Ksat",
         "IMD",
     ]
+    _index_col = "Name"
 
     @classmethod
-    def _assigner(cls, line: list):
+    def _tabulate(cls, line: list):
         out = [""] * Storage._ncol
         out[: cls._headings.index("CurveName")] = line[:5]
         line = line[5:]
-
-        if out[cls._headings.index("Shape")].lower() == "functional":
+        shape = out[cls._headings.index("Shape")].lower()
+        if shape in ("functional", "cylindrical", "conical", "paraboloid", "pyramidal"):
             out[6 : 6 + len(line)] = line
             return out
-        elif out[cls._headings.index("Shape")].lower() == "tabular":
+        elif shape == "tabular":
             out[cls._headings.index("CurveName")] = line.pop(0)
-            out[cls._headings.index("N/A") : cls._headings.index("N/A") + len(line)] = (
-                line
-            )
+            out[
+                cls._headings.index("SurDepth") : cls._headings.index("SurDepth")
+                + len(line)
+            ] = line
             return out
         else:
             raise ValueError(f"Unexpected line in storage section ({line})")
@@ -529,9 +614,10 @@ class Divider(Section):
         "Ysur",
         "Apond",
     ]
+    _index_col = "Name"
 
     @classmethod
-    def _assigner(cls, line: list):
+    def _tabulate(cls, line: list):
         out = [""] * Outfall._ncol
 
         # pop first four entries in the line
@@ -585,6 +671,7 @@ class Conduit(Section):
         "InitFlow",
         "MaxFlow",
     ]
+    _index_col = "Name"
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -610,6 +697,7 @@ class Pump(Section):
         "Startup",
         "Shutoff",
     ]
+    _index_col = "Name"
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -636,6 +724,7 @@ class Orifice(Section):
         "Gated",
         "CloseTime",
     ]
+    _index_col = "Name"
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -667,6 +756,7 @@ class Weir(Section):
         "RoadSurf",
         "CoeffCurve",
     ]
+    _index_col = "Name"
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -694,9 +784,10 @@ class Outlet(Section):
         "Qexpon",
         "Gated",
     ]
+    _index_col = "Name"
 
     @classmethod
-    def _assigner(cls, line: list):
+    def _tabulate(cls, line: list):
         out = [""] * Outlet._ncol
         out[: cls._headings.index("CurveName")] = line[:5]
         line = line[5:]
@@ -706,7 +797,8 @@ class Outlet(Section):
             return out
         elif "tabular" in out[cls._headings.index("Type")].lower():
             out[cls._headings.index("CurveName")] = line[0]
-            out[cls._headings.index("Gated")] = line[1]
+            if len(line) > 1:
+                out[cls._headings.index("Gated")] = line[1]
             return out
         else:
             raise ValueError(f"Unexpected line in outlet section ({line})")
@@ -718,164 +810,6 @@ class Outlet(Section):
     @property
     def _constructor(self):
         return Outlet
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
-
-class Losses(Section):
-    _ncol = 6
-    _headings = ["Link", "Kentry", "Kexit", "Kavg", "FlapGate", "Seepage"]
-
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
-
-
-class Pollutants(Section):
-    _ncol = 11
-    _headings = [
-        "Name",
-        "Units",
-        "Crain",
-        "Cgw",
-        "Crdii",
-        "Kdecay",
-        "SnowOnly",
-        "CoPollutant",
-        "CoFrac",
-        "Cdwf",
-        "Cinit",
-    ]
-
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
-
-    @property
-    def _constructor(self):
-        return Pollutants
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
-
-class LandUse(Section):
-    _ncol = 4
-    _headings = ["Name", "SweepInterval", "Availability", "LastSweep"]
-
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
-
-    @property
-    def _constructor(self):
-        return LandUse
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
-
-class Buildup(Section):
-    _ncol = 4
-    _headings = ["Landuse", "Pollutant", "FuncType", "C1", "C2", "C3", "PerUnit"]
-
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
-
-    @property
-    def _constructor(self):
-        return Buildup
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
-
-class Washoff(Section):
-    _ncol = 4
-    _headings = ["Landuse", "Pollutant", "FuncType", "C1", "C2", "SweepRmvl", "BmpRmvl"]
-
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
-
-    @property
-    def _constructor(self):
-        return Washoff
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
-
-# TODO needs double quote handler for timeseries heading
-class Inflow(Section):
-    _ncol = 8
-    _headings = [
-        "Node",
-        "Constituent",
-        "TimeSeries",
-        "Type",
-        "Mfactor",
-        "Sfactor",
-        "Baseline",
-        "Pattern",
-    ]
-
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
-
-    @property
-    def _constructor(self):
-        return Inflow
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
-
-class DWF(Section):
-    _ncol = 7
-    _headings = [
-        "Node",
-        "Constituent",
-        "Baseline",
-        "Pat1",
-        "Pat2",
-        "Pat3",
-        "Pat4",
-    ]
-
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
-
-    @property
-    def _constructor(self):
-        return DWF
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
-
-class RDII(Section):
-    _ncol = 3
-    _headings = ["Node", "UHgroup", "SewerArea"]
-
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
-
-    @property
-    def _constructor(self):
-        return RDII
 
     @property
     def _constructor_sliced(self):
@@ -915,8 +849,8 @@ class Xsections(Section):
     _headings = [
         "Link",
         "Shape",
-        "Curve",
         "Geom1",
+        "Curve",
         "Geom2",
         "Geom3",
         "Geom4",
@@ -925,7 +859,7 @@ class Xsections(Section):
     ]
 
     @classmethod
-    def _assigner(cls, line: list):
+    def _tabulate(cls, line: list):
         out = [""] * Outlet._ncol
         out[:2] = line[:2]
         line = line[2:]
@@ -941,8 +875,9 @@ class Xsections(Section):
             out[cls._headings.index("Curve")] = line[0]
             return out
         elif out[1].upper() in cls._shapes:
+            out[cls._headings.index("Geom1")] = line.pop(0)
             out[
-                cls._headings.index("Geom1") : cls._headings.index("Geom1") + len(line)
+                cls._headings.index("Geom2") : cls._headings.index("Geom2") + len(line)
             ] = line
             return out
         else:
@@ -961,9 +896,327 @@ class Xsections(Section):
         return SectionSeries
 
 
+class Street(Section):
+    _ncol = 11
+    _headings = [
+        "Name",
+        "Tcrown",
+        "Hcurb",
+        "Sroad",
+        "nRoad",
+        "Hdep",
+        "Wdep",
+        "Sides",
+        "Wback",
+        "Sback",
+        "nBack",
+    ]
+    _index_col = "Name"
+    
+    @classmethod
+    def from_section_text(cls, text: str):
+        return super()._from_section_text(text, cls._ncol, cls._headings)
+
+    @property
+    def _constructor(self):
+        return Street
+
+    @property
+    def _constructor_sliced(self):
+        return SectionSeries
+
+class Inlet(Section):
+    _ncol = 7
+    _headings = [
+        "Name",
+        "Type",
+    ]
+    _index_col = "Name"
+    
+    @classmethod
+    def from_section_text(cls, text: str):
+        return super()._from_section_text(text, cls._ncol, cls._headings)
+
+    @property
+    def _constructor(self):
+        return Inlet
+
+    @property
+    def _constructor_sliced(self):
+        return SectionSeries
+
+class Inlet_Usage(Section):
+    _ncol = 7
+    _headings = [
+        "Conduit",
+        "Inlet",
+        "Node",
+        "Number",
+        "%Clogged",
+        "MaxFlow",
+        "hDStore",
+        "wDStore",
+        "Placement"
+    ]
+    _index_col = "Conduit"
+    
+    @classmethod
+    def from_section_text(cls, text: str):
+        return super()._from_section_text(text, cls._ncol, cls._headings)
+
+    @property
+    def _constructor(self):
+        return Inlet_Usage
+
+    @property
+    def _constructor_sliced(self):
+        return SectionSeries
+
+
+class Losses(Section):
+    _ncol = 6
+    _headings = ["Link", "Kentry", "Kexit", "Kavg", "FlapGate", "Seepage"]
+    _index_col = "Link"
+
+    @classmethod
+    def from_section_text(cls, text: str):
+        return super()._from_section_text(text, cls._ncol, cls._headings)
+
+
+class Pollutants(Section):
+    _ncol = 11
+    _headings = [
+        "Name",
+        "Units",
+        "Crain",
+        "Cgw",
+        "Crdii",
+        "Kdecay",
+        "SnowOnly",
+        "CoPollutant",
+        "CoFrac",
+        "Cdwf",
+        "Cinit",
+    ]
+    _index_col = "Name"
+
+    @classmethod
+    def from_section_text(cls, text: str):
+        return super()._from_section_text(text, cls._ncol, cls._headings)
+
+    @property
+    def _constructor(self):
+        return Pollutants
+
+    @property
+    def _constructor_sliced(self):
+        return SectionSeries
+
+
+class LandUse(Section):
+    _ncol = 4
+    _headings = ["Name", "SweepInterval", "Availability", "LastSweep"]
+    _index_col = "Name"
+
+    @classmethod
+    def from_section_text(cls, text: str):
+        return super()._from_section_text(text, cls._ncol, cls._headings)
+
+    @property
+    def _constructor(self):
+        return LandUse
+
+    @property
+    def _constructor_sliced(self):
+        return SectionSeries
+
+
+class Coverage(Section):
+    _ncol = 3
+    _headings = ["Subcatchment", "landuse", "Percent"]
+    _index_col = ("Subcatchment", "landuse")
+
+    @classmethod
+    def _tabulate(cls, line: list):
+        if len(line) > 3:
+            raise Exception(
+                "swmm.pandas doesn't yet support having multiple land "
+                "uses on a single coverage line. Separate your land use "
+                "coverages onto individual lines first"
+            )
+        return super()._tabulate(line)
+
+    @classmethod
+    def from_section_text(cls, text: str):
+        return super()._from_section_text(text, cls._ncol, cls._headings)
+
+    @property
+    def _constructor(self):
+        return Coverage
+
+    @property
+    def _constructor_sliced(self):
+        return SectionSeries
+
+
+class Loading(Section):
+    _ncol = 3
+    _headings = ["Subcatchment", "Pollutant", "InitBuildup"]
+    _index_col = ("Subcatchment", "Pollutant")
+
+    @classmethod
+    def _tabulate(cls, line: list):
+        if len(line) > 3:
+            raise Exception(
+                "swmm.pandas doesn't yet support having multiple pollutants "
+                "uses on a single loading line. Separate your pollutant "
+                "loadings onto individual lines first"
+            )
+        return super()._tabulate(line)
+
+    @classmethod
+    def from_section_text(cls, text: str):
+        return super()._from_section_text(text, cls._ncol, cls._headings)
+
+    @property
+    def _constructor(self):
+        return Loading
+
+    @property
+    def _constructor_sliced(self):
+        return SectionSeries
+
+
+class Buildup(Section):
+    _ncol = 4
+    _headings = ["Landuse", "Pollutant", "FuncType", "C1", "C2", "C3", "PerUnit"]
+    _index_col = ("Landuse", "Polutant")
+
+    @classmethod
+    def from_section_text(cls, text: str):
+        return super()._from_section_text(text, cls._ncol, cls._headings)
+
+    @property
+    def _constructor(self):
+        return Buildup
+
+    @property
+    def _constructor_sliced(self):
+        return SectionSeries
+
+
+class Washoff(Section):
+    _ncol = 4
+    _headings = ["Landuse", "Pollutant", "FuncType", "C1", "C2", "SweepRmvl", "BmpRmvl"]
+    _index_col = ("Landuse", "Polutant")
+
+    @classmethod
+    def from_section_text(cls, text: str):
+        return super()._from_section_text(text, cls._ncol, cls._headings)
+
+    @property
+    def _constructor(self):
+        return Washoff
+
+    @property
+    def _constructor_sliced(self):
+        return SectionSeries
+
+
+class Treatment(Section):
+    _ncol = 3
+    _headings = ["Node", "Pollutant", "Func"]
+    _index_col = ("Node", "Pollutant")
+
+    @classmethod
+    def from_section_text(cls, text: str):
+        return super()._from_section_text(text, cls._ncol, cls._headings)
+
+    @property
+    def _constructor(self):
+        return Treatment
+
+    @property
+    def _constructor_sliced(self):
+        return SectionSeries
+
+
+# TODO needs double quote handler for timeseries heading
+class Inflow(Section):
+    _ncol = 8
+    _headings = [
+        "Node",
+        "Constituent",
+        "TimeSeries",
+        "Type",
+        "Mfactor",
+        "Sfactor",
+        "Baseline",
+        "Pattern",
+    ]
+    _index_col = ("Node", "Constituent")
+
+    @classmethod
+    def from_section_text(cls, text: str):
+        return super()._from_section_text(text, cls._ncol, cls._headings)
+
+    @property
+    def _constructor(self):
+        return Inflow
+
+    @property
+    def _constructor_sliced(self):
+        return SectionSeries
+
+
+class DWF(Section):
+    _ncol = 7
+    _headings = [
+        "Node",
+        "Constituent",
+        "Baseline",
+        "Pat1",
+        "Pat2",
+        "Pat3",
+        "Pat4",
+    ]
+    _index_col = ("Node", "Constituent")
+
+    @classmethod
+    def from_section_text(cls, text: str):
+        return super()._from_section_text(text, cls._ncol, cls._headings)
+
+    @property
+    def _constructor(self):
+        return DWF
+
+    @property
+    def _constructor_sliced(self):
+        return SectionSeries
+
+
+class RDII(Section):
+    _ncol = 3
+    _headings = ["Node", "UHgroup", "SewerArea"]
+    _index_col = "Node"
+
+    @classmethod
+    def from_section_text(cls, text: str):
+        return super()._from_section_text(text, cls._ncol, cls._headings)
+
+    @property
+    def _constructor(self):
+        return RDII
+
+    @property
+    def _constructor_sliced(self):
+        return SectionSeries
+
+
 class Coordinates(Section):
     _ncol = 3
     _headings = ["Node", "X", "Y"]
+    _index_col = "Node"
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -981,6 +1234,7 @@ class Coordinates(Section):
 class Verticies(Section):
     _ncol = 3
     _headings = ["Link", "X", "Y"]
+    _index_col = "Link"
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -998,6 +1252,7 @@ class Verticies(Section):
 class Polygons(Section):
     _ncol = 3
     _headings = ["Subcatch", "X", "Y"]
+    _index_col = "Subcatch"
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -1007,6 +1262,7 @@ class Polygons(Section):
 class Symbols(Section):
     _ncol = 3
     _headings = ["Gage", "X", "Y"]
+    _index_col = "Gage"
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -1050,6 +1306,7 @@ class Labels(Section):
 class Tags(Section):
     _ncol = 3
     _headings = ["Element", "Name", "Tag"]
+    _index_col = "Element"
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -1067,6 +1324,7 @@ class Tags(Section):
 class LID_Control(Section):
     _ncol = 9
     _headings = ["Name", "Type"]
+    _index_col = "Name"
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -1082,7 +1340,7 @@ class LID_Control(Section):
 
 
 class LID_Usage(Section):
-    _ncol = (11,)
+    _ncol = 11
     _headings = (
         [
             "Subcatchment",
@@ -1098,6 +1356,7 @@ class LID_Usage(Section):
             "FromPerv",
         ],
     )
+    _index_col = ("Subcatchment", "LIDProcess")
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -1113,7 +1372,7 @@ class LID_Usage(Section):
 
 
 class Adjustments(Section):
-    _ncol = ("13",)
+    _ncol = 13
     _headings = [
         "Parameter",
         "Jan",
@@ -1129,6 +1388,7 @@ class Adjustments(Section):
         "Nov",
         "Dec",
     ]
+    _index_col = "Parameter"
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -1162,7 +1422,7 @@ class Backdrop:
             line, comment = _strip_comment(row)
             line_comment += comment
 
-            split_data = [_coerce_float(val) for val in row.split()]
+            split_data = [_coerce_numeric(val) for val in row.split()]
 
             if split_data[0].upper() == "DIMENSIONS":
                 self.dimensions = split_data[1:]
@@ -1196,7 +1456,7 @@ class Map:
             line, comment = _strip_comment(row)
             line_comment += comment
 
-            split_data = [_coerce_float(val) for val in row.split()]
+            split_data = [_coerce_numeric(val) for val in row.split()]
 
             if split_data[0].upper() == "DIMENSIONS":
                 self.dimensions = split_data[1:]

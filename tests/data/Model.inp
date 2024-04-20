@@ -1,5 +1,6 @@
 [TITLE]
 ;;Project Title/Notes
+This is the title entry
 
 [OPTIONS]
 ;;Option             Value
@@ -23,7 +24,7 @@ DRY_DAYS             0.000000
 REPORT_STEP          00:05:00
 WET_STEP             00:05:00
 DRY_STEP             01:00:00
-ROUTING_STEP         0:00:15 
+ROUTING_STEP         15
 RULE_STEP            00:00:00
 
 INERTIAL_DAMPING     NONE
@@ -46,16 +47,15 @@ CONSTANT         0.0
 DRY_ONLY         NO
 
 [TEMPERATURE]
-;;Data Element     Values     
-TIMESERIES         Temp
-WINDSPEED MONTHLY  8.900000 11.400000 9.900000 9.800000 8.700000 8.000000 7.300000 7.000000 7.300000 7.800000 8.400000 8.700000
-SNOWMELT           34.000000 0.500000 0.600000 20.000000 41.599998 -4.000000
-ADC IMPERVIOUS     1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0
-ADC PERVIOUS       1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0
+TIMESERIES   Temp
+WINDSPEED    MONTHLY    8.900000 11.400000 9.900000 9.800000 8.700000 8.000000 7.300000 7.000000 7.300000 7.800000 8.400000 8.700000
+SNOWMELT               34.000000 0.500000 0.600000 20.000000 41.599998 -4.000000
+ADC          IMPERVIOUS 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0
+ADC          PERVIOUS   1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0
 
 [RAINGAGES]
 ;;Name           Format    Interval SCF      Source    
-;;-------------- --------- ------ ------ ----------
+;;-------------- --------- -------- -------- ----------
 SCS_Type_III_3in VOLUME    0:15     1.0      TIMESERIES SCS_Type_III_3in
 
 [SUBCATCHMENTS]
@@ -73,11 +73,11 @@ SUB2             0.05       0.2        0.05       0.1        25         PERVIOUS
 SUB3             0.05       0.2        0.05       0.1        25         PERVIOUS   50        
 
 [INFILTRATION]
-;;Subcatchment   Param1     Param2     Param3     Param4     Param5    
-;;-------------- ---------- ---------- ---------- ---------- ----------
-SUB1             4.3        0.86       0.23       0          0         
-SUB2             4.3        0.86       0.23       0          0         
-SUB3             4.3        0.86       0.23       0          0         
+;;Subcatchment   Suction    Ksat       IMD       
+;;-------------- ---------- ---------- ----------
+SUB1             4.3        0.86       0.23      
+SUB2             4.3        0.86       0.23      
+SUB3             4.3        0.86       0.23      
 
 [AQUIFERS]
 ;;Name           Por    WP     FC     Ksat   Kslope Tslope ETu    ETs    Seep   Ebot   Egw    Umc    ETupat 
@@ -115,12 +115,13 @@ JUNC6            0          9          0          200        0
 ;;-------------- ---------- ---------- ---------------- -------- ----------------
 OUT1             0.1        FREE                        NO                       
 OUT2             -1.04      FREE                        NO                       
+OUT3             0          TIMESERIES head_series      YES      SUB1            
 
 [STORAGE]
-;;Name           Elev.    MaxDepth   InitDepth  Shape      Curve Name/Params            N/A      Fevap    Psi      Ksat     IMD     
-;;-------------- -------- ---------- ----------- ---------- ---------------------------- -------- --------          -------- --------
-STOR1            -15.25   21.75      0          FUNCTIONAL 413       1         2        0        3       
-JUNC5            -6.5     13.2       0          TABULAR    Store1                       0        2        2        2        0.5     
+;;Name           Elev.    MaxDepth   InitDepth  Shape       Curve Name/Params            SurDepth Fevap    Psi      Ksat     IMD     
+;;-------------- -------- ---------- ---------- ----------- ---------------------------- -------- -------- -------- -------- --------
+JUNC5            -6.5     13.2       0          TABULAR     Store1                       0        2        2        2        0.5     
+STOR1            -15.25   21.75      0          FUNCTIONAL  413       1         2        10       3       
 
 [CONDUITS]
 ;;Name           From Node        To Node          Length     Roughness  InOffset   OutOffset  InitFlow   MaxFlow   
@@ -133,8 +134,8 @@ COND5            JUNC5            STOR1            64.72      0.019      0      
 COND6            JUNC6            OUT1             37.72      0.015      0          0          0          0         
 
 [PUMPS]
-;;Name           From Node        To Node          Pump Curve       Status   Sartup Shutoff 
-;;-------------- ---------------- ---------------- ---------------- ------ -------- --------
+;;Name           From Node        To Node          Pump Curve       Status   Startup  Shutoff 
+;;-------------- ---------------- ---------------- ---------------- -------- -------- --------
 PUMP1            STOR1            JUNC6            P1               ON       1.3      0.3     
 
 [WEIRS]
@@ -146,12 +147,16 @@ WR1              JUNC2            OUT2             TRANSVERSE   3          3.33 
 ;;Link           Shape        Geom1            Geom2      Geom3      Geom4      Barrels    Culvert   
 ;;-------------- ------------ ---------------- ---------- ---------- ---------- ---------- ----------
 COND1            CIRCULAR     1                0          0          0          1          0         
-COND2            FILLED_CIRCULAR 1.25             0.5        0          0          1          0         
-COND3            FILLED_CIRCULAR 1.5              0.5        0          0          1          0         
-COND4            FILLED_CIRCULAR 2                0.5        0          0          1          0         
-COND5            FILLED_CIRCULAR 2                1          0          0          1          0         
+COND2            FILLED_CIRCULAR 1.25          0.5        0          0          1          0         
+COND3            FILLED_CIRCULAR 1.5           0.5        0          0          1          0         
+COND4            FILLED_CIRCULAR 2             0.5        0          0          1          0         
+COND5            FILLED_CIRCULAR 2             1          0          0          1          0         
 COND6            FORCE_MAIN   1                130        0          0          1          0         
 WR1              RECT_OPEN    3.2              3          0          0         
+
+[LOSSES]
+;;Link           Kentry     Kexit      Kavg       Flap Gate  Seepage   
+;;-------------- ---------- ---------- ---------- ---------- ----------
 
 [POLLUTANTS]
 ;;Name           Units  Crain      Cgw        Crdii      Kdecay     SnowOnly   Co-Pollutant     Co-Frac    Cdwf       Cinit     
@@ -167,15 +172,15 @@ Sewage           MG/L   0          0          0          0          NO         *
 [DWF]
 ;;Node           Constituent      Baseline   Patterns  
 ;;-------------- ---------------- ---------- ----------
-JUNC2            FLOW             0.2        "HOURLY"
-JUNC4            FLOW             0.7        "HOURLY"
+JUNC2            FLOW             0.2        "HOURLY" "" "" ""
+JUNC4            FLOW             0.7        "HOURLY" "" "" ""
 
 [CURVES]
 ;;Name           Type       X-Value    Y-Value   
 ;;-------------- ---------- ---------- ----------
 P1               Pump4      0          0         
 P1                          7          5.8       
-;
+
 Store1           Storage    1          20        
 Store1                      2          30        
 Store1                      3          40        
@@ -424,7 +429,7 @@ SCS_Type_III_1in            23:36      0.00089
 SCS_Type_III_1in            23:42      0.00088   
 SCS_Type_III_1in            23:48      0.00086   
 SCS_Type_III_1in            23:54      0.00086   
-;
+
 ;SCS_Type_III_3in design storm, total rainfall = 3 in, rain units = in.
 SCS_Type_III_3in            0:00       0.0075    
 SCS_Type_III_3in            0:15       0.0075    
@@ -522,7 +527,7 @@ SCS_Type_III_3in            23:00      0.00806
 SCS_Type_III_3in            23:15      0.00806   
 SCS_Type_III_3in            23:30      0.00806   
 SCS_Type_III_3in            23:45      0.00806   
-;
+
 Temp             1/1/1900   0:00       70        
 Temp             1/1/2000   0:00       70        
 
@@ -536,6 +541,7 @@ HOURLY                      1.100000 1.140000 1.120000 1.060000 1.020000 0.80000
 
 [REPORT]
 ;;Reporting Options
+INPUT      YES
 CONTROLS   YES
 AVERAGES   YES
 SUBCATCHMENTS ALL
@@ -545,8 +551,8 @@ LINKS ALL
 [TAGS]
 
 [MAP]
-DIMENSIONS 67.664 256.918 89.664 278.918
-Units      Feet
+DIMENSIONS       -3.9362          -13.4097         82.6602          281.6037        
+UNITS            Feet
 
 [COORDINATES]
 ;;Node           X-Coord            Y-Coord           
@@ -554,18 +560,19 @@ Units      Feet
 JUNC1            78.624             268.191           
 JUNC2            78.649             268.101           
 JUNC3            78.668             268.044           
-JUNC4            78.675             267.990           
+JUNC4            78.675             267.99            
 JUNC6            78.659             267.919           
 OUT1             78.655             267.918           
 OUT2             78.658             268.103           
-STOR1            78.664             267.918           
+OUT3             0                  0                 
 JUNC5            78.671             267.917           
+STOR1            78.664             267.918           
 
 [VERTICES]
 ;;Link           X-Coord            Y-Coord           
 ;;-------------- ------------------ ------------------
 
-[Polygons]
+[POLYGONS]
 ;;Subcatchment   X-Coord            Y-Coord           
 ;;-------------- ------------------ ------------------
 SUB1             78.595             268.182           
@@ -578,56 +585,56 @@ SUB1             78.599             268.174
 SUB1             78.595             268.182           
 SUB2             78.603             268.153           
 SUB2             78.642             268.158           
-SUB2             78.643             268.150           
+SUB2             78.643             268.15            
 SUB2             78.642             268.141           
 SUB2             78.642             268.131           
 SUB2             78.646             268.121           
 SUB2             78.655             268.108           
-SUB2             78.664             268.100           
+SUB2             78.664             268.1             
 SUB2             78.672             268.098           
 SUB2             78.681             268.094           
 SUB2             78.686             268.089           
 SUB2             78.689             268.084           
 SUB2             78.691             268.076           
 SUB2             78.696             268.068           
-SUB2             78.694             268.060           
-SUB2             78.697             268.050           
+SUB2             78.694             268.06            
+SUB2             78.697             268.05            
 SUB2             78.692             268.046           
 SUB2             78.688             268.046           
 SUB2             78.687             268.051           
-SUB2             78.681             268.050           
+SUB2             78.681             268.05            
 SUB2             78.671             268.046           
 SUB2             78.636             268.035           
 SUB2             78.609             268.034           
 SUB2             78.607             268.144           
 SUB2             78.603             268.153           
 SUB3             78.611             267.879           
-SUB3             78.610             267.929           
-SUB3             78.610             267.944           
+SUB3             78.61              267.929           
+SUB3             78.61              267.944           
 SUB3             78.609             268.003           
 SUB3             78.609             268.034           
 SUB3             78.636             268.035           
-SUB3             78.653             268.040           
+SUB3             78.653             268.04            
 SUB3             78.671             268.046           
-SUB3             78.681             268.050           
+SUB3             78.681             268.05            
 SUB3             78.686             268.044           
 SUB3             78.692             268.042           
-SUB3             78.694             268.040           
+SUB3             78.694             268.04            
 SUB3             78.697             268.029           
 SUB3             78.695             268.021           
 SUB3             78.692             268.011           
-SUB3             78.693             268.000           
+SUB3             78.693             268               
 SUB3             78.694             267.992           
 SUB3             78.703             267.983           
 SUB3             78.709             267.975           
-SUB3             78.710             267.968           
+SUB3             78.71              267.968           
 SUB3             78.707             267.954           
 SUB3             78.711             267.939           
 SUB3             78.714             267.926           
 SUB3             78.708             267.916           
 SUB3             78.711             267.912           
 SUB3             78.712             267.895           
-SUB3             78.720             267.895           
+SUB3             78.72              267.895           
 SUB3             78.724             267.893           
 SUB3             78.724             267.878           
 SUB3             78.611             267.879           
@@ -635,4 +642,3 @@ SUB3             78.611             267.879
 [SYMBOLS]
 ;;Gage           X-Coord            Y-Coord           
 ;;-------------- ------------------ ------------------
-
