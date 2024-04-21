@@ -1,9 +1,9 @@
 ## progress
-- [ ] TITLE
+- [x] TITLE
 - [x] OPTIONS
-- [ ] REPORT
-- [ ] EVENT
-- [ ] FILES
+- [x] REPORT
+- [x] EVENT
+- [x] FILES (TODO: built better interface than text interface)
 - [x] RAINGAGES
 - [x] EVAPORATION (TODO: better column names)
 - [x] TEMPERATURE

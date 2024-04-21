@@ -1,9 +1,11 @@
 from __future__ import annotations
-from tkinter import N
-
+from abc import ABC, abstractmethod
+from multiprocessing import Value
 import pandas as pd
-from typing import List, Self
+from typing import List, Self, Iterable, Optional
 import logging
+from dataclasses import dataclass
+import warnings
 
 _logger = logging.getLogger(__name__)
 
@@ -64,10 +66,51 @@ class SectionSeries(pd.Series):
 
     @property
     def _constructor_expanddim(self):
-        return Section
+        return SectionDf
 
 
-class Section(pd.DataFrame):
+class SectionBase(ABC):
+    @classmethod
+    @abstractmethod
+    def from_section_text(cls, text: str, *args, **kwargs) -> Self: ...
+
+    @classmethod
+    @abstractmethod
+    def _from_section_text(cls, text: str, *args, **kwargs) -> Self: ...
+    @classmethod
+    @abstractmethod
+    def _new_empty(cls) -> Self: ...
+
+    @classmethod
+    def _newobj(cls, *args, **kwargs) -> Self: ...
+
+    @abstractmethod
+    def to_swmm_string(self) -> str: ...
+
+
+class SectionText(SectionBase, str):
+    @classmethod
+    def from_section_text(cls, text: str):
+        """Construct an instance of the class from the section inp text"""
+        return cls._from_section_text(text)
+
+    @classmethod
+    def _from_section_text(cls, text: str):
+        return cls(text)
+
+    @classmethod
+    def _new_empty(cls) -> Self:
+        return cls("")
+
+    @classmethod
+    def _newobj(cls, *args, **kwargs) -> Self:
+        return cls(*args, **kwargs)
+
+    def to_swmm_string(self) -> str:
+        return ";;Project Title/Notes\n" + self
+
+
+class SectionDf(SectionBase, pd.DataFrame):
     _metadata = ["_ncol", "_headings", "headings"]
     _ncol = 0
     _headings = []
@@ -182,7 +225,7 @@ class Section(pd.DataFrame):
     def _constructor(self):
         # required override for pandas
         # https://pandas.pydata.org/docs/development/extending.html#override-constructor-properties
-        return Section
+        return SectionDf
 
     @property
     def _constructor_sliced(self):
@@ -245,7 +288,10 @@ class Section(pd.DataFrame):
         return header + header_divider + outstr
 
 
-class Option(Section):
+class Title(SectionText): ...
+
+
+class Option(SectionDf):
     _ncol = 2
     _headings = ["Option", "Value"]
     _index_col = "Option"
@@ -263,10 +309,163 @@ class Option(Section):
         return SectionSeries
 
 
-class Evap(Section):
-    _ncol = 13
-    _headings = ["Type"]
-    _index_col = "Type"
+class Report(SectionBase):
+    @dataclass
+    class LIDReportEntry:
+        Name: str
+        Subcatch: str
+        Fname: str
+
+    class LIDReport(list):
+        def __init__(self, entries: Iterable[Report.LIDReportEntry]):
+            for i in entries:
+                if not isinstance(i, Report.LIDReportEntry):
+                    raise ValueError(
+                        f"LIDReport is instantiated with a sequence of LIDReportEntries, got {type(i)}"
+                    )
+            super().__init__(entries)
+
+        def add(self, lid_name: str, subcatch: str, Fname: str) -> None:
+            self.append(
+                Report.LIDReportEntry(
+                    Name=lid_name,
+                    Subcatch=subcatch,
+                    Fname=Fname,
+                )
+            )
+
+        def remove(self, lid_name: str) -> None:
+            for i, v in enumerate(self):
+                if v.Name == lid_name:
+                    break
+            self.pop(i)
+
+        def __repr__(self):
+            return f"LIDReportList({super().__repr__()})"
+
+    def __init__(
+        self,
+        disabled: Optional[str] = None,
+        input: Optional[str] = None,
+        continuity: Optional[str] = None,
+        flowstats: Optional[str] = None,
+        controls: Optional[str] = None,
+        averages: Optional[str] = None,
+        subcatchments: list[str] = [],
+        nodes: list[str] = [],
+        links: list[str] = [],
+        lids: list[dict] = [],
+    ):
+        self.DISABLED = disabled
+        self.INPUT = input
+        self.CONTINUITY = continuity
+        self.FLOWSTATS = flowstats
+        self.CONTROLS = controls
+        self.AVERAGES = averages
+        self.SUBCATCHMENTS = subcatchments
+        self.NODES = nodes
+        self.LINKS = links
+        self.LIDS = self.LIDReport([])
+
+        for lid in lids:
+            self.LIDS.add(lid["name"], lid["subcatch"], lid["fname"])
+
+    @classmethod
+    def from_section_text(cls, text: str, *args, **kwargs) -> Self:
+        rows = text.split("\n")
+
+        obj = cls()
+
+        for row in rows:
+            # check if row contains data
+            if not _is_data(row):
+                continue
+
+            if ";" in row:
+                warnings.warn(
+                    "swmm.pandas does not currently support comments in the [REPORT] section. Truncating..."
+                )
+                if _is_line_comment(row):
+                    continue
+
+            tokens = row.split()
+            report_type = tokens[0].upper()
+            if not hasattr(obj, report_type):
+                warnings.warn(
+                    f"{report_type} is not a supported report type, skipping..."
+                )
+                continue
+            elif report_type in ("SUBCATCHMENTS", "NODES", "LINKS"):
+                setattr(
+                    obj,
+                    report_type,
+                    getattr(obj, report_type) + tokens[1:],
+                )
+            elif report_type == "LID":
+                obj.LIDS.add(
+                    lid_name=tokens[1],
+                    subcatch=tokens[2],
+                    Fname=tokens[3],
+                )
+            else:
+                setattr(obj, report_type, tokens[1])
+
+        return obj
+
+    @classmethod
+    def _from_section_text(cls, text: str, *args, **kwargs) -> Self:
+        raise NotImplementedError
+
+    @classmethod
+    def _new_empty(cls) -> Self:
+        return cls()
+
+    @classmethod
+    def _newobj(cls, *args, **kwargs) -> Self:
+        return cls(*args, **kwargs)
+
+    def to_swmm_string(self) -> str:        
+        return ";;Reporting Options\n" + self.__repr__()
+    
+    def __repr__(self) -> str:
+        out_str=""
+        for switch in ("DISABLED", "INPUT", "CONTINUITY", "FLOWSTATS", "CONTROLS"):
+            if (value := getattr(self, switch)) is not None:
+                out_str += f"{switch} {value}\n"
+
+        for seq in ("SUBCATCHMENTS", "NODES", "LINKS"):
+            if len(items := getattr(self, seq)) > 0:
+                i = 0
+                while i < len(items):
+                    out_str += f"{seq} {' '.join(items[i:i+5])}\n"
+                    i += 5
+        if len(self.LIDS) > 0:
+            for lid in self.LIDS:
+                out_str += f"LID {lid.Name} {lid.Subcatch} {lid.Fname}\n"
+
+        return out_str
+
+class Files(SectionText): ...
+class Event(SectionDf):
+    _ncol = 2
+    _headings = ["Start", "End"]
+
+    @classmethod
+    def _tabulate(cls, line: list):
+        out = [""] * Event._ncol
+        if len(line) != 4:
+            raise ValueError(f"Event lines must have 4 values but found {len(line)}")
+
+        start_time = " ".join(line[:2])
+        end_time = " ".join(line[2:])
+
+        try:
+            out[0] = pd.to_datetime(start_time)
+            out[1] = pd.to_datetime(end_time)
+            return out
+        except Exception as e:
+            print(f"Error parsing event dates: {start_time}  or   {end_time}")
+            raise e
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -274,32 +473,20 @@ class Evap(Section):
 
     @property
     def _constructor(self):
-        return Evap
+        return Event
 
     @property
     def _constructor_sliced(self):
         return SectionSeries
 
-
-class Temperature(Section):
-    _ncol = 14
-    _headings = ["Option"]
-    _index_col = "Option"
-
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
-
-    @property
-    def _constructor(self):
-        return Temperature
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
+    def to_swmm_string(self):
+        df = self.copy()
+        df["Start"] = df["Start"].dt.strftime("%m/%d/%Y %H:%M")
+        df["End"] = df["End"].dt.strftime("%m/%d/%Y %H:%M")
+        return super(Event, df).to_swmm_string()
 
 
-class Raingage(Section):
+class Raingage(SectionDf):
     _ncol = 8
     _headings = [
         "Name",
@@ -326,7 +513,43 @@ class Raingage(Section):
         return SectionSeries
 
 
-class Subcatchment(Section):
+class Evap(SectionDf):
+    _ncol = 13
+    _headings = ["Type"]
+    _index_col = "Type"
+
+    @classmethod
+    def from_section_text(cls, text: str):
+        return super()._from_section_text(text, cls._ncol, cls._headings)
+
+    @property
+    def _constructor(self):
+        return Evap
+
+    @property
+    def _constructor_sliced(self):
+        return SectionSeries
+
+
+class Temperature(SectionDf):
+    _ncol = 14
+    _headings = ["Option"]
+    _index_col = "Option"
+
+    @classmethod
+    def from_section_text(cls, text: str):
+        return super()._from_section_text(text, cls._ncol, cls._headings)
+
+    @property
+    def _constructor(self):
+        return Temperature
+
+    @property
+    def _constructor_sliced(self):
+        return SectionSeries
+
+
+class Subcatchment(SectionDf):
     _ncol = 9
     _headings = [
         "Name",
@@ -354,7 +577,7 @@ class Subcatchment(Section):
         return SectionSeries
 
 
-class Subarea(Section):
+class Subarea(SectionDf):
     _ncol = 8
     _headings = [
         "Subcatchment",
@@ -381,7 +604,7 @@ class Subarea(Section):
         return SectionSeries
 
 
-class Infil(Section):
+class Infil(SectionDf):
     _ncol = 6
     _headings = ["Subcatchment"]
     _index_col = "Subcatchment"
@@ -399,7 +622,7 @@ class Infil(Section):
         return SectionSeries
 
 
-class Aquifer(Section):
+class Aquifer(SectionDf):
     _ncol = 14
     _headings = [
         "Name",
@@ -432,7 +655,7 @@ class Aquifer(Section):
         return SectionSeries
 
 
-class Groundwater(Section):
+class Groundwater(SectionDf):
     _ncol = 14
     _headings = [
         "Subcatchment",
@@ -465,7 +688,7 @@ class Groundwater(Section):
         return SectionSeries
 
 
-class Snowpack(Section):
+class Snowpack(SectionDf):
     _ncol = 9
     _headings = ["Name", "Surface"]
     _index_col = "Name"
@@ -483,7 +706,7 @@ class Snowpack(Section):
         return SectionSeries
 
 
-class Junc(Section):
+class Junc(SectionDf):
     _ncol = 6
     _headings = [
         "Name",
@@ -508,7 +731,7 @@ class Junc(Section):
         return SectionSeries
 
 
-class Outfall(Section):
+class Outfall(SectionDf):
     _ncol = 6
     _headings = ["Name", "Elevation", "Type", "StageData", "Gated", "RouteTo"]
     _index_col = "Name"
@@ -546,7 +769,7 @@ class Outfall(Section):
         return SectionSeries
 
 
-class Storage(Section):
+class Storage(SectionDf):
     _ncol = 14
     _headings = [
         "Name",
@@ -598,7 +821,7 @@ class Storage(Section):
         return SectionSeries
 
 
-class Divider(Section):
+class Divider(SectionDf):
     _ncol = 11
     _headings = [
         "Name",
@@ -658,7 +881,7 @@ class Divider(Section):
         return SectionSeries
 
 
-class Conduit(Section):
+class Conduit(SectionDf):
     _ncol = 9
     _headings = [
         "Name",
@@ -686,7 +909,7 @@ class Conduit(Section):
         return SectionSeries
 
 
-class Pump(Section):
+class Pump(SectionDf):
     _ncol = 7
     _headings = [
         "Name",
@@ -712,7 +935,7 @@ class Pump(Section):
         return SectionSeries
 
 
-class Orifice(Section):
+class Orifice(SectionDf):
     _ncol = 8
     _headings = [
         "Name",
@@ -739,7 +962,7 @@ class Orifice(Section):
         return SectionSeries
 
 
-class Weir(Section):
+class Weir(SectionDf):
     _ncol = 13
     _headings = [
         "Name",
@@ -771,7 +994,7 @@ class Weir(Section):
         return SectionSeries
 
 
-class Outlet(Section):
+class Outlet(SectionDf):
     _ncol = 9
     _headings = [
         "Name",
@@ -816,7 +1039,7 @@ class Outlet(Section):
         return SectionSeries
 
 
-class Xsections(Section):
+class Xsections(SectionDf):
     _shapes = (
         "CIRCULAR",
         "FORCE_MAIN",
@@ -896,7 +1119,7 @@ class Xsections(Section):
         return SectionSeries
 
 
-class Street(Section):
+class Street(SectionDf):
     _ncol = 11
     _headings = [
         "Name",
@@ -912,7 +1135,7 @@ class Street(Section):
         "nBack",
     ]
     _index_col = "Name"
-    
+
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
@@ -925,14 +1148,15 @@ class Street(Section):
     def _constructor_sliced(self):
         return SectionSeries
 
-class Inlet(Section):
+
+class Inlet(SectionDf):
     _ncol = 7
     _headings = [
         "Name",
         "Type",
     ]
     _index_col = "Name"
-    
+
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
@@ -945,7 +1169,8 @@ class Inlet(Section):
     def _constructor_sliced(self):
         return SectionSeries
 
-class Inlet_Usage(Section):
+
+class Inlet_Usage(SectionDf):
     _ncol = 7
     _headings = [
         "Conduit",
@@ -956,10 +1181,10 @@ class Inlet_Usage(Section):
         "MaxFlow",
         "hDStore",
         "wDStore",
-        "Placement"
+        "Placement",
     ]
     _index_col = "Conduit"
-    
+
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
@@ -973,7 +1198,7 @@ class Inlet_Usage(Section):
         return SectionSeries
 
 
-class Losses(Section):
+class Losses(SectionDf):
     _ncol = 6
     _headings = ["Link", "Kentry", "Kexit", "Kavg", "FlapGate", "Seepage"]
     _index_col = "Link"
@@ -983,7 +1208,7 @@ class Losses(Section):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
 
-class Pollutants(Section):
+class Pollutants(SectionDf):
     _ncol = 11
     _headings = [
         "Name",
@@ -1013,7 +1238,7 @@ class Pollutants(Section):
         return SectionSeries
 
 
-class LandUse(Section):
+class LandUse(SectionDf):
     _ncol = 4
     _headings = ["Name", "SweepInterval", "Availability", "LastSweep"]
     _index_col = "Name"
@@ -1031,7 +1256,7 @@ class LandUse(Section):
         return SectionSeries
 
 
-class Coverage(Section):
+class Coverage(SectionDf):
     _ncol = 3
     _headings = ["Subcatchment", "landuse", "Percent"]
     _index_col = ("Subcatchment", "landuse")
@@ -1059,7 +1284,7 @@ class Coverage(Section):
         return SectionSeries
 
 
-class Loading(Section):
+class Loading(SectionDf):
     _ncol = 3
     _headings = ["Subcatchment", "Pollutant", "InitBuildup"]
     _index_col = ("Subcatchment", "Pollutant")
@@ -1087,7 +1312,7 @@ class Loading(Section):
         return SectionSeries
 
 
-class Buildup(Section):
+class Buildup(SectionDf):
     _ncol = 4
     _headings = ["Landuse", "Pollutant", "FuncType", "C1", "C2", "C3", "PerUnit"]
     _index_col = ("Landuse", "Polutant")
@@ -1105,7 +1330,7 @@ class Buildup(Section):
         return SectionSeries
 
 
-class Washoff(Section):
+class Washoff(SectionDf):
     _ncol = 4
     _headings = ["Landuse", "Pollutant", "FuncType", "C1", "C2", "SweepRmvl", "BmpRmvl"]
     _index_col = ("Landuse", "Polutant")
@@ -1123,7 +1348,7 @@ class Washoff(Section):
         return SectionSeries
 
 
-class Treatment(Section):
+class Treatment(SectionDf):
     _ncol = 3
     _headings = ["Node", "Pollutant", "Func"]
     _index_col = ("Node", "Pollutant")
@@ -1142,7 +1367,7 @@ class Treatment(Section):
 
 
 # TODO needs double quote handler for timeseries heading
-class Inflow(Section):
+class Inflow(SectionDf):
     _ncol = 8
     _headings = [
         "Node",
@@ -1169,7 +1394,7 @@ class Inflow(Section):
         return SectionSeries
 
 
-class DWF(Section):
+class DWF(SectionDf):
     _ncol = 7
     _headings = [
         "Node",
@@ -1195,7 +1420,7 @@ class DWF(Section):
         return SectionSeries
 
 
-class RDII(Section):
+class RDII(SectionDf):
     _ncol = 3
     _headings = ["Node", "UHgroup", "SewerArea"]
     _index_col = "Node"
@@ -1213,7 +1438,7 @@ class RDII(Section):
         return SectionSeries
 
 
-class Coordinates(Section):
+class Coordinates(SectionDf):
     _ncol = 3
     _headings = ["Node", "X", "Y"]
     _index_col = "Node"
@@ -1231,7 +1456,7 @@ class Coordinates(Section):
         return SectionSeries
 
 
-class Verticies(Section):
+class Verticies(SectionDf):
     _ncol = 3
     _headings = ["Link", "X", "Y"]
     _index_col = "Link"
@@ -1249,7 +1474,7 @@ class Verticies(Section):
         return SectionSeries
 
 
-class Polygons(Section):
+class Polygons(SectionDf):
     _ncol = 3
     _headings = ["Subcatch", "X", "Y"]
     _index_col = "Subcatch"
@@ -1259,7 +1484,7 @@ class Polygons(Section):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
 
-class Symbols(Section):
+class Symbols(SectionDf):
     _ncol = 3
     _headings = ["Gage", "X", "Y"]
     _index_col = "Gage"
@@ -1277,7 +1502,7 @@ class Symbols(Section):
         return SectionSeries
 
 
-class Labels(Section):
+class Labels(SectionDf):
     _ncol = 8
     _headings = [
         "Xcoord",
@@ -1303,7 +1528,7 @@ class Labels(Section):
         return SectionSeries
 
 
-class Tags(Section):
+class Tags(SectionDf):
     _ncol = 3
     _headings = ["Element", "Name", "Tag"]
     _index_col = "Element"
@@ -1321,7 +1546,7 @@ class Tags(Section):
         return SectionSeries
 
 
-class LID_Control(Section):
+class LID_Control(SectionDf):
     _ncol = 9
     _headings = ["Name", "Type"]
     _index_col = "Name"
@@ -1339,7 +1564,7 @@ class LID_Control(Section):
         return SectionSeries
 
 
-class LID_Usage(Section):
+class LID_Usage(SectionDf):
     _ncol = 11
     _headings = (
         [
@@ -1371,7 +1596,7 @@ class LID_Usage(Section):
         return SectionSeries
 
 
-class Adjustments(Section):
+class Adjustments(SectionDf):
     _ncol = 13
     _headings = [
         "Parameter",

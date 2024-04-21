@@ -3,14 +3,14 @@ from swmm.pandas.input._section_classes import *
 
 _sections = {
     # TODO build parser for this table
-    "TITLE": Section,
+    "TITLE": Title,
     "OPTION": Option,
     # TODO build parser for this table
-    "REPORT": Section,  # _section_props(ncols=2, col_names=["Option", "Value"]),
-    "EVENT": Section,
+    "REPORT": Report,
+    "EVENT": Event,
     # TODO build parser for this table
     # _section_props(ncols=3, col_names=["Action", "File Type", "File Path"]),
-    "FILE": Section,
+    "FILE": Files,
     "RAINGAGE": Raingage,
     "EVAP": Evap,
     "TEMPERATURE": Temperature,
@@ -22,7 +22,7 @@ _sections = {
     "LID_USAGE": LID_Usage,
     "AQUIFER": Aquifer,
     "GROUNDWATER": Groundwater,
-    "GWF": Section,  # _section_props(ncols=3, col_names=["Subcatchment", "Type", "Expr"]),
+    "GWF": SectionDf,  # _section_props(ncols=3, col_names=["Subcatchment", "Type", "Expr"]),
     "SNOWPACK": Snowpack,
     "JUNC": Junc,
     "OUTFALL": Outfall,
@@ -35,33 +35,33 @@ _sections = {
     "OUTLET": Outlet,
     "XSECT": Xsections,
     # TODO build parser for this table
-    "TRANSECT": Section,
+    "TRANSECT": SectionDf,
     "STREETS": Street,
     "INLETS": Inlet,
     "INLET_USAGE": Inlet_Usage,
     "LOSS": Losses,
     # TODO build parser for this table
-    "CONTROL": Section,
+    "CONTROL": SectionDf,
     "POLLUT": Pollutants,
     "LANDUSE": LandUse,
     "COVERAGE": Coverage,
     # TODO build parser for this table
-    "LOADING": Section,
+    "LOADING": SectionDf,
     "BUILDUP": Buildup,
     "WASHOFF": Washoff,
-    "TREATMENT": Section,
+    "TREATMENT": SectionDf,
     # TODO build parser for this table
     "INFLOW": Inflow,
     "DWF": DWF,
     "RDII": RDII,
     # TODO build parser for this table
-    "HYDROGRAPH": Section,
+    "HYDROGRAPH": SectionDf,
     # TODO build parser for this table
-    "CURVE": Section,
+    "CURVE": SectionDf,
     # TODO build parser for this table
-    "TIMESERIES": Section,
+    "TIMESERIES": SectionDf,
     # TODO build parser for this table    
-    "PATTERN": Section,
+    "PATTERN": SectionDf,
         
     "MAP": Map,    
     "POLYGON": Polygons,
@@ -71,6 +71,6 @@ _sections = {
     "SYMBOL": Symbols,
     "BACKDROP": Backdrop,
     
-    "PROFILE": Section,   
+    "PROFILE": SectionDf,   
     "TAG": Tags,
 }

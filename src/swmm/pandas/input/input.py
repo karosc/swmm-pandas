@@ -16,10 +16,10 @@ class Input:
 
     # title: sc.Section = None
     option: sc.Option = None
-    # report: sc.Report = None
-    # event: sc.Event = None
+    report: sc.Report = None
+    event: sc.Event = None
     # file = sc.File = None
-    file: sc.Section = None
+    file: sc.SectionDf = None
     raingage: sc.Raingage = None
     evap: sc.Evap = None
     temperature: sc.Temperature = None
@@ -63,7 +63,7 @@ class Input:
 
         self._load_inp_file()
         for sect in _sections.keys():
-            print(sect)
+            # print(sect)
             self._set_section_prop(sect)
 
     def _load_inp_file(self):
