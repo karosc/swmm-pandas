@@ -68,6 +68,9 @@ class SectionSeries(pd.Series):
     def _constructor_expanddim(self):
         return SectionDf
 
+    def _constructor_from_mgr(self, mgr, axes):
+        # required override for pandas
+        return self.__class__._from_mgr(mgr, axes)
 
 class SectionBase(ABC):
     @classmethod
@@ -167,12 +170,14 @@ class SectionDf(SectionBase, pd.DataFrame):
             # row has the same number of columns
             row_data[:ncols] = cls._tabulate(split_data)
             # add comments to last column
-            row_data[-1] = line_comment
+            row_data[-1] = line_comment.strip('\n')
             data.append(row_data)
             line_comment = ""
 
         # instantiate DataFrame
-        return cls(data=data, columns=cls.headings)
+        df = cls(data=data, columns=cls.headings)
+        return df.set_index(cls._index_col) if cls._index_col else df
+
         # if cls._index_col is not None:
         #     df.set_index(cls._index_col)
         # return df
@@ -208,7 +213,7 @@ class SectionDf(SectionBase, pd.DataFrame):
     def _validate_headings(self):
         missing = []
         for heading in self.headings:
-            if heading not in self.columns:
+            if heading not in self.reset_index().columns:
                 missing.append(heading)
         if len(missing) > 0:
             # print('cols: ',self.columns)
@@ -232,27 +237,38 @@ class SectionDf(SectionBase, pd.DataFrame):
         # required override for pandas
         # https://pandas.pydata.org/docs/development/extending.html#override-constructor-properties
         return SectionSeries
+    
+    def _constructor_from_mgr(self, mgr, axes):
+        # required override for pandas
+        return self.__class__._from_mgr(mgr, axes)
 
+    def _constructor_sliced_from_mgr(self, mgr, axes):
+        # required override for pandas
+        return SectionSeries._from_mgr(mgr, axes)
+    
     def to_swmm_string(self):
         """Create a string representation of section"""
+        self._validate_headings()
+        # reset index
+        out_df = self.reset_index(self._index_col).reindex(self.headings, axis=1)
 
         def comment_formatter(line):
             if len(line) > 0:
-                line = ";" + line.strip().strip("\n")
+                line = ";" + line.strip().strip("\n").strip()
                 line = line.replace("\n", "\n;") + "\n"
             return line
 
         # determine the longest variable in each column of the table
         # used to figure out how wide to make the columns
         max_data = (
-            self.astype(str)
+            out_df.astype(str)
             .map(
                 len,
             )
             .max()
         )
         # determine the length of the header names
-        max_header = self.columns.to_series().apply(len)
+        max_header = out_df.columns.to_series().apply(len)
 
         max_header.iloc[0] += (
             2  # add 2 to first header to account for comment formatting
@@ -276,14 +292,13 @@ class SectionDf(SectionBase, pd.DataFrame):
 
         # loop over data and format each each row of data as a string
         outstr = ""
-        for i, row in enumerate(self.drop("desc", axis=1).values):
-            desc = self.loc[i, "desc"]
+        for i, row in enumerate(out_df.drop("desc", axis=1).values):
+            desc = out_df.loc[i, "desc"]
             if len(desc) > 0:
                 outstr += comment_formatter(desc)
             outstr += data_format.format(*row)
 
-        header = header_format.format(*self.drop("desc", axis=1).columns)
-
+        header = header_format.format(*out_df.drop("desc", axis=1).columns)
         # concatenate the header, divider, and data
         return header + header_divider + outstr
 
@@ -299,15 +314,6 @@ class Option(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
-
-    @property
-    def _constructor(self):
-        return Option
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
 
 class Report(SectionBase):
     @dataclass
@@ -424,12 +430,12 @@ class Report(SectionBase):
     def _newobj(cls, *args, **kwargs) -> Self:
         return cls(*args, **kwargs)
 
-    def to_swmm_string(self) -> str:        
+    def to_swmm_string(self) -> str:
         return ";;Reporting Options\n" + self.__repr__()
-    
+
     def __repr__(self) -> str:
-        out_str=""
-        for switch in ("DISABLED", "INPUT", "CONTINUITY", "FLOWSTATS", "CONTROLS"):
+        out_str = ""
+        for switch in ("DISABLED", "INPUT", "CONTINUITY", "FLOWSTATS", "CONTROLS", "AVERAGES"):
             if (value := getattr(self, switch)) is not None:
                 out_str += f"{switch} {value}\n"
 
@@ -445,7 +451,22 @@ class Report(SectionBase):
 
         return out_str
 
+    def __len__(self):
+        length = 0
+        for switch in ("DISABLED", "INPUT", "CONTINUITY", "FLOWSTATS", "CONTROLS"):
+            if getattr(self, switch) is not None:
+                length += 1
+
+        for seq in ("SUBCATCHMENTS", "NODES", "LINKS"):
+            length += len(getattr(self, seq))
+
+        length += len(self.LIDS)
+        return length
+
+
 class Files(SectionText): ...
+
+
 class Event(SectionDf):
     _ncol = 2
     _headings = ["Start", "End"]
@@ -470,14 +491,6 @@ class Event(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
-
-    @property
-    def _constructor(self):
-        return Event
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
 
     def to_swmm_string(self):
         df = self.copy()
@@ -504,15 +517,6 @@ class Raingage(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
-    @property
-    def _constructor(self):
-        return Raingage
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
-
 class Evap(SectionDf):
     _ncol = 13
     _headings = ["Type"]
@@ -521,16 +525,6 @@ class Evap(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
-
-    @property
-    def _constructor(self):
-        return Evap
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
-
 class Temperature(SectionDf):
     _ncol = 14
     _headings = ["Option"]
@@ -539,15 +533,6 @@ class Temperature(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
-
-    @property
-    def _constructor(self):
-        return Temperature
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
 
 class Subcatchment(SectionDf):
     _ncol = 9
@@ -568,15 +553,6 @@ class Subcatchment(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
-    @property
-    def _constructor(self):
-        return Subcatchment
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
-
 class Subarea(SectionDf):
     _ncol = 8
     _headings = [
@@ -595,14 +571,6 @@ class Subarea(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
-    @property
-    def _constructor(self):
-        return Subarea
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
 
 class Infil(SectionDf):
     _ncol = 6
@@ -612,15 +580,6 @@ class Infil(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
-
-    @property
-    def _constructor(self):
-        return Infil
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
 
 class Aquifer(SectionDf):
     _ncol = 14
@@ -646,15 +605,6 @@ class Aquifer(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
-    @property
-    def _constructor(self):
-        return Aquifer
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
-
 class Groundwater(SectionDf):
     _ncol = 14
     _headings = [
@@ -679,14 +629,6 @@ class Groundwater(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
-    @property
-    def _constructor(self):
-        return Groundwater
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
 
 class Snowpack(SectionDf):
     _ncol = 9
@@ -696,15 +638,6 @@ class Snowpack(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
-
-    @property
-    def _constructor(self):
-        return Snowpack
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
 
 class Junc(SectionDf):
     _ncol = 6
@@ -721,15 +654,6 @@ class Junc(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
-
-    @property
-    def _constructor(self):
-        return Junc
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
 
 class Outfall(SectionDf):
     _ncol = 6
@@ -759,15 +683,6 @@ class Outfall(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
-
-    @property
-    def _constructor(self):
-        return Outfall
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
 
 class Storage(SectionDf):
     _ncol = 14
@@ -811,14 +726,6 @@ class Storage(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
-
-    @property
-    def _constructor(self):
-        return Storage
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
 
 
 class Divider(SectionDf):
@@ -872,14 +779,6 @@ class Divider(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
-    @property
-    def _constructor(self):
-        return Outfall
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
 
 class Conduit(SectionDf):
     _ncol = 9
@@ -900,15 +799,6 @@ class Conduit(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
-    @property
-    def _constructor(self):
-        return Conduit
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
-
 class Pump(SectionDf):
     _ncol = 7
     _headings = [
@@ -926,13 +816,6 @@ class Pump(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
-    @property
-    def _constructor(self):
-        return Pump
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
 
 
 class Orifice(SectionDf):
@@ -952,14 +835,6 @@ class Orifice(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
-
-    @property
-    def _constructor(self):
-        return Orifice
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
 
 
 class Weir(SectionDf):
@@ -984,15 +859,6 @@ class Weir(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
-
-    @property
-    def _constructor(self):
-        return Weir
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
 
 class Outlet(SectionDf):
     _ncol = 9
@@ -1029,15 +895,6 @@ class Outlet(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
-
-    @property
-    def _constructor(self):
-        return Outlet
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
 
 class Xsections(SectionDf):
     _shapes = (
@@ -1110,14 +967,6 @@ class Xsections(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
-    @property
-    def _constructor(self):
-        return Xsections
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
 
 class Street(SectionDf):
     _ncol = 11
@@ -1140,14 +989,6 @@ class Street(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
-    @property
-    def _constructor(self):
-        return Street
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
 
 class Inlet(SectionDf):
     _ncol = 7
@@ -1161,13 +1002,6 @@ class Inlet(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
-    @property
-    def _constructor(self):
-        return Inlet
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
 
 
 class Inlet_Usage(SectionDf):
@@ -1189,13 +1023,6 @@ class Inlet_Usage(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
-    @property
-    def _constructor(self):
-        return Inlet_Usage
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
 
 
 class Losses(SectionDf):
@@ -1229,13 +1056,6 @@ class Pollutants(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
-    @property
-    def _constructor(self):
-        return Pollutants
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
 
 
 class LandUse(SectionDf):
@@ -1246,14 +1066,6 @@ class LandUse(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
-
-    @property
-    def _constructor(self):
-        return LandUse
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
 
 
 class Coverage(SectionDf):
@@ -1275,13 +1087,6 @@ class Coverage(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
-    @property
-    def _constructor(self):
-        return Coverage
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
 
 
 class Loading(SectionDf):
@@ -1303,14 +1108,6 @@ class Loading(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
-    @property
-    def _constructor(self):
-        return Loading
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
 
 class Buildup(SectionDf):
     _ncol = 4
@@ -1321,15 +1118,6 @@ class Buildup(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
-    @property
-    def _constructor(self):
-        return Buildup
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
-
 class Washoff(SectionDf):
     _ncol = 4
     _headings = ["Landuse", "Pollutant", "FuncType", "C1", "C2", "SweepRmvl", "BmpRmvl"]
@@ -1338,14 +1126,6 @@ class Washoff(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
-
-    @property
-    def _constructor(self):
-        return Washoff
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
 
 
 class Treatment(SectionDf):
@@ -1356,14 +1136,6 @@ class Treatment(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
-
-    @property
-    def _constructor(self):
-        return Treatment
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
 
 
 # TODO needs double quote handler for timeseries heading
@@ -1385,15 +1157,6 @@ class Inflow(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
-    @property
-    def _constructor(self):
-        return Inflow
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
-
 class DWF(SectionDf):
     _ncol = 7
     _headings = [
@@ -1411,14 +1174,6 @@ class DWF(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
-    @property
-    def _constructor(self):
-        return DWF
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
 
 class RDII(SectionDf):
     _ncol = 3
@@ -1429,15 +1184,6 @@ class RDII(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
-    @property
-    def _constructor(self):
-        return RDII
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
-
 class Coordinates(SectionDf):
     _ncol = 3
     _headings = ["Node", "X", "Y"]
@@ -1447,15 +1193,6 @@ class Coordinates(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
-    @property
-    def _constructor(self):
-        return Coordinates
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
-
 class Verticies(SectionDf):
     _ncol = 3
     _headings = ["Link", "X", "Y"]
@@ -1464,15 +1201,6 @@ class Verticies(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
-
-    @property
-    def _constructor(self):
-        return Verticies
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
 
 class Polygons(SectionDf):
     _ncol = 3
@@ -1493,15 +1221,6 @@ class Symbols(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
-    @property
-    def _constructor(self):
-        return Symbols
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
-
 class Labels(SectionDf):
     _ncol = 8
     _headings = [
@@ -1519,14 +1238,6 @@ class Labels(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
-    @property
-    def _constructor(self):
-        return Labels
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
 
 class Tags(SectionDf):
     _ncol = 3
@@ -1536,14 +1247,6 @@ class Tags(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
-
-    @property
-    def _constructor(self):
-        return Tags
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
 
 
 class LID_Control(SectionDf):
@@ -1555,46 +1258,28 @@ class LID_Control(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
-    @property
-    def _constructor(self):
-        return LID_Control
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
 
 class LID_Usage(SectionDf):
     _ncol = 11
-    _headings = (
-        [
-            "Subcatchment",
-            "LIDProcess",
-            "Number",
-            "Area",
-            "Width",
-            "InitSat",
-            "FromImp",
-            "ToPerv",
-            "RptFiqle",
-            "DrainTo",
-            "FromPerv",
-        ],
-    )
+    _headings = [
+        "Subcatchment",
+        "LIDProcess",
+        "Number",
+        "Area",
+        "Width",
+        "InitSat",
+        "FromImp",
+        "ToPerv",
+        "RptFiqle",
+        "DrainTo",
+        "FromPerv",
+    ]
+
     _index_col = ("Subcatchment", "LIDProcess")
 
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
-
-    @property
-    def _constructor(self):
-        return LID_Usage
-
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
-
 
 class Adjustments(SectionDf):
     _ncol = 13
@@ -1619,79 +1304,77 @@ class Adjustments(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
-    @property
-    def _constructor(self):
-        return Adjustments
 
-    @property
-    def _constructor_sliced(self):
-        return SectionSeries
+class Backdrop(SectionText): ...
 
 
 # TODO: write custom to_string class
-class Backdrop:
-    @classmethod
-    def __init__(self, text: str):
-        rows = text.split("\n")
-        data = []
-        line_comment = ""
-        for row in rows:
-            if not _is_data(row):
-                continue
+# class Backdrop:
+#     @classmethod
+#     def __init__(self, text: str):
+#         rows = text.split("\n")
+#         data = []
+#         line_comment = ""
+#         for row in rows:
+#             if not _is_data(row):
+#                 continue
 
-            elif row.strip()[0] == ";":
-                print(row)
-                line_comment += row
-                continue
+#             elif row.strip()[0] == ";":
+#                 print(row)
+#                 line_comment += row
+#                 continue
 
-            line, comment = _strip_comment(row)
-            line_comment += comment
+#             line, comment = _strip_comment(row)
+#             line_comment += comment
 
-            split_data = [_coerce_numeric(val) for val in row.split()]
+#             split_data = [_coerce_numeric(val) for val in row.split()]
 
-            if split_data[0].upper() == "DIMENSIONS":
-                self.dimensions = split_data[1:]
+#             if split_data[0].upper() == "DIMENSIONS":
+#                 self.dimensions = split_data[1:]
 
-            elif split_data[0].upper() == "FILE":
-                self.file = split_data[1]
+#             elif split_data[0].upper() == "FILE":
+#                 self.file = split_data[1]
 
-    def from_section_text(cls, text: str):
-        return cls(text)
+#     def from_section_text(cls, text: str):
+#         return cls(text)
 
-    def __repr__(self) -> str:
-        return f"Backdrop(dimensions = {self.dimensions}, file = {self.file})"
+#     def __repr__(self) -> str:
+#         return f"Backdrop(dimensions = {self.dimensions}, file = {self.file})"
+
+
+class Map(SectionText): ...
 
 
 # TODO: write custom to_string class
-class Map:
-    @classmethod
-    def __init__(self, text: str):
-        rows = text.split("\n")
-        data = []
-        line_comment = ""
-        for row in rows:
-            if not _is_data(row):
-                continue
+# class Map:
+#     @classmethod
+#     def __init__(self, text: str):
+#         rows = text.split("\n")
+#         data = []
+#         line_comment = ""
+#         for row in rows:
+#             if not _is_data(row):
+#                 continue
 
-            elif row.strip()[0] == ";":
-                print(row)
-                line_comment += row
-                continue
+#             elif row.strip()[0] == ";":
+#                 print(row)
+#                 line_comment += row
+#                 continue
 
-            line, comment = _strip_comment(row)
-            line_comment += comment
+#             line, comment = _strip_comment(row)
+#             line_comment += comment
 
-            split_data = [_coerce_numeric(val) for val in row.split()]
+#             split_data = [_coerce_numeric(val) for val in row.split()]
 
-            if split_data[0].upper() == "DIMENSIONS":
-                self.dimensions = split_data[1:]
+#             if split_data[0].upper() == "DIMENSIONS":
+#                 self.dimensions = split_data[1:]
 
-            elif split_data[0].upper() == "UNITS":
-                self.units = split_data[1]
+#             elif split_data[0].upper() == "UNITS":
+#                 self.units = split_data[1]
 
-    @classmethod
-    def from_section_text(cls, text: str):
-        return cls(text)
+#     @classmethod
+#     def from_section_text(cls, text: str):
+#         return cls(text)
 
-    def __repr__(self) -> str:
-        return f"Map(dimensions = {self.dimensions}, units = {self.units})"
+#     def __repr__(self) -> str:
+#         return f"Map(dimensions = {self.dimensions}, units = {self.units})"

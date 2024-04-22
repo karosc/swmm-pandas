@@ -115,7 +115,7 @@ class Input:
     # %% ###########################
     # region SECTION PROPS #########
     @classmethod
-    def _set_section_prop(cls, section: str):
+    def _set_section_prop(cls, section: str) -> None:
         section_class = _sections[section]
         public_property_name = section_class.__name__.lower()
         private_property_name = f"_{public_property_name}"
@@ -129,6 +129,26 @@ class Input:
             setattr(self, private_property_name, section_class._newobj(obj))
 
         setattr(cls, public_property_name, property(getter, setter))
+
+    # def _get_section_text(self,section:str) -> str:
+    #     section_class = _sections[section]
+    #     public_property_name = section_class.__name__.lower()
+    #     private_property_name = f"_{public_property_name}"
+
+    #     if not hasattr(self,private_property_name):
+
+
+    def to_string(self):
+        out_str = ""
+        for sect in _sections.keys():
+            section_class = _sections[sect]
+            public_property_name = section_class.__name__.lower()
+            # private_property_name = f"_{public_property_name}"
+            if len(sect_obj:=getattr(self,public_property_name))>0:
+                sect_string = sect_obj.to_swmm_string()
+                out_str+=f"[{sect.upper()}]\n{sect_string}\n\n"
+        return out_str
+
 
     ############ OPTIONS ###########
 

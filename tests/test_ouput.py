@@ -1,6 +1,5 @@
 """Tests for `swmm-pandas` package."""
 
-
 import os
 from datetime import datetime
 import pathlib
