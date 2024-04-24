@@ -1,0 +1,57 @@
+lint.select = [
+  "E",   # pycodestyle
+  "F",   # pyflakes
+  "D",   # pydocstyle
+  "COM", # flak8-commas
+  "FA",  # future-annotations
+  "ANN", # flake8-annotations
+  "I",   # isort
+]
+
+# extend-exclude = ["tests", "aqueduct/eventanalysis", "docs", "aqueduct/hermes"]
+
+# Allow lines to be as long as 100 characters.
+line-length = 100
+
+lint.ignore = [
+#   "COM812", # Missing trailing comma (covered by formatting)
+  "D205",   # 1 blank line required between summary line and description
+  "D301",   # Use r""" if any backslashes in a docstring
+  "D400",   # First docstring line should end with a period
+  "D202",   # No blank lines allowed after function docstring
+  "D401",   # First line of docstring should be in imperative mood
+  "F401",   # Unused import
+  "D101",   # Missing docstring in public class (typically we use __init__ to document class)
+  "D105",   # Missing docstring in magic method (these are private, don't enfoce docstrings)
+  "ANN101", # Missing type annotation for self in method
+  "ANN102", # Missing type annotation for cls in classmethod
+  "ANN002", # Missing type annotation for *args
+  "ANN003", # Missing type annotation for **kwargs
+  "ANN204", # Missing return type annotation for special method `__init__`
+
+
+]
+
+# In addition to the standard set of exclusions, omit all tests, plus a specific file.
+[lint.per-file-ignores]
+"__init__.py" = [
+  "E402", # import violations)
+  "F403", # from module import *
+  "F401", # unused import
+]
+
+"**/tests/*.py" = [
+  "D103", # Missing docstring
+  "F811", # redefinition of unused
+  "D100", # Missing docstring in public module
+  "F841", # local variable is assigned to but never used
+]
+
+[lint.pydocstyle]
+convention = "numpy"
+
+[lint.flake8-quotes]
+docstring-quotes = "double"
+
+[lint.flake8-annotations]
+mypy-init-return = true

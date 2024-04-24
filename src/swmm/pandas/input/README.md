@@ -9,11 +9,11 @@
 | FILES         | :heavy_check_mark: | :x:                | build better interface than text interface |
 | RAINGAGES     | :heavy_check_mark: | :heavy_check_mark: |                                            |
 | EVAPORATION   | :heavy_check_mark: | :heavy_check_mark: | better column names                        |
-| TEMPERATURE   | :heavy_check_mark: | :x:                |                                            |
-| ADJUSTMENTS   | :heavy_check_mark: | :x:                |                                            |
-| SUBCATCHMENTS | :heavy_check_mark: | :x:                |                                            |
-| SUBAREAS      | :heavy_check_mark: | :x:                |                                            |
-| INFILTRATION  | :heavy_check_mark: | :x:                | better column names                        |
+| TEMPERATURE   | :heavy_check_mark: | :heavy_check_mark: |                                            |
+| ADJUSTMENTS   | :heavy_check_mark: | :heavy_check_mark: |                                            |
+| SUBCATCHMENTS | :heavy_check_mark: | :heavy_check_mark: |                                            |
+| SUBAREAS      | :heavy_check_mark: | :heavy_check_mark: |                                            |
+| INFILTRATION  | :heavy_check_mark: | :heavy_check_mark: | better column names                        |
 | LID_CONTROLS  | :heavy_check_mark: | :x:                |                                            |
 | LID_USAGE     | :heavy_check_mark: | :x:                |                                            |
 | AQUIFERS      | :heavy_check_mark: | :x:                |                                            |

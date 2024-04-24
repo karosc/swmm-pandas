@@ -1,13 +1,15 @@
 """Tests for `swmm-pandas` input class."""
 
-import pathlib
-from swmm.pandas import Input
-import swmm.pandas.input._section_classes as sc
-import unittest
 import datetime
-import pandas as pd
-import numpy.testing as nptest
+import pathlib
+import unittest
 from textwrap import dedent
+
+import numpy.testing as nptest
+import numpy as np
+import pandas as pd
+import swmm.pandas.input._section_classes as sc
+from swmm.pandas import Input
 
 _HERE = pathlib.Path(__file__).parent
 
@@ -30,7 +32,8 @@ class InuptTest(unittest.TestCase):
         inp = self.test_base_model
         self.assertEqual(inp.title, "SWMM is the best!")
         self.assertEqual(
-            inp.title.to_swmm_string(), ";;Project Title/Notes\nSWMM is the best!"
+            inp.title.to_swmm_string(),
+            ";;Project Title/Notes\nSWMM is the best!",
         )
 
     def test_options(self):
@@ -46,7 +49,8 @@ class InuptTest(unittest.TestCase):
             "THREADS              4",
         )
         self.assertEqual(
-            inp.option.to_swmm_string().split("\n")[21].strip(), ";Updated routing step"
+            inp.option.to_swmm_string().split("\n")[21].strip(),
+            ";Updated routing step",
         )
         self.assertEqual(
             inp.option.to_swmm_string().split("\n")[22].strip(),
@@ -156,7 +160,8 @@ class InuptTest(unittest.TestCase):
             "my_new_gage",
         ]
         self.assertEqual(
-            inp.raingage.to_swmm_string().split("\n")[5].strip(), ";my_new_gage"
+            inp.raingage.to_swmm_string().split("\n")[5].strip(),
+            ";my_new_gage",
         )
         self.assertEqual(
             inp.raingage.to_swmm_string().split("\n")[6].strip(),
@@ -169,42 +174,223 @@ class InuptTest(unittest.TestCase):
                 """
                     CONSTANT         0.0
                     DRY_ONLY         NO
-                """
+                """,
             ),
             dedent(
                 """
                     MONTHLY          1  2  3  4  5  6  7  8  7  6  5  4
                     DRY_ONLY         NO
                     RECOVERY         evap_recovery_pattern
-                """
+                """,
             ),
-
             dedent(
                 """
                     TIMESERIES       evap_timeseries
                     DRY_ONLY         YES
                     RECOVERY         evap_recovery_pattern
-                """
+                """,
             ),
             dedent(
                 """
                     TEMPERATURE
                     DRY_ONLY         YES
                     RECOVERY         evap_recovery_pattern
-                """
-            )
+                """,
+            ),
         ]
 
         for case in test_cases:
             evap = sc.Evap.from_section_text(case)
-            self.assertIsInstance(evap,pd.DataFrame)
-            self.assertEqual(len(evap.columns),13)
-        
-        assert 'TEMPERATURE' in evap.index
-        evap.drop('TEMPERATURE',inplace=True)
-        evap.loc['MONTHLY'] = [''] * evap.shape[1]
-        evap.loc['MONTHLY','param1':'param12'] = range(12)
+            self.assertIsInstance(evap, pd.DataFrame)
+            self.assertEqual(len(evap.columns), 13)
+
+        assert "TEMPERATURE" in evap.index
+        evap.drop("TEMPERATURE", inplace=True)
+        evap.loc["MONTHLY"] = [""] * evap.shape[1]
+        evap.loc["MONTHLY", "param1":"param12"] = range(12)
         nptest.assert_equal(
-            evap.to_swmm_string().split('\n')[4].split(),
-            ['MONTHLY', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
+            evap.to_swmm_string().split("\n")[4].split(),
+            ["MONTHLY", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"],
         )
+
+    def test_temperature(self):
+        inp = self.test_base_model
+
+        # assert type and shape
+        self.assertIsInstance(inp.temperature, pd.DataFrame)
+        self.assertEqual(
+            len(inp.temperature.columns),
+            14,
+        )
+        nptest.assert_equal(
+            inp.temperature.index.values,
+            ["TIMESERIES", "WINDSPEED", "SNOWMELT", "ADC", "ADC"],
+        )
+
+        # assert modifications to df end up in swmm string
+        inp.temperature.drop("WINDSPEED", inplace=True)
+        inp.temperature.loc["WINDSPEED", "param1"] = "FILE"
+        inp.temperature.loc["FILE", "param1":"param3"] = [
+            "./climate.dat",
+            "1/1/1900",
+            "F",
+        ]
+
+        self.assertEqual(
+            inp.temperature.to_swmm_string().split("\n")[6].strip(),
+            "WINDSPEED   FILE",
+        )
+        self.assertEqual(
+            inp.temperature.to_swmm_string().split("\n")[7].strip(),
+            "FILE        ./climate.dat  1/1/1900  F",
+        )
+
+    def test_adjustments(self):
+        inp = self.test_base_model
+
+        # assert type and shape
+        self.assertIsInstance(inp.adjustments, pd.DataFrame)
+        nptest.assert_equal(
+            inp.adjustments.columns.values,
+            [
+                "Jan",
+                "Feb",
+                "Mar",
+                "Apr",
+                "May",
+                "Jun",
+                "Jul",
+                "Aug",
+                "Sep",
+                "Oct",
+                "Nov",
+                "Dec",
+                "desc",
+            ],
+        )
+
+        # test edits make it into swmm string
+        inp.adjustments.loc["EVAPORATION", "May":"Nov"] = pd.NA
+        inp.adjustments.loc["EVAPORATION", "Jan":"Dec"] = (
+            inp.adjustments.loc["EVAPORATION", "Jan":"Dec"].astype(float).interpolate()
+        )
+
+        self.assertEqual(
+            inp.adjustments.to_swmm_string().split("\n")[3].strip(),
+            "EVAPORATION   1    2    -3   -4   -3.375  -2.75  -2.125  -1.5   -0.875  -0.25  0.375  1",
+        )
+
+    def test_subcatchments(self) -> None:
+        inp = self.test_base_model
+
+        self.assertIsInstance(inp.subcatchment, pd.DataFrame)
+        self.assertEqual(inp.subcatchment.shape, (3, 9))
+        nptest.assert_equal(
+            inp.subcatchment.columns.values,
+            [
+                "RainGage",
+                "Outlet",
+                "Area",
+                "PctImp",
+                "Width",
+                "Slope",
+                "CurbLeng",
+                "SnowPack",
+                "desc",
+            ],
+        )
+        inp.subcatchment["Width"] = (inp.subcatchment.Area**0.6).round(3)
+        self.assertEqual(
+            inp.subcatchment.to_swmm_string(),
+            dedent(
+                """\
+                ;;Name  RainGage          Outlet  Area  PctImp  Width  Slope  CurbLeng  SnowPack  
+                ;;----  ----------------  ------  ----  ------  -----  -----  --------  --------  
+                SUB1    SCS_Type_III_3in  JUNC1   5     30.83   2.627  0.5    0         SNOW1     
+                SUB2    SCS_Type_III_3in  JUNC2   17    40.74   5.474  0.5    0         SNOW1     
+                SUB3    SCS_Type_III_3in  JUNC4   38    62.21   8.869  0.5    0         SNOW1     
+                """,
+            ),
+        )
+
+    def test_subareas(self) -> None:
+        inp = self.test_base_model
+
+        self.assertIsInstance(inp.subarea, pd.DataFrame)
+        self.assertEqual(inp.subarea.shape, (3, 8))
+        nptest.assert_equal(
+            inp.subarea.columns.values,
+            [
+                "Nimp",
+                "Nperv",
+                "Simp",
+                "Sperv",
+                "PctZero",
+                "RouteTo",
+                "PctRouted",
+                "desc",
+            ],
+        )
+        self.maxDiff = 9999
+        inp.subarea.loc["SUB3", "PctRouted"] = 20
+        self.assertEqual(
+            inp.subarea.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Subcatchment  Nimp  Nperv  Simp  Sperv  PctZero  RouteTo   PctRouted  
+                    ;;------------  ----  -----  ----  -----  -------  --------  ---------  
+                    SUB1            0.05  0.2    0.05  0.1    25       PERVIOUS  50         
+                    SUB2            0.05  0.2    0.05  0.1    25       PERVIOUS  50         
+                    SUB3            0.05  0.2    0.05  0.1    25       PERVIOUS  20         
+                """,
+            ),
+        )
+
+    def test_infil(self) -> None:
+        inp = self.test_base_model
+
+        self.assertIsInstance(inp.infil, pd.DataFrame)
+        self.assertEqual(inp.infil.shape, (3, 7))
+        nptest.assert_equal(
+            inp.infil.columns.values,
+            [
+                "param1",
+                "param2",
+                "param3",
+                "param4",
+                "param5",
+                "Method",
+                "desc",
+            ],
+        )
+
+        # test differing methods are parsed
+        nptest.assert_equal(
+            inp.infil.values,
+            np.array(
+                [
+                    [4.3, 0.86, 0.23, "", "", "", ""],
+                    [4.3, 0.86, 0.23, "", "", "MODIFIED_GREEN_AMPT", ""],
+                    [4.3, 0.86, 0.23, 0.04, 2, "HORTON", ""],
+                ],
+                dtype=object,
+            ),
+        )
+        
+        #test assignment
+        inp.infil.loc["FAKE_SUB"] = [0,0,0,0,0,"","This is fake"]
+        self.assertEqual(
+            inp.infil.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Subcatchment  param1  param2  param3  param4  param5  Method               
+                    ;;------------  ------  ------  ------  ------  ------  -------------------  
+                    SUB1            4.3     0.86    0.23                                         
+                    SUB2            4.3     0.86    0.23                    MODIFIED_GREEN_AMPT  
+                    SUB3            4.3     0.86    0.23    0.04    2       HORTON               
+                    ;This is fake
+                    FAKE_SUB        0.0     0.0     0.0     0       0                            
+                """,
+            ),
+        )
+

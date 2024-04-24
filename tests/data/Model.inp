@@ -1,6 +1,6 @@
 [TITLE]
 ;;Project Title/Notes
-This is the title entry
+SWMM is the best!
 
 [OPTIONS]
 ;;Option             Value
@@ -57,10 +57,18 @@ SNOWMELT               34.000000 0.500000 0.600000 20.000000 41.599998 -4.000000
 ADC          IMPERVIOUS 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0
 ADC          PERVIOUS   1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0
 
+[ADJUSTMENTS]
+TEMPERATURE 1 2 -3 -4 3 5 0.875 -10 9 1 -0.5 1
+EVAPORATION 1 2 -3 -4 3 5 0.875 -10 9 1 -0.5 1
+RAINFALL 1 2 -3 -4 3 5 0.875 -10 9 1 -0.5 1
+CONDUCTIVITY 1 2 -3 -4 3 5 0.875 -10 9 1 -0.5 1
+
 [RAINGAGES]
 ;;Name           Format    Interval SCF      Source    
 ;;-------------- --------- -------- -------- ----------
 SCS_Type_III_3in VOLUME    0:15     1.0      TIMESERIES SCS_Type_III_3in
+;fake raingage for testing swmm.pandas
+RG1              VOLUME    0:05     1.0      FILE       rain.dat    RG1    IN
 
 [SUBCATCHMENTS]
 ;;Name           Rain Gage        Outlet           Area     %Imperv  Width    %Slope   CurbLen  SnowPack        
@@ -80,8 +88,8 @@ SUB3             0.05       0.2        0.05       0.1        25         PERVIOUS
 ;;Subcatchment   Suction    Ksat       IMD       
 ;;-------------- ---------- ---------- ----------
 SUB1             4.3        0.86       0.23      
-SUB2             4.3        0.86       0.23      
-SUB3             4.3        0.86       0.23      
+SUB2             4.3        0.86       0.23     MODIFIED_GREEN_AMPT
+SUB3             4.3        0.86       0.23     0.04    2    HORTON  
 
 [AQUIFERS]
 ;;Name           Por    WP     FC     Ksat   Kslope Tslope ETu    ETs    Seep   Ebot   Egw    Umc    ETupat 
@@ -131,6 +139,7 @@ STOR1            -15.25   21.75      0          FUNCTIONAL  413       1         
 ;;Name           From Node        To Node          Length     Roughness  InOffset   OutOffset  InitFlow   MaxFlow   
 ;;-------------- ---------------- ---------------- ---------- ---------- ---------- ---------- ---------- ----------
 COND1            JUNC1            JUNC2            932.363    0.015      0          0.25       0          0         
+;cond2 comment       
 COND2            JUNC2            JUNC3            599.52     0.019      0          0.25       0          0         
 COND3            JUNC3            JUNC4            541.1      0.019      0          0.5        0          0         
 COND4            JUNC4            JUNC5            732.48     0.019      0          0          0          0         
@@ -150,7 +159,7 @@ WR1              JUNC2            OUT2             TRANSVERSE   3          3.33 
 [XSECTIONS]
 ;;Link           Shape        Geom1            Geom2      Geom3      Geom4      Barrels    Culvert   
 ;;-------------- ------------ ---------------- ---------- ---------- ---------- ---------- ----------
-COND1            CIRCULAR     1                0          0          0          1          0         
+COND1            CIRCULAR     1                0          0          0          1          0  
 COND2            FILLED_CIRCULAR 1.25          0.5        0          0          1          0         
 COND3            FILLED_CIRCULAR 1.5           0.5        0          0          1          0         
 COND4            FILLED_CIRCULAR 2             0.5        0          0          1          0         
@@ -549,18 +558,7 @@ INPUT      YES
 CONTROLS   YES
 AVERAGES   YES
 SUBCATCHMENTS ALL
-NODES DD_19_Tx j_SCM_19_US j1386 j1418
-NODES j1442 j1586 j1626 j1682
-NODES j1770 j178 j1850 j1930
-NODES j1954 j2018 j2418 j2458
-NODES j2474 j2554 j2586 j2594
-NODES j2618 j2626 j2642 j2658
-NODES j2674 j2778 j2786 j2794
-NODES j2802 j2810 j2818 j2826
-NODES j2834 j2842 j2850 j3867
-NODES j3883 j482 j490 j546
-NODES j626 j642 j698 WP_19_Tx
-LINKS ALL
+NODES JUNC1 JUNC2 JUNC3 JUNC4 JUNC5 JUNC6 OUT1 OUT2 OUT3
 
 [TAGS]
 

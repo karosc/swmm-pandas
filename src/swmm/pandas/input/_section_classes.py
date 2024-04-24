@@ -72,6 +72,7 @@ class SectionSeries(pd.Series):
         # required override for pandas
         return self.__class__._from_mgr(mgr, axes)
 
+
 class SectionBase(ABC):
     @classmethod
     @abstractmethod
@@ -170,7 +171,7 @@ class SectionDf(SectionBase, pd.DataFrame):
             # row has the same number of columns
             row_data[:ncols] = cls._tabulate(split_data)
             # add comments to last column
-            row_data[-1] = line_comment.strip('\n')
+            row_data[-1] = line_comment.strip("\n")
             data.append(row_data)
             line_comment = ""
 
@@ -217,9 +218,7 @@ class SectionDf(SectionBase, pd.DataFrame):
                 missing.append(heading)
         if len(missing) > 0:
             # print('cols: ',self.columns)
-            raise ValueError(
-                f"{self.__class__.__name__} section is missing columns {missing}"
-            )
+            raise ValueError(f"{self.__class__.__name__} section is missing columns {missing}")
             # self.reindex(self.headings,inplace=True)
 
     def add_element(self, obj):
@@ -237,7 +236,7 @@ class SectionDf(SectionBase, pd.DataFrame):
         # required override for pandas
         # https://pandas.pydata.org/docs/development/extending.html#override-constructor-properties
         return SectionSeries
-    
+
     def _constructor_from_mgr(self, mgr, axes):
         # required override for pandas
         return self.__class__._from_mgr(mgr, axes)
@@ -245,14 +244,14 @@ class SectionDf(SectionBase, pd.DataFrame):
     def _constructor_sliced_from_mgr(self, mgr, axes):
         # required override for pandas
         return SectionSeries._from_mgr(mgr, axes)
-    
+
     def to_swmm_string(self):
         """Create a string representation of section"""
         self._validate_headings()
         # reset index
-        out_df = self.reset_index(self._index_col).reindex(self.headings, axis=1)
+        out_df = self.reset_index(self._index_col).reindex(self.headings, axis=1).fillna("")
 
-        def comment_formatter(line):
+        def comment_formatter(line: str):
             if len(line) > 0:
                 line = ";" + line.strip().strip("\n").strip()
                 line = line.replace("\n", "\n;") + "\n"
@@ -270,9 +269,7 @@ class SectionDf(SectionBase, pd.DataFrame):
         # determine the length of the header names
         max_header = out_df.columns.to_series().apply(len)
 
-        max_header.iloc[0] += (
-            2  # add 2 to first header to account for comment formatting
-        )
+        max_header.iloc[0] += 2  # add 2 to first header to account for comment formatting
 
         # determine the column widths by finding the max legnth out of data
         # and headers
@@ -294,8 +291,8 @@ class SectionDf(SectionBase, pd.DataFrame):
         outstr = ""
         for i, row in enumerate(out_df.drop("desc", axis=1).values):
             desc = out_df.loc[i, "desc"]
-            if len(desc) > 0:
-                outstr += comment_formatter(desc)
+            if (not pd.isna(desc)) and (len(strdesc := str(desc)) > 0):
+                outstr += comment_formatter(strdesc)
             outstr += data_format.format(*row)
 
         header = header_format.format(*out_df.drop("desc", axis=1).columns)
@@ -314,6 +311,7 @@ class Option(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
+
 
 class Report(SectionBase):
     @dataclass
@@ -397,9 +395,7 @@ class Report(SectionBase):
             tokens = row.split()
             report_type = tokens[0].upper()
             if not hasattr(obj, report_type):
-                warnings.warn(
-                    f"{report_type} is not a supported report type, skipping..."
-                )
+                warnings.warn(f"{report_type} is not a supported report type, skipping...")
                 continue
             elif report_type in ("SUBCATCHMENTS", "NODES", "LINKS"):
                 setattr(
@@ -435,7 +431,14 @@ class Report(SectionBase):
 
     def __repr__(self) -> str:
         out_str = ""
-        for switch in ("DISABLED", "INPUT", "CONTINUITY", "FLOWSTATS", "CONTROLS", "AVERAGES"):
+        for switch in (
+            "DISABLED",
+            "INPUT",
+            "CONTINUITY",
+            "FLOWSTATS",
+            "CONTROLS",
+            "AVERAGES",
+        ):
             if (value := getattr(self, switch)) is not None:
                 out_str += f"{switch} {value}\n"
 
@@ -517,6 +520,7 @@ class Raingage(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
+
 class Evap(SectionDf):
     _ncol = 13
     _headings = ["Type"]
@@ -525,6 +529,8 @@ class Evap(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
+
+
 class Temperature(SectionDf):
     _ncol = 14
     _headings = ["Option"]
@@ -533,6 +539,7 @@ class Temperature(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
+
 
 class Subcatchment(SectionDf):
     _ncol = 9
@@ -552,6 +559,7 @@ class Subcatchment(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
+
 
 class Subarea(SectionDf):
     _ncol = 8
@@ -573,13 +581,42 @@ class Subarea(SectionDf):
 
 
 class Infil(SectionDf):
-    _ncol = 6
-    _headings = ["Subcatchment"]
+    _ncol = 7
+    _headings = [
+        "Subcatchment",
+        "param1",
+        "param2",
+        "param3",
+        "param4",
+        "param5",
+        "Method",
+    ]
     _index_col = "Subcatchment"
-
+    _infiltration_methods = (
+        "HORTON", 
+        "MODIFIED_HORTON", 
+        "GREEN_AMPT", 
+        "MODIFIED_GREEN_AMPT",
+        "CURVE_NUMBER",
+    )
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
+
+    @classmethod
+    def _tabulate(cls, line: list):
+        out = [""] * Infil._ncol
+
+        # pop first entry in the line (subcatch name)
+        out[0] = line.pop(0)
+
+        # add catchment specific method if present
+        if line[-1] in cls._infiltration_methods:
+            out[cls._headings.index('Method')] = line.pop(-1)
+
+        # add params
+        out[1:1+len(line)] = line
+        return out
 
 class Aquifer(SectionDf):
     _ncol = 14
@@ -604,6 +641,7 @@ class Aquifer(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
+
 
 class Groundwater(SectionDf):
     _ncol = 14
@@ -639,6 +677,7 @@ class Snowpack(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
+
 class Junc(SectionDf):
     _ncol = 6
     _headings = [
@@ -654,6 +693,7 @@ class Junc(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
+
 
 class Outfall(SectionDf):
     _ncol = 6
@@ -683,6 +723,7 @@ class Outfall(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
+
 
 class Storage(SectionDf):
     _ncol = 14
@@ -715,10 +756,9 @@ class Storage(SectionDf):
             return out
         elif shape == "tabular":
             out[cls._headings.index("CurveName")] = line.pop(0)
-            out[
-                cls._headings.index("SurDepth") : cls._headings.index("SurDepth")
-                + len(line)
-            ] = line
+            out[cls._headings.index("SurDepth") : cls._headings.index("SurDepth") + len(line)] = (
+                line
+            )
             return out
         else:
             raise ValueError(f"Unexpected line in storage section ({line})")
@@ -799,6 +839,7 @@ class Conduit(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
+
 class Pump(SectionDf):
     _ncol = 7
     _headings = [
@@ -815,7 +856,6 @@ class Pump(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
-
 
 
 class Orifice(SectionDf):
@@ -860,6 +900,7 @@ class Weir(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
+
 class Outlet(SectionDf):
     _ncol = 9
     _headings = [
@@ -895,6 +936,7 @@ class Outlet(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
+
 
 class Xsections(SectionDf):
     _shapes = (
@@ -956,9 +998,7 @@ class Xsections(SectionDf):
             return out
         elif out[1].upper() in cls._shapes:
             out[cls._headings.index("Geom1")] = line.pop(0)
-            out[
-                cls._headings.index("Geom2") : cls._headings.index("Geom2") + len(line)
-            ] = line
+            out[cls._headings.index("Geom2") : cls._headings.index("Geom2") + len(line)] = line
             return out
         else:
             raise ValueError(f"Unexpected line in xsection section ({line})")
@@ -1003,7 +1043,6 @@ class Inlet(SectionDf):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
 
-
 class Inlet_Usage(SectionDf):
     _ncol = 7
     _headings = [
@@ -1022,7 +1061,6 @@ class Inlet_Usage(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
-
 
 
 class Losses(SectionDf):
@@ -1057,7 +1095,6 @@ class Pollutants(SectionDf):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
 
-
 class LandUse(SectionDf):
     _ncol = 4
     _headings = ["Name", "SweepInterval", "Availability", "LastSweep"]
@@ -1088,7 +1125,6 @@ class Coverage(SectionDf):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
 
-
 class Loading(SectionDf):
     _ncol = 3
     _headings = ["Subcatchment", "Pollutant", "InitBuildup"]
@@ -1117,6 +1153,7 @@ class Buildup(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
+
 
 class Washoff(SectionDf):
     _ncol = 4
@@ -1157,6 +1194,7 @@ class Inflow(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
+
 class DWF(SectionDf):
     _ncol = 7
     _headings = [
@@ -1184,6 +1222,7 @@ class RDII(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
+
 class Coordinates(SectionDf):
     _ncol = 3
     _headings = ["Node", "X", "Y"]
@@ -1193,6 +1232,7 @@ class Coordinates(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
+
 class Verticies(SectionDf):
     _ncol = 3
     _headings = ["Link", "X", "Y"]
@@ -1201,6 +1241,7 @@ class Verticies(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
+
 
 class Polygons(SectionDf):
     _ncol = 3
@@ -1220,6 +1261,7 @@ class Symbols(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
+
 
 class Labels(SectionDf):
     _ncol = 8
@@ -1280,6 +1322,7 @@ class LID_Usage(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
+
 
 class Adjustments(SectionDf):
     _ncol = 13

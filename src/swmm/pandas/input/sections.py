@@ -2,14 +2,10 @@ from __future__ import annotations
 from swmm.pandas.input._section_classes import *
 
 _sections = {
-    # TODO build parser for this table
     "TITLE": Title,
     "OPTION": Option,
-    # TODO build parser for this table
     "REPORT": Report,
     "EVENT": Event,
-    # TODO build parser for this table
-    # _section_props(ncols=3, col_names=["Action", "File Type", "File Path"]),
     "FILE": Files,
     "RAINGAGE": Raingage,
     "EVAP": Evap,

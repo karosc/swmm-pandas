@@ -18,11 +18,11 @@ class Input:
     option: sc.Option = None
     report: sc.Report = None
     event: sc.Event = None
-    # file = sc.File = None
-    file: sc.SectionDf = None
+    file = sc.Files = None
     raingage: sc.Raingage = None
     evap: sc.Evap = None
     temperature: sc.Temperature = None
+    adjustments: sc.Adjustments = None
     subcatchment: sc.Subcatchment = None
     subarea: sc.Subarea = None
     infil: sc.Infil = None
