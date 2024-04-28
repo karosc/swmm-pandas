@@ -18,7 +18,7 @@ _sections = {
     "LID_USAGE": LID_Usage,
     "AQUIFER": Aquifer,
     "GROUNDWATER": Groundwater,
-    "GWF": SectionDf,  # _section_props(ncols=3, col_names=["Subcatchment", "Type", "Expr"]),
+    "GWF": GWF,  # _section_props(ncols=3, col_names=["Subcatchment", "Type", "Expr"]),
     "SNOWPACK": Snowpack,
     "JUNC": Junc,
     "OUTFALL": Outfall,

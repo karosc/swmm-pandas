@@ -1,13 +1,53 @@
 from __future__ import annotations
-from abc import ABC, abstractmethod
-from multiprocessing import Value
-import pandas as pd
-from typing import List, Self, Iterable, Optional
+
 import logging
-from dataclasses import dataclass
 import warnings
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from multiprocessing import Value
+from typing import Iterable, List, Optional, Self, TypedDict, TypeVar
+
+import pandas as pd
 
 _logger = logging.getLogger(__name__)
+
+
+class classproperty(object):
+    def __init__(self, f):
+        self.f = f
+
+    def __get__(self, obj, owner):
+        return self.f(owner)
+
+
+# class ClassPropertyDescriptor(object):
+
+#     def __init__(self, fget, fset=None):
+#         self.fget = fget
+#         self.fset = fset
+
+#     def __get__(self, obj, klass=None):
+#         if klass is None:
+#             klass = type(obj)
+#         return self.fget.__get__(obj, klass)()
+
+#     def __set__(self, obj, value):
+#         if not self.fset:
+#             raise AttributeError("can't set attribute")
+#         type_ = type(obj)
+#         return self.fset.__get__(obj, type_)(value)
+
+#     def setter(self, func):
+#         if not isinstance(func, (classmethod, staticmethod)):
+#             func = classmethod(func)
+#         self.fset = func
+#         return self
+
+# def classproperty(func):
+#     if not isinstance(func, (classmethod, staticmethod)):
+#         func = classmethod(func)
+
+#     return ClassPropertyDescriptor(func)
 
 
 def _coerce_numeric(data: str) -> str | float | int:
@@ -28,7 +68,7 @@ def _strip_comment(line: str) -> tuple[str, str]:
 
 
     Examples
-    ---------
+    --------
     >>> _strip_comment(" JUNC1  1.5  10.25  0  0  5000 ; This is my fav junction ")
     ["JUNC1  1.5  10.25  0  0  5000 ", "This is my fav junction"]
 
@@ -120,14 +160,17 @@ class SectionDf(SectionBase, pd.DataFrame):
     _headings = []
     _index_col = None
 
-    @classmethod
-    @property
+    @classproperty
     def headings(cls):
         return (
             cls._headings
             + [f"param{i+1}" for i in range(cls._ncol - len(cls._headings))]
             + ["desc"]
         )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # self._validate_headings()
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -161,18 +204,18 @@ class SectionDf(SectionBase, pd.DataFrame):
             if len(comment) > 0:
                 line_comment += comment + "\n"
 
-            # create and empty row
-            row_data = [""] * (ncols + 1)
-
             # split row into tokens coercing numerics into floats
             split_data = [_coerce_numeric(val) for val in line.split()]
 
             # parse tokenzied data into uniform tabular shape so each
             # row has the same number of columns
-            row_data[:ncols] = cls._tabulate(split_data)
-            # add comments to last column
-            row_data[-1] = line_comment.strip("\n")
-            data.append(row_data)
+            table_data = cls._tabulate(split_data)
+
+            data += cls._get_rows(
+                table_data=table_data,
+                ncols=ncols,
+                line_comment=line_comment,
+            )
             line_comment = ""
 
         # instantiate DataFrame
@@ -183,8 +226,33 @@ class SectionDf(SectionBase, pd.DataFrame):
         #     df.set_index(cls._index_col)
         # return df
 
+    @staticmethod
+    def _is_nested_list(l: list) -> bool:
+        return isinstance(l[0], list)
+
     @classmethod
-    def _tabulate(cls, line: list[str | float]) -> list[str | float]:
+    def _get_rows(
+        cls,
+        table_data: list[str | float] | list[list[str | float]],
+        ncols: int,
+        line_comment: str,
+    ) -> list[list[str | float]]:
+        if not cls._is_nested_list(table_data):
+            table_data = [table_data]
+
+        rows = []
+        for row in table_data:
+            # create and empty row
+            row_data = [""] * (ncols + 1)
+            # assign data to row
+            row_data[:ncols] = row
+            # add comments to last column
+            row_data[-1] = line_comment.strip("\n")
+            rows.append(row_data)
+        return rows
+
+    @classmethod
+    def _tabulate(cls, line: list[str | float]) -> list[str | float] | list[list[str | float]]:
         """
         Function to convert tokenized data into a table row with an expected number of columns
 
@@ -208,7 +276,6 @@ class SectionDf(SectionBase, pd.DataFrame):
     @classmethod
     def _newobj(cls, *args, **kwargs):
         df = cls(*args, **kwargs)
-        df._validate_headings()
         return df
 
     def _validate_headings(self):
@@ -229,7 +296,7 @@ class SectionDf(SectionBase, pd.DataFrame):
     def _constructor(self):
         # required override for pandas
         # https://pandas.pydata.org/docs/development/extending.html#override-constructor-properties
-        return SectionDf
+        return self.__class__
 
     @property
     def _constructor_sliced(self):
@@ -249,7 +316,12 @@ class SectionDf(SectionBase, pd.DataFrame):
         """Create a string representation of section"""
         self._validate_headings()
         # reset index
-        out_df = self.reset_index(self._index_col).reindex(self.headings, axis=1).fillna("")
+        out_df = (
+            self.reset_index(self._index_col)
+            .reindex(self.headings, axis=1)
+            .infer_objects(copy=False)
+            .fillna("")
+        )
 
         def comment_formatter(line: str):
             if len(line) > 0:
@@ -304,6 +376,11 @@ class Title(SectionText): ...
 
 
 class Option(SectionDf):
+    """
+    Index: Option
+    Columns: Value
+    """
+
     _ncol = 2
     _headings = ["Option", "Value"]
     _index_col = "Option"
@@ -311,6 +388,9 @@ class Option(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
+
+    def _ipython_key_completions_(self):
+        return list(["Value"])
 
 
 class Report(SectionBase):
@@ -320,12 +400,12 @@ class Report(SectionBase):
         Subcatch: str
         Fname: str
 
-    class LIDReport(list):
+    class LIDReport(list[LIDReportEntry]):
         def __init__(self, entries: Iterable[Report.LIDReportEntry]):
             for i in entries:
                 if not isinstance(i, Report.LIDReportEntry):
                     raise ValueError(
-                        f"LIDReport is instantiated with a sequence of LIDReportEntries, got {type(i)}"
+                        f"LIDReport is instantiated with a sequence of LIDReportEntries, got {type(i)}",
                     )
             super().__init__(entries)
 
@@ -335,7 +415,7 @@ class Report(SectionBase):
                     Name=lid_name,
                     Subcatch=subcatch,
                     Fname=Fname,
-                )
+                ),
             )
 
         def remove(self, lid_name: str) -> None:
@@ -345,7 +425,10 @@ class Report(SectionBase):
             self.pop(i)
 
         def __repr__(self):
-            return f"LIDReportList({super().__repr__()})"
+            rep = "LIDReportList(\n"
+            for lid in self:
+                rep += f"    {lid}.__repr__()\n"
+            return f"{rep})"
 
     def __init__(
         self,
@@ -369,10 +452,10 @@ class Report(SectionBase):
         self.SUBCATCHMENTS = subcatchments
         self.NODES = nodes
         self.LINKS = links
-        self.LIDS = self.LIDReport([])
+        self.LID = self.LIDReport([])
 
         for lid in lids:
-            self.LIDS.add(lid["name"], lid["subcatch"], lid["fname"])
+            self.LID.add(lid["name"], lid["subcatch"], lid["fname"])
 
     @classmethod
     def from_section_text(cls, text: str, *args, **kwargs) -> Self:
@@ -387,7 +470,7 @@ class Report(SectionBase):
 
             if ";" in row:
                 warnings.warn(
-                    "swmm.pandas does not currently support comments in the [REPORT] section. Truncating..."
+                    "swmm.pandas does not currently support comments in the [REPORT] section. Truncating...",
                 )
                 if _is_line_comment(row):
                     continue
@@ -404,7 +487,7 @@ class Report(SectionBase):
                     getattr(obj, report_type) + tokens[1:],
                 )
             elif report_type == "LID":
-                obj.LIDS.add(
+                obj.LID.add(
                     lid_name=tokens[1],
                     subcatch=tokens[2],
                     Fname=tokens[3],
@@ -448,8 +531,8 @@ class Report(SectionBase):
                 while i < len(items):
                     out_str += f"{seq} {' '.join(items[i:i+5])}\n"
                     i += 5
-        if len(self.LIDS) > 0:
-            for lid in self.LIDS:
+        if len(self.LID) > 0:
+            for lid in self.LID:
                 out_str += f"LID {lid.Name} {lid.Subcatch} {lid.Fname}\n"
 
         return out_str
@@ -463,7 +546,7 @@ class Report(SectionBase):
         for seq in ("SUBCATCHMENTS", "NODES", "LINKS"):
             length += len(getattr(self, seq))
 
-        length += len(self.LIDS)
+        length += len(self.LID)
         return length
 
 
@@ -593,12 +676,13 @@ class Infil(SectionDf):
     ]
     _index_col = "Subcatchment"
     _infiltration_methods = (
-        "HORTON", 
-        "MODIFIED_HORTON", 
-        "GREEN_AMPT", 
+        "HORTON",
+        "MODIFIED_HORTON",
+        "GREEN_AMPT",
         "MODIFIED_GREEN_AMPT",
         "CURVE_NUMBER",
     )
+
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
@@ -612,11 +696,12 @@ class Infil(SectionDf):
 
         # add catchment specific method if present
         if line[-1] in cls._infiltration_methods:
-            out[cls._headings.index('Method')] = line.pop(-1)
+            out[cls._headings.index("Method")] = line.pop(-1)
 
         # add params
-        out[1:1+len(line)] = line
+        out[1 : 1 + len(line)] = line
         return out
+
 
 class Aquifer(SectionDf):
     _ncol = 14
@@ -668,10 +753,32 @@ class Groundwater(SectionDf):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
 
+class GWF(SectionDf):
+    _ncol = 3
+    _headings = [
+        "Subcatch",
+        "Type",
+        "Expr",
+    ]
+    _index_col = ["Subcatch", "Type"]
+
+    @classmethod
+    def from_section_text(cls, text: str):
+        return super()._from_section_text(text, cls._ncol, cls._headings)
+
+    @classmethod
+    def _tabulate(cls, line: List[str | float]) -> List[str | float] | List[List[str | float]]:
+        out = [""] * cls._ncol
+        out[0] = line.pop(0)
+        out[1] = line.pop(0)
+        out[2] = "".join([str(s).strip() for s in line])
+        return out
+
+
 class Snowpack(SectionDf):
     _ncol = 9
     _headings = ["Name", "Surface"]
-    _index_col = "Name"
+    _index_col = ["Name", "Surface"]
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -1108,7 +1215,7 @@ class LandUse(SectionDf):
 class Coverage(SectionDf):
     _ncol = 3
     _headings = ["Subcatchment", "landuse", "Percent"]
-    _index_col = ("Subcatchment", "landuse")
+    _index_col = ["Subcatchment", "landuse"]
 
     @classmethod
     def _tabulate(cls, line: list):
@@ -1116,7 +1223,7 @@ class Coverage(SectionDf):
             raise Exception(
                 "swmm.pandas doesn't yet support having multiple land "
                 "uses on a single coverage line. Separate your land use "
-                "coverages onto individual lines first"
+                "coverages onto individual lines first",
             )
         return super()._tabulate(line)
 
@@ -1128,7 +1235,7 @@ class Coverage(SectionDf):
 class Loading(SectionDf):
     _ncol = 3
     _headings = ["Subcatchment", "Pollutant", "InitBuildup"]
-    _index_col = ("Subcatchment", "Pollutant")
+    _index_col = ["Subcatchment", "Pollutant"]
 
     @classmethod
     def _tabulate(cls, line: list):
@@ -1136,7 +1243,7 @@ class Loading(SectionDf):
             raise Exception(
                 "swmm.pandas doesn't yet support having multiple pollutants "
                 "uses on a single loading line. Separate your pollutant "
-                "loadings onto individual lines first"
+                "loadings onto individual lines first",
             )
         return super()._tabulate(line)
 
@@ -1148,7 +1255,7 @@ class Loading(SectionDf):
 class Buildup(SectionDf):
     _ncol = 4
     _headings = ["Landuse", "Pollutant", "FuncType", "C1", "C2", "C3", "PerUnit"]
-    _index_col = ("Landuse", "Polutant")
+    _index_col = ["Landuse", "Polutant"]
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -1158,7 +1265,7 @@ class Buildup(SectionDf):
 class Washoff(SectionDf):
     _ncol = 4
     _headings = ["Landuse", "Pollutant", "FuncType", "C1", "C2", "SweepRmvl", "BmpRmvl"]
-    _index_col = ("Landuse", "Polutant")
+    _index_col = ["Landuse", "Polutant"]
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -1168,7 +1275,7 @@ class Washoff(SectionDf):
 class Treatment(SectionDf):
     _ncol = 3
     _headings = ["Node", "Pollutant", "Func"]
-    _index_col = ("Node", "Pollutant")
+    _index_col = ["Node", "Pollutant"]
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -1188,7 +1295,7 @@ class Inflow(SectionDf):
         "Baseline",
         "Pattern",
     ]
-    _index_col = ("Node", "Constituent")
+    _index_col = ["Node", "Constituent"]
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -1206,7 +1313,7 @@ class DWF(SectionDf):
         "Pat3",
         "Pat4",
     ]
-    _index_col = ("Node", "Constituent")
+    _index_col = ["Node", "Constituent"]
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -1300,6 +1407,22 @@ class LID_Control(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
+    @classmethod
+    def _tabulate(cls, line: list[str | float]) -> list[str | float] | list[list[str | float]]:
+        lid_type = line[1]
+        if lid_type == "REMOVALS":
+            out = []
+            name = line.pop(0)
+            lid_type = line.pop(0)
+            for chunk in range(0, len(line), 2):
+                row = [""] * cls._ncol
+                pollutant, removal = line[chunk : chunk + 2]
+                row[0:4] = name, lid_type, pollutant, removal
+                out.append(row)
+            return out
+        else:
+            return super()._tabulate(line)
+
 
 class LID_Usage(SectionDf):
     _ncol = 11
@@ -1312,12 +1435,12 @@ class LID_Usage(SectionDf):
         "InitSat",
         "FromImp",
         "ToPerv",
-        "RptFiqle",
+        "RptFile",
         "DrainTo",
         "FromPerv",
     ]
 
-    _index_col = ("Subcatchment", "LIDProcess")
+    _index_col = ["Subcatchment", "LIDProcess"]
 
     @classmethod
     def from_section_text(cls, text: str):

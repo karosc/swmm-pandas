@@ -123,6 +123,16 @@ RainBarrels     	DRAIN     	1         	0.5       	0         	6         	0       
 
 Swale           	VS
 Swale           	SURFACE   	36        	0.0       	0.24      	1.0       	5         
+; test pollutant removal parsing
+Swale               REMOVALS  Rainfall 20  Sewage  40  Groundwater 10
+
+[POLLUTANTS]
+;;Name           Units  Crain      Cgw        Crdii      Kdecay     SnowOnly   Co-Pollutant     Co-Frac    Cdwf       Cinit     
+;;-------------- ------ ---------- ---------- ---------- ---------- ---------- ---------------- ---------- ---------- ----------
+Groundwater      MG/L   0          100        0          0          NO         *                0.0        0          0         
+Rainfall         MG/L   100        0          0          0          NO         *                0.0        0          0         
+Sewage           MG/L   0          0          0          0          NO         *                0.0        100        0         
+
 
 [LID_USAGE]
 ;;Subcatchment  	LID Process     	Number 	Area      	Width     	InitSat   	FromImp   	ToPerv    	RptFile                 	DrainTo         	FromPerv  
@@ -225,6 +235,9 @@ INPUT     	YES
 SUBCATCHMENTS	ALL
 NODES	ALL
 LINKS	ALL
+LID Planters       S4    S4_lid_pl.rpt
+LID InfilTrench    S1    S1_lid_it.rpt
+LID RainBarrels    S1    S1_lid_rb.rpt
 
 [TAGS]
 

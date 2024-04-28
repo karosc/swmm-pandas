@@ -105,6 +105,10 @@ SUB1             SUB1             JUNC1            10.7   0.001  1.5    0      0
 SUB2             SUB2             JUNC2            5.16   0.001  1.5    0      0      0      0      *      -44.84 -0.029 0.275 
 SUB3             SUB3             JUNC4            8.55   0.001  1.5    0      0      0      0      *      -41.45 -3.616 0.279 
 
+[GWF]
+SUB1 LATERAL 0.001*Hgw + 0.05*(Hgw–5)*STEP(Hgw–5)
+SUB2 DEEP 0.002
+
 [SNOWPACKS]
 ;;Name           Surface    Parameters
 ;;-------------- ---------- ----------

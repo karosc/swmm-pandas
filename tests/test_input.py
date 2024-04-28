@@ -21,8 +21,11 @@ class InuptTest(unittest.TestCase):
         self.test_street_model_path = str(_HERE / "data" / "Inlet_Drains_Model.inp")
         self.test_pump_model_path = str(_HERE / "data" / "Pump_Control_Model.inp")
         self.test_drainage_model_path = str(_HERE / "data" / "Site_Drainage_Model.inp")
+        self.test_lid_model_path = str(_HERE / "data" / "LID_Model.inp")
 
         self.test_base_model = Input(self.test_base_model_path)
+        self.test_lid_model = Input(self.test_lid_model_path)
+
         # self.test_groundwater_model = Input(self.test_groundwater_model_path)
         # self.test_street_model = Input(self.test_street_model_path)
         # self.test_pump_model = Input(self.test_pump_model_path)
@@ -82,6 +85,26 @@ class InuptTest(unittest.TestCase):
         self.assertEqual(inp.report.to_swmm_string().split("\n")[7], "LINKS NONE")
         # check that input file string limits 5 swmm objects per line
         self.assertEqual(len(inp.report.to_swmm_string().split("\n")[5].split()), 6)
+
+        inp = self.test_lid_model
+        self.assertEqual(
+            len(inp.report.LID),
+            3,
+        )
+        self.assertEqual(
+            inp.report.LID[0].Name,
+            "Planters",
+        )
+
+        self.assertEqual(
+            inp.report.LID[1].Subcatch,
+            "S1",
+        )
+
+        self.assertEqual(
+            inp.report.LID[1].Fname,
+            "S1_lid_it.rpt",
+        )
 
     def test_event(self):
         inp = self.test_base_model
@@ -376,9 +399,9 @@ class InuptTest(unittest.TestCase):
                 dtype=object,
             ),
         )
-        
-        #test assignment
-        inp.infil.loc["FAKE_SUB"] = [0,0,0,0,0,"","This is fake"]
+
+        # test assignment
+        inp.infil.loc["FAKE_SUB"] = [0, 0, 0, 0, 0, "", "This is fake"]
         self.assertEqual(
             inp.infil.to_swmm_string(),
             dedent(
@@ -394,3 +417,152 @@ class InuptTest(unittest.TestCase):
             ),
         )
 
+    def test_lid_control(self) -> None:
+        inp = self.test_lid_model
+        self.assertIsInstance(inp.lid_control, pd.DataFrame)
+
+        self.assertEqual(
+            inp.lid_control.shape,
+            (27, 9),
+        )
+
+        nptest.assert_equal(
+            inp.lid_control.index.unique().to_numpy(),
+            ["GreenRoof", "PorousPave", "Planters", "InfilTrench", "RainBarrels", "Swale"],
+        )
+
+    def test_lid_usage(self) -> None:
+        inp = self.test_lid_model
+        self.assertIsInstance(
+            inp.lid_usage,
+            pd.DataFrame,
+        )
+
+        self.assertEqual(
+            inp.lid_usage.reset_index().shape,
+            (8, 12),
+        )
+
+        inp.lid_usage.loc[(slice(None), "Swale"), "Width"] = 100
+        inp.lid_usage.loc[(slice(None), "Swale"), "desc"] = "Update width"
+        self.maxDiff
+        self.assertMultiLineEqual(
+            inp.lid_usage.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Subcatchment  LIDProcess   Number  Area      Width  InitSat  FromImp  ToPerv  RptFile  DrainTo  FromPerv  
+                    ;;------------  -----------  ------  --------  -----  -------  -------  ------  -------  -------  --------  
+                    S1              InfilTrench  4       532       133    0        40       0       *        *        0         
+                    S1              RainBarrels  32      5         0      0        17       1       *        *        0         
+                    S4              Planters     30      500       0      0        80       0       *        *        0         
+                    S5              PorousPave   1       232872    683    0        0        0       *        *        0         
+                    S5              GreenRoof    1       18400     136    0        0        0       *        *        0         
+                    ;Update width
+                    Swale3          Swale        1       14374.80  100    0        0        0       *        *        0         
+                    ;Update width
+                    Swale4          Swale        1       21780.00  100    0        0        0       *        *        0         
+                    ;Update width
+                    Swale6          Swale        1       17859.60  100    0        0        0       *        *        0         
+                """,
+            ),
+        )
+
+    def test_aquifers(self)->None:
+        inp = self.test_base_model
+
+        self.assertEqual(
+            inp.aquifer.shape,
+            (3,14)
+        )
+
+        inp.aquifer.loc['SUB3','FC'] = 10
+
+        self.assertMultiLineEqual(
+            inp.aquifer.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Name  Por   WP    FC    Ksat  Kslope  Tslope  ETu  ETs  Seep  Ebot    Egw    Umc   ETupat  
+                    ;;----  ----  ----  ----  ----  ------  ------  ---  ---  ----  ------  -----  ----  ------  
+                    SUB1    0.46  0.13  0.28  0.8   5       20      0.7  10   0     -39.3   1.5    0.23          
+                    SUB2    0.46  0.13  0.28  0.8   5       20      0.7  10   0     -36.75  4.5    0.23          
+                    SUB3    0.46  0.13  10.0  0.8   5       20      0.7  10   0     -4.53   36.57  0.23          
+                """,
+            ),
+        )
+    
+    def test_groundwater(self)->None:
+        inp = self.test_base_model
+
+        self.assertEqual(
+            inp.groundwater.shape,
+            (3,14)
+        )
+
+        inp.groundwater.loc[:,'Egwt'] = 100
+        inp.groundwater.loc[:,'desc'] = 'update Egwt'
+
+        self.assertMultiLineEqual(
+            inp.groundwater.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Subcatchment  Aquifer  Node   Esurf  A1     B1   A2  B2  A3  Dsw  Egwt  Ebot    Wgr     Umc    
+                    ;;------------  -------  -----  -----  -----  ---  --  --  --  ---  ----  ------  ------  -----  
+                    ;update Egwt
+                    SUB1            SUB1     JUNC1  10.7   0.001  1.5  0   0   0   0    100   -39.3   2.521   0.276  
+                    ;update Egwt
+                    SUB2            SUB2     JUNC2  5.16   0.001  1.5  0   0   0   0    100   -44.84  -0.029  0.275  
+                    ;update Egwt
+                    SUB3            SUB3     JUNC4  8.55   0.001  1.5  0   0   0   0    100   -41.45  -3.616  0.279  
+                """,
+            ),
+        )
+    
+    def test_gwf(self)->None:
+        inp = self.test_base_model
+
+        self.assertEqual(
+            inp.gwf.shape,
+            (2,2),
+        )
+
+        inp.gwf.loc[('SUB3','LATERAL'),:] = ["0.001*Hgw + 0.05*(Hgw–5)*STEP(Hgw–5)",'add gwf for SUB3']
+
+        self.assertMultiLineEqual(
+            inp.gwf.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Subcatch  Type     Expr                                  
+                    ;;--------  -------  ------------------------------------  
+                    SUB1        LATERAL  0.001*Hgw+0.05*(Hgw–5)*STEP(Hgw–5)    
+                    SUB2        DEEP     0.002                                 
+                    ;add gwf for SUB3
+                    SUB3        LATERAL  0.001*Hgw + 0.05*(Hgw–5)*STEP(Hgw–5)  
+                """,
+            ),
+        )
+
+    def test_snowpacks(self):
+        inp = self.test_base_model
+
+        self.assertEqual(
+            inp.snowpack.reset_index().shape,
+            (4,10),
+        )
+
+        inp.snowpack.loc[('SNOW1','REMOVAL'), 'param1'] = 4
+        inp.snowpack.loc[('SNOW1','REMOVAL'), 'desc'] = 'Update plow depth'
+
+        self.assertMultiLineEqual(
+            inp.snowpack.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Name  Surface     param1    param2    param3     param4    param5    param6    param7    
+                    ;;----  ----------  --------  --------  ---------  --------  --------  --------  --------  
+                    SNOW1   PLOWABLE    0.005000  0.007000  24.000000  0.200000  0.000000  0.000000  0.100000  
+                    SNOW1   IMPERVIOUS  0.005000  0.007000  24.000000  0.200000  0.000000  0.000000  2.000000  
+                    SNOW1   PERVIOUS    0.004000  0.004000  25.000000  0.200000  0.000000  0.000000  2.000000  
+                    ;Update plow depth
+                    SNOW1   REMOVAL     4         0         0          1         0.000000  0.000000            
+                """,
+            ),
+        )

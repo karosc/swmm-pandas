@@ -14,12 +14,12 @@
 | SUBCATCHMENTS | :heavy_check_mark: | :heavy_check_mark: |                                            |
 | SUBAREAS      | :heavy_check_mark: | :heavy_check_mark: |                                            |
 | INFILTRATION  | :heavy_check_mark: | :heavy_check_mark: | better column names                        |
-| LID_CONTROLS  | :heavy_check_mark: | :x:                |                                            |
-| LID_USAGE     | :heavy_check_mark: | :x:                |                                            |
-| AQUIFERS      | :heavy_check_mark: | :x:                |                                            |
-| GROUNDWATER   | :heavy_check_mark: | :x:                |                                            |
-| GWF           | :x:                | :x:                |                                            |
-| SNOWPACKS     | :heavy_check_mark: | :x:                |                                            |
+| LID_CONTROLS  | :heavy_check_mark: | :heavy_check_mark: |                                            |
+| LID_USAGE     | :heavy_check_mark: | :heavy_check_mark: |                                            |
+| AQUIFERS      | :heavy_check_mark: | :heavy_check_mark: |                                            |
+| GROUNDWATER   | :heavy_check_mark: | :heavy_check_mark: |                                            |
+| GWF           | :heavy_check_mark: | :heavy_check_mark: |                                            |
+| SNOWPACKS     | :heavy_check_mark: | :heavy_check_mark: |                                            |
 | JUNCTIONS     | :heavy_check_mark: | :x:                |                                            |
 | OUTFALLS      | :heavy_check_mark: | :x:                |                                            |
 | DIVIDERS      | :heavy_check_mark: | :x:                |                                            |

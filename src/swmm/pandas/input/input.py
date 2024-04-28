@@ -27,10 +27,10 @@ class Input:
     subarea: sc.Subarea = None
     infil: sc.Infil = None
     lid_control = sc.LID_Control = None
-    lid_usage = sc.LID_Usage = None
+    lid_usage = sc.LID_Usage
     aquifer: sc.Aquifer = None
     groundwater: sc.Groundwater = None
-    # gwf: sc.GWF = None
+    gwf: sc.GWF = None
     snowpack: sc.Snowpack = None
     junc: sc.Junc = None
     outfall: sc.Outfall = None
