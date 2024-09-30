@@ -57,6 +57,7 @@ class Input:
     inflow: sc.Inflow = None
     dwf: sc.DWF = None
     rdii: sc.RDII = None
+    hydrographs: sc.Hydrographs = None
 
     def __init__(self, inpfile: str):
         self.path: str = inpfile
@@ -137,18 +138,16 @@ class Input:
 
     #     if not hasattr(self,private_property_name):
 
-
     def to_string(self):
         out_str = ""
         for sect in _sections.keys():
             section_class = _sections[sect]
             public_property_name = section_class.__name__.lower()
             # private_property_name = f"_{public_property_name}"
-            if len(sect_obj:=getattr(self,public_property_name))>0:
+            if len(sect_obj := getattr(self, public_property_name)) > 0:
                 sect_string = sect_obj.to_swmm_string()
-                out_str+=f"[{sect.upper()}]\n{sect_string}\n\n"
+                out_str += f"[{sect.upper()}]\n{sect_string}\n\n"
         return out_str
-
 
     ############ OPTIONS ###########
 

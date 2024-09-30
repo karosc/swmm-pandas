@@ -6,6 +6,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from multiprocessing import Value
 from typing import Iterable, List, Optional, Self, TypedDict, TypeVar
+from calendar import month_abbr
+
 
 import pandas as pd
 
@@ -252,7 +254,9 @@ class SectionDf(SectionBase, pd.DataFrame):
         return rows
 
     @classmethod
-    def _tabulate(cls, line: list[str | float]) -> list[str | float] | list[list[str | float]]:
+    def _tabulate(
+        cls, line: list[str | float]
+    ) -> list[str | float] | list[list[str | float]]:
         """
         Function to convert tokenized data into a table row with an expected number of columns
 
@@ -271,7 +275,7 @@ class SectionDf(SectionBase, pd.DataFrame):
     @classmethod
     def _new_empty(cls):
         """Construct and empty instance"""
-        return cls(data=[], columns=cls.headings)
+        return cls(data=[], columns=cls.headings).set_index(cls._index_col)
 
     @classmethod
     def _newobj(cls, *args, **kwargs):
@@ -285,12 +289,51 @@ class SectionDf(SectionBase, pd.DataFrame):
                 missing.append(heading)
         if len(missing) > 0:
             # print('cols: ',self.columns)
-            raise ValueError(f"{self.__class__.__name__} section is missing columns {missing}")
+            raise ValueError(
+                f"{self.__class__.__name__} section is missing columns {missing}"
+            )
             # self.reindex(self.headings,inplace=True)
 
-    def add_element(self, obj):
-        other = self.__class__.__newobj__(obj, index=[0])
-        return pd.concat([self, other])
+    # def add_element(self, obj):
+    #     other = self.__class__.__newobj__(obj, index=[0])
+    #     return pd.concat([self, other])
+
+    def add_element(self, **kwargs):
+        # Create a new row with NaN values for all columns
+        headings = self.headings.copy()
+        try:
+            if isinstance(self._index_col, str):
+                idx_name = self._index_col
+                idx = kwargs[idx_name]
+                headings.remove(idx_name)
+                kwargs.pop(idx_name)
+
+            elif isinstance(self._index_col, (list, tuple)):
+                idx_name = tuple(self._index_col)
+                idx = []
+                for col in idx_name:
+                    idx.append(kwargs[col])
+                    headings.remove(col)
+                    kwargs.pop(col)
+                idx = tuple(idx)
+
+        except KeyError:
+            raise KeyError(
+                f"Missing index column {self._index_col!r} in provided values. Please provide a value for {self._index_col!r}"
+            )
+        new_row = pd.Series(index=headings, name=idx)
+
+        # Update the new row with provided values
+        for col, value in kwargs.items():
+            if col in headings:
+                new_row[col] = value
+            else:
+                print(
+                    f"Warning: Column '{col}' not found in the DataFrame. Skipping this value."
+                )
+        # Append the new row to the DataFrame
+        self.loc[idx] = new_row
+        return self
 
     @property
     def _constructor(self):
@@ -341,7 +384,9 @@ class SectionDf(SectionBase, pd.DataFrame):
         # determine the length of the header names
         max_header = out_df.columns.to_series().apply(len)
 
-        max_header.iloc[0] += 2  # add 2 to first header to account for comment formatting
+        max_header.iloc[
+            0
+        ] += 2  # add 2 to first header to account for comment formatting
 
         # determine the column widths by finding the max legnth out of data
         # and headers
@@ -478,7 +523,9 @@ class Report(SectionBase):
             tokens = row.split()
             report_type = tokens[0].upper()
             if not hasattr(obj, report_type):
-                warnings.warn(f"{report_type} is not a supported report type, skipping...")
+                warnings.warn(
+                    f"{report_type} is not a supported report type, skipping..."
+                )
                 continue
             elif report_type in ("SUBCATCHMENTS", "NODES", "LINKS"):
                 setattr(
@@ -767,7 +814,9 @@ class GWF(SectionDf):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
     @classmethod
-    def _tabulate(cls, line: List[str | float]) -> List[str | float] | List[List[str | float]]:
+    def _tabulate(
+        cls, line: List[str | float]
+    ) -> List[str | float] | List[List[str | float]]:
         out = [""] * cls._ncol
         out[0] = line.pop(0)
         out[1] = line.pop(0)
@@ -841,9 +890,9 @@ class Storage(SectionDf):
         "InitDepth",
         "Shape",
         "CurveName",
-        "A1/L",
-        "A2/W",
-        "A0/Z",
+        "A1_L",
+        "A2_W",
+        "A0_Z",
         "SurDepth",
         "Fevap",
         "Psi",
@@ -863,9 +912,10 @@ class Storage(SectionDf):
             return out
         elif shape == "tabular":
             out[cls._headings.index("CurveName")] = line.pop(0)
-            out[cls._headings.index("SurDepth") : cls._headings.index("SurDepth") + len(line)] = (
-                line
-            )
+            out[
+                cls._headings.index("SurDepth") : cls._headings.index("SurDepth")
+                + len(line)
+            ] = line
             return out
         else:
             raise ValueError(f"Unexpected line in storage section ({line})")
@@ -1105,7 +1155,9 @@ class Xsections(SectionDf):
             return out
         elif out[1].upper() in cls._shapes:
             out[cls._headings.index("Geom1")] = line.pop(0)
-            out[cls._headings.index("Geom2") : cls._headings.index("Geom2") + len(line)] = line
+            out[
+                cls._headings.index("Geom2") : cls._headings.index("Geom2") + len(line)
+            ] = line
             return out
         else:
             raise ValueError(f"Unexpected line in xsection section ({line})")
@@ -1330,6 +1382,69 @@ class RDII(SectionDf):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
 
+class Hydrographs(SectionDf):
+    _ncol = 9
+    _headings = [
+        "Name",
+        "Month_RG",
+        "Response",
+        "R",
+        "T",
+        "K",
+        "IA_max",
+        "IA_rec",
+        "IA_ini",
+    ]
+    _index_col = ["Name", "Month_RG", "Response"]
+
+    @classmethod
+    def from_section_text(cls, text: str):
+
+        df = super()._from_section_text(text, cls._ncol, cls._headings).reset_index()
+        rg_rows = cls._find_rain_gauge_rows(df)
+        df.attrs = df.loc[rg_rows].set_index("Name")["Month_RG"].to_dict()
+        df.drop(rg_rows, inplace=True)
+        return df.set_index(cls._index_col)
+
+    @property
+    def rain_gauges(self):
+        return self.attrs
+
+    @staticmethod
+    def _find_rain_gauge_rows(df):
+        # Function to check if a row matches the raingauge criteria
+        def is_raingauge_row(row):
+            return (row != "").sum() == 2
+
+        # Apply the function to each row and get the indices where it's True
+        raingauge_indices = df.loc[df.apply(is_raingauge_row, axis=1)].index
+
+        return raingauge_indices
+
+    def to_swmm_string(self):
+
+        def month_to_number(month):
+            try:
+                return list(month_abbr).index(month.capitalize())
+            except ValueError:
+                return -1  # This will sort unrecognized months to the top
+
+        def index_mapper(index):
+            if index.name == "Month_RG":
+                return index.map(month_to_number)
+            else:
+                return index
+
+        # add rain gauge rows
+        _temp = self.__class__._new_empty()
+        for name, rg in self.rain_gauges.items():
+            _temp.add_element(Name=name, Month_RG=rg, Response="")
+        df = pd.concat([self, _temp])
+        # sort by name, month, and response after adding in raingauges
+        df = df.sort_index(ascending=[True, True, False], key=index_mapper)
+        return super(Hydrographs, df).to_swmm_string()
+
+
 class Coordinates(SectionDf):
     _ncol = 3
     _headings = ["Node", "X", "Y"]
@@ -1408,7 +1523,9 @@ class LID_Control(SectionDf):
         return super()._from_section_text(text, cls._ncol, cls._headings)
 
     @classmethod
-    def _tabulate(cls, line: list[str | float]) -> list[str | float] | list[list[str | float]]:
+    def _tabulate(
+        cls, line: list[str | float]
+    ) -> list[str | float] | list[list[str | float]]:
         lid_type = line[1]
         if lid_type == "REMOVALS":
             out = []

@@ -51,22 +51,20 @@ _sections = {
     "DWF": DWF,
     "RDII": RDII,
     # TODO build parser for this table
-    "HYDROGRAPH": SectionDf,
+    "HYDROGRAPH": Hydrographs,
     # TODO build parser for this table
     "CURVE": SectionDf,
     # TODO build parser for this table
     "TIMESERIES": SectionDf,
-    # TODO build parser for this table    
+    # TODO build parser for this table
     "PATTERN": SectionDf,
-        
-    "MAP": Map,    
+    "MAP": Map,
     "POLYGON": Polygons,
     "COORDINATE": Coordinates,
     "VERTICES": Verticies,
     "LABEL": Labels,
     "SYMBOL": Symbols,
     "BACKDROP": Backdrop,
-    
-    "PROFILE": SectionDf,   
+    "PROFILE": SectionDf,
     "TAG": Tags,
 }

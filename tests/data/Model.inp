@@ -556,6 +556,90 @@ HOURLY                      0.980000 0.950000 1.120000 1.120000 1.100000 1.12000
 HOURLY                      1.130000 1.120000 1.070000 1.050000 1.050000 1.090000
 HOURLY                      1.100000 1.140000 1.120000 1.060000 1.020000 0.800000
 
+[HYDROGRAPHS]
+;;               Rain Gage/      
+;;Name           Month            Response R        T        K        IA_max   IA_rec   IA_ini  
+;;-------------- ---------------- -------- -------- -------- -------- -------- -------- --------
+HydrA               RainGauge_B           
+HydrA               Jan              Short    0.01     2.5      0.05     0        0        0       
+HydrA               Jan              Medium   0.005    4        15       0        0        0       
+HydrA               Jan              Long     0.1      17       15       0        0        0       
+HydrA               Feb              Short    0.007785 2.375    0.1475   0        0        0       
+HydrA               Feb              Medium   0.004075 4.25     13.125   0        0        0       
+HydrA               Feb              Long     0.07575  14.875   16.125   0        0        0       
+HydrA               Mar              Short    0.00557  2.25     0.245    0        0        0       
+HydrA               Mar              Medium   0.00315  4.5      11.25    0        0        0       
+HydrA               Mar              Long     0.0515   12.75    17.25    0        0        0       
+HydrA               Apr              Short    0.003355 2.125    0.3425   0        0        0       
+HydrA               Apr              Medium   0.002225 4.75     9.375    0        0        0       
+HydrA               Apr              Long     0.02725  10.625   18.375   0        0        0       
+HydrA               May              Short    0.00114  2        0.44     0        0        0       
+HydrA               May              Medium   0.0013   5        7.5      0        0        0       
+HydrA               May              Long     0.003    8.5      19.5     0        0        0       
+HydrA               Jun              Short    0.003    2.983333 0.5      0        0        0       
+HydrA               Jun              Medium   0.01     6.333333 7        0        0        0       
+HydrA               Jun              Long     0.005733 9.666666 14.33333 0        0        0       
+HydrA               Jul              Short    0.002283 2.983333 0.293333 0        0        0       
+HydrA               Jul              Medium   0.0058   6.333333 7        0        0        0       
+HydrA               Jul              Long     0.005733 9.666666 14.33333 0        0        0       
+HydrA               Aug              Short    0.001566 2.983333 0.086666 0        0        0       
+HydrA               Aug              Medium   0.0016   6.333333 7        0        0        0       
+HydrA               Aug              Long     0.005733 6.333333 14.33333 0        0        0       
+HydrA               Sep              Short    0.004783 2.2416665 0.212083 0        0        0       
+HydrA               Sep              Medium   0.001275 4.7916665 5.625    0        0        0       
+HydrA               Sep              Long     0.0033915 8.083333 13.541665 0        0        0       
+HydrA               Oct              Short    0.008    1.5      0.3375   0        0        0       
+HydrA               Oct              Medium   0.00095  3.25     4.25     0        0        0       
+HydrA               Oct              Long     0.00105  6.5      12.75    0        0        0       
+HydrA               Nov              Short    0.014    2        0.66875  0        0        0       
+HydrA               Nov              Medium   0.002975 3.625    9.625    0        0        0       
+HydrA               Nov              Long     0.050525 11.75    13.875   0        0        0       
+HydrA               Dec              Short    0.02     2.5      1        0        0        0       
+HydrA               Dec              Medium   0.005    4        15       0        0        0       
+HydrA               Dec              Long     0.1      17       15       0        0        0       
+HydrB               RainGauge_B           
+HydrB               Jan              Short    0.005    0.575    0.825    0        0        0       
+HydrB               Jan              Medium   0.01     5.5      7.275    0        0        0       
+HydrB               Jan              Long     0.003125 7        17       0        0        0       
+HydrB               Feb              Short    0.003875 0.63125  0.9354165 0        0        0       
+HydrB               Feb              Medium   0.00845825 5.19833325 7.38125  0        0        0       
+HydrB               Feb              Long     0.00734375 7.08333325 21.166665 0        0        0       
+HydrB               Mar              Short    0.00275  0.6875   1.045833 0        0        0       
+HydrB               Mar              Medium   0.0069165 4.8966665 7.4875   0        0        0       
+HydrB               Mar              Long     0.0115625 7.1666665 25.33333 0        0        0       
+HydrB               Apr              Short    0.001625 0.74375  1.1562495 0        0        0       
+HydrB               Apr              Medium   0.00537475 4.59499975 7.59375  0        0        0       
+HydrB               Apr              Long     0.01578125 7.24999975 29.499995 0        0        0       
+HydrB               May              Short    0.0005   0.8      1.266666 0        0        0       
+HydrB               May              Medium   0.003833 4.293333 7.7      0        0        0       
+HydrB               May              Long     0.02     7.333333 33.66666 0        0        0       
+HydrB               Jun              Short    0.001366 0.7      1.033333 0        0        0       
+HydrB               Jun              Medium   0.001166 5        6.8      0        0        0       
+HydrB               Jun              Long     0.006    8        28.33333 0        0        0       
+HydrB               Jul              Short    0.001366 0.7      1.033333 0        0        0       
+HydrB               Jul              Medium   0.001166 5        6.8      0        0        0       
+HydrB               Jul              Long     0.006    8        28.33333 0        0        0       
+HydrB               Aug              Short    0.001366 0.7      1.033333 0        0        0       
+HydrB               Aug              Medium   0.001166 5        6.8      0        0        0       
+HydrB               Aug              Long     0.006    8        28.33333 0        0        0       
+HydrB               Sep              Short    0.001933 0.5      1.2166665 0        0        0       
+HydrB               Sep              Medium   0.001533 3.75     12.65    0        0        0       
+HydrB               Sep              Long     0.00305  10.75    24.166665 0        0        0       
+HydrB               Oct              Short    0.0025   0.3      1.4      0        0        0       
+HydrB               Oct              Medium   0.0019   2.5      18.5     0        0        0       
+HydrB               Oct              Long     0.0001   13.5     20       0        0        0       
+HydrB               Nov              Short    0.00275  0.4375   1.1125   0        0        0       
+HydrB               Nov              Medium   0.00345  4        12.8875  0        0        0       
+HydrB               Nov              Long     0.0016125 10.25    18.5     0        0        0       
+HydrB               Dec              Short    0.003    0.575    0.825    0        0        0       
+HydrB               Dec              Medium   0.005    5.5      7.275    0        0        0       
+HydrB               Dec              Long     0.003125 7        17       0        0        0    
+HydrB               RainGauge_C           
+HydrC               ALL              Short    0.005    0.575    0.825    0        0        0       
+HydrC               ALL              Medium   0.01     5.5      7.275    0        0        0       
+HydrC               ALL              Long     0.003125 7        17       0        0        0       
+
+
 [REPORT]
 ;;Reporting Options
 INPUT      YES
