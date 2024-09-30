@@ -58,6 +58,7 @@ class Input:
     dwf: sc.DWF = None
     rdii: sc.RDII = None
     hydrographs: sc.Hydrographs = None
+    curves: sc.Curves = None
 
     def __init__(self, inpfile: str):
         self.path: str = inpfile

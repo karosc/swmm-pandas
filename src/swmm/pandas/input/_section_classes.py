@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from numbers import Number
 import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -10,6 +11,7 @@ from calendar import month_abbr
 
 
 import pandas as pd
+import numpy as np
 
 _logger = logging.getLogger(__name__)
 
@@ -180,7 +182,7 @@ class SectionDf(SectionBase, pd.DataFrame):
         raise NotImplementedError
 
     @classmethod
-    def _from_section_text(cls, text: str, ncols: int, headings: List[str]) -> Self:
+    def _from_section_text(cls, text: str, ncols: int) -> Self:
         """
 
         Parse the SWMM section t ext into a dataframe
@@ -432,7 +434,7 @@ class Option(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
     def _ipython_key_completions_(self):
         return list(["Value"])
@@ -623,7 +625,7 @@ class Event(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
     def to_swmm_string(self):
         df = self.copy()
@@ -648,7 +650,7 @@ class Raingage(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Evap(SectionDf):
@@ -658,7 +660,7 @@ class Evap(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Temperature(SectionDf):
@@ -668,7 +670,7 @@ class Temperature(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Subcatchment(SectionDf):
@@ -688,7 +690,7 @@ class Subcatchment(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Subarea(SectionDf):
@@ -707,7 +709,7 @@ class Subarea(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Infil(SectionDf):
@@ -732,7 +734,7 @@ class Infil(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
     @classmethod
     def _tabulate(cls, line: list):
@@ -772,7 +774,7 @@ class Aquifer(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Groundwater(SectionDf):
@@ -797,7 +799,7 @@ class Groundwater(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class GWF(SectionDf):
@@ -811,7 +813,7 @@ class GWF(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
     @classmethod
     def _tabulate(
@@ -831,7 +833,7 @@ class Snowpack(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Junc(SectionDf):
@@ -848,7 +850,7 @@ class Junc(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Outfall(SectionDf):
@@ -878,7 +880,7 @@ class Outfall(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Storage(SectionDf):
@@ -922,7 +924,7 @@ class Storage(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Divider(SectionDf):
@@ -974,7 +976,7 @@ class Divider(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Conduit(SectionDf):
@@ -994,7 +996,7 @@ class Conduit(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Pump(SectionDf):
@@ -1012,7 +1014,7 @@ class Pump(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Orifice(SectionDf):
@@ -1031,7 +1033,7 @@ class Orifice(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Weir(SectionDf):
@@ -1055,7 +1057,7 @@ class Weir(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Outlet(SectionDf):
@@ -1092,7 +1094,7 @@ class Outlet(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Xsections(SectionDf):
@@ -1164,7 +1166,7 @@ class Xsections(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Street(SectionDf):
@@ -1186,7 +1188,7 @@ class Street(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Inlet(SectionDf):
@@ -1199,7 +1201,7 @@ class Inlet(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Inlet_Usage(SectionDf):
@@ -1219,7 +1221,7 @@ class Inlet_Usage(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Losses(SectionDf):
@@ -1229,7 +1231,7 @@ class Losses(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Pollutants(SectionDf):
@@ -1251,7 +1253,7 @@ class Pollutants(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class LandUse(SectionDf):
@@ -1261,7 +1263,7 @@ class LandUse(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Coverage(SectionDf):
@@ -1281,7 +1283,7 @@ class Coverage(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Loading(SectionDf):
@@ -1301,7 +1303,7 @@ class Loading(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Buildup(SectionDf):
@@ -1311,7 +1313,7 @@ class Buildup(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Washoff(SectionDf):
@@ -1321,7 +1323,7 @@ class Washoff(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Treatment(SectionDf):
@@ -1331,7 +1333,7 @@ class Treatment(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 # TODO needs double quote handler for timeseries heading
@@ -1351,7 +1353,7 @@ class Inflow(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class DWF(SectionDf):
@@ -1369,7 +1371,7 @@ class DWF(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class RDII(SectionDf):
@@ -1379,7 +1381,7 @@ class RDII(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Hydrographs(SectionDf):
@@ -1400,7 +1402,7 @@ class Hydrographs(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
 
-        df = super()._from_section_text(text, cls._ncol, cls._headings).reset_index()
+        df = super()._from_section_text(text, cls._ncol).reset_index()
         rg_rows = cls._find_rain_gauge_rows(df)
         df.attrs = df.loc[rg_rows].set_index("Name")["Month_RG"].to_dict()
         df.drop(rg_rows, inplace=True)
@@ -1445,6 +1447,83 @@ class Hydrographs(SectionDf):
         return super(Hydrographs, df).to_swmm_string()
 
 
+class Curves(SectionDf):
+    _ncol = 4
+    _headings = ["Name", "Type", "X_Value", "Y_Value"]
+    _index_col = ["Name"]
+    _valid_types = [
+        "STORAGE",
+        "SHAPE",
+        "DIVERSION",
+        "TIDAL",
+        "PUMP1",
+        "PUMP2",
+        "PUMP3",
+        "PUMP4",
+        "PUMP5",
+        "RATING",
+        "CONTROL",
+        "WEIR",
+    ]
+
+    @classmethod
+    def _tabulate(
+        cls, line: list[str | float]
+    ) -> list[str | float] | list[list[str | float]]:
+        out = []
+        name = line.pop(0)
+
+        if str(line[0]).upper() in cls._valid_types:
+            curve_type = line.pop(0).upper()
+        elif isinstance(line[0], Number):
+            curve_type = pd.NA
+        else:
+            raise ValueError(f"Error parsing curve line {[name]+line!r}")
+
+        for chunk in range(0, len(line), 2):
+            row = [""] * cls._ncol
+            x_value, y_value = line[chunk : chunk + 2]
+            row[0:4] = name, curve_type, x_value, y_value
+            out.append(row)
+        return out
+
+    @classmethod
+    def _validate_curve_types(cls, df):
+        unique_curves = df.reset_index()[["Name", "Type"]].dropna().drop_duplicates()
+        if unique_curves["Name"].duplicated().any():
+            raise ValueError(
+                "Curve with duplicate types found in input file. "
+                "Each curve must only specify a single type to work with swmm.pandas"
+            )
+        if not all(
+            bools := [curve in cls._valid_types for curve in unique_curves.Type]
+        ):
+            invalid_curves = unique_curves["Type"].iloc[~np.array(bools)].to_list()
+            raise ValueError(f"Unknown curves {invalid_curves!r}")
+
+        df["Type"] = (
+            df.reset_index()["Name"].map(unique_curves.set_index("Name")["Type"]).values
+        )
+        return df
+
+    @classmethod
+    def from_section_text(cls, text: str):
+        df = cls._validate_curve_types(
+            super()._from_section_text(text, cls._ncol)
+        ).reset_index()
+
+        df["Curve_Index"] = df.groupby("Name").cumcount()
+        return df.set_index(["Name", "Curve_Index"])
+
+    def to_swmm_string(self):
+        df = self.copy()
+        df = self._validate_curve_types(df).sort_index()
+        dupped_types = df.reset_index().duplicated(subset=["Name", "Type"]).values
+        df.loc[dupped_types, "Type"] = ""
+        df.index = df.index.droplevel("Curve_Index")
+        return super(Curves, df).to_swmm_string()
+
+
 class Coordinates(SectionDf):
     _ncol = 3
     _headings = ["Node", "X", "Y"]
@@ -1452,7 +1531,7 @@ class Coordinates(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Verticies(SectionDf):
@@ -1462,7 +1541,7 @@ class Verticies(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Polygons(SectionDf):
@@ -1472,7 +1551,7 @@ class Polygons(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Symbols(SectionDf):
@@ -1482,7 +1561,7 @@ class Symbols(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Labels(SectionDf):
@@ -1500,7 +1579,7 @@ class Labels(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Tags(SectionDf):
@@ -1510,7 +1589,7 @@ class Tags(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class LID_Control(SectionDf):
@@ -1520,7 +1599,7 @@ class LID_Control(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
     @classmethod
     def _tabulate(
@@ -1561,7 +1640,7 @@ class LID_Usage(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Adjustments(SectionDf):
@@ -1585,7 +1664,7 @@ class Adjustments(SectionDf):
 
     @classmethod
     def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol, cls._headings)
+        return super()._from_section_text(text, cls._ncol)
 
 
 class Backdrop(SectionText): ...

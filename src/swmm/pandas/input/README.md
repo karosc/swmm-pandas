@@ -47,7 +47,7 @@
 | DWF           | :heavy_check_mark: | :x:                |                                            |
 | RDII          | :heavy_check_mark: | :x:                |                                            |
 | HYDROGRAPHS   | :heavy_check_mark: | :x:                |                                            |
-| CURVES        | :x:                | :x:                |                                            |
+| CURVES        | :heavy_check_mark: | :x:                |                                            |
 | TIMESERIES    | :x:                | :x:                |                                            |
 | PATTERNS      | :x:                | :x:                |                                            |
 | MAP           | :x:                | :x:                |                                            |

@@ -50,10 +50,8 @@ _sections = {
     "INFLOW": Inflow,
     "DWF": DWF,
     "RDII": RDII,
-    # TODO build parser for this table
     "HYDROGRAPH": Hydrographs,
-    # TODO build parser for this table
-    "CURVE": SectionDf,
+    "CURVE": Curves,
     # TODO build parser for this table
     "TIMESERIES": SectionDf,
     # TODO build parser for this table
