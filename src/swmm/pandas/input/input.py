@@ -59,6 +59,7 @@ class Input:
     rdii: sc.RDII = None
     hydrographs: sc.Hydrographs = None
     curves: sc.Curves = None
+    timeseries: sc.Timeseries = None
 
     def __init__(self, inpfile: str):
         self.path: str = inpfile

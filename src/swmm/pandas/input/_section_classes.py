@@ -7,10 +7,12 @@ import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from multiprocessing import Value
-from typing import Iterable, List, Optional, Self, TypedDict, TypeVar
+from typing import Iterable, List, Optional, Self, TypedDict, TypeVar, Iterator
 from calendar import month_abbr
+import re
+import textwrap
 
-
+from aenum import NamedTuple
 import pandas as pd
 import numpy as np
 
@@ -104,6 +106,13 @@ def _is_data(line: str):
     return True
 
 
+def comment_formatter(line: str):
+    if len(line) > 0:
+        line = ";" + line.strip().strip("\n").strip()
+        line = line.replace("\n", "\n;") + "\n"
+    return line
+
+
 class SectionSeries(pd.Series):
     @property
     def _constructor(self):
@@ -139,12 +148,12 @@ class SectionBase(ABC):
 
 class SectionText(SectionBase, str):
     @classmethod
-    def from_section_text(cls, text: str):
+    def from_section_text(cls, text: str) -> Self:
         """Construct an instance of the class from the section inp text"""
         return cls._from_section_text(text)
 
     @classmethod
-    def _from_section_text(cls, text: str):
+    def _from_section_text(cls, text: str) -> Self:
         return cls(text)
 
     @classmethod
@@ -368,12 +377,6 @@ class SectionDf(SectionBase, pd.DataFrame):
             .infer_objects(copy=False)
             .fillna("")
         )
-
-        def comment_formatter(line: str):
-            if len(line) > 0:
-                line = ";" + line.strip().strip("\n").strip()
-                line = line.replace("\n", "\n;") + "\n"
-            return line
 
         # determine the longest variable in each column of the table
         # used to figure out how wide to make the columns
@@ -1190,6 +1193,213 @@ class Street(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol)
+
+
+class Timeseries(SectionBase):
+    def __init__(self, ts: dict):
+        self._timeseries = ts
+
+    @dataclass
+    class TimeseriesFile:
+        name: str
+        Fname: str
+        comment: str = ""
+
+        def to_swmm(self):
+            comment = comment_formatter(self.comment)
+            return f"{self.comment}{self.name}  FILE  {self.Fname}\n\n"
+
+    @staticmethod
+    def _timeseries_to_swmm_dat(df, name):
+        def df_time_formatter(x):
+            if isinstance(x, pd.Timedelta):
+                total_seconds = x.total_seconds()
+                hours = int(total_seconds // 3600)  # Get the total hours
+                minutes = int((total_seconds % 3600) // 60)  # Get the remaining minutes
+                return f"{hours}:{minutes:02}"
+            elif isinstance(x, pd.Timestamp):
+                return x.strftime("%m/%d/%Y %H:%M")
+            elif isinstance(x, (float, int)):
+                return x
+
+        def df_comment_formatter(x):
+            if len(x) > 0:
+                return comment_formatter(x).strip("\n")
+            else:
+                return ""
+
+        df["name"] = name
+
+        comment = df.attrs.get("comment")
+        if len(comment := df.attrs.get("comment", "")) > 0:
+            comment_line = df_comment_formatter(comment) + "\n"
+        else:
+            comment_line = ""
+        return (
+            comment_line
+            + df.reset_index(names="time")
+            .reindex(["name", "time", "value", "comment"], axis=1)
+            .to_string(
+                formatters=dict(time=df_time_formatter, comment=df_comment_formatter),
+                index=False,
+                header=False,
+            )
+            + "\n\n"
+        )
+
+    @classmethod
+    def from_section_text(cls, text: str):
+        def is_valid_time_format(time_string):
+            pattern = r"^\d+:\d+$"
+            return bool(re.match(pattern, time_string))
+
+        def is_valid_date(date_str):
+            # Regex pattern to match mm/dd/yyyy, m/d/yyyy, m/dd/yyyy, or mm/d/yyyy
+            pattern = r"^(0?[1-9]|1[0-2])/([0-2]?[0-9]|3[01])/(\d{4})$"
+
+            # Check if the date string matches the pattern
+            match = re.match(pattern, date_str)
+
+            return bool(match)
+
+        timeseries = {}
+
+        rows = text.split("\n")
+        line_comment = ""
+        ts_comment = ""
+        current_time_series_name = None
+        current_time_series_data = []
+        for row in rows:
+            # check if row contains data
+            if not _is_data(row):
+                continue
+
+            elif _is_line_comment(row):
+                line_comment += _strip_comment(row)[1] + "\n"
+                continue
+
+            line, comment = _strip_comment(row)
+            if len(comment) > 0:
+                line_comment += comment + "\n"
+
+            # split row into tokens coercing numerics into floats
+            split_data = [_coerce_numeric(val) for val in line.split()]
+
+            ts_name = split_data.pop(0)
+            if ts_name != current_time_series_name:
+
+                if len(current_time_series_data) > 0:
+                    df = pd.DataFrame(
+                        current_time_series_data, columns=["time", "value", "comment"]
+                    ).set_index("time")
+                    df.attrs["comment"] = ts_comment
+                    timeseries[current_time_series_name] = df
+
+                current_time_series_name = ts_name
+                current_time_series_data = []
+                ts_comment = line_comment
+                line_comment = ""
+
+                if str(split_data[0]).upper() == "FILE" and len(split_data) == 2:
+                    timeseries[ts_name] = cls.TimeseriesFile(
+                        name=ts_name, Fname=split_data[1], comment=line_comment
+                    )
+                    continue
+            while len(split_data) > 0:
+                if isinstance(split_data[0], Number):
+                    time = pd.Timedelta(hours=split_data.pop(0))
+                    value = split_data.pop(0)
+                elif is_valid_time_format(split_data[0]):
+                    hours, minutes = split_data.pop(0).split(":")
+                    time = pd.Timedelta(hours=int(hours), minutes=int(minutes))
+                    value = split_data.pop(0)
+                elif is_valid_date(split_data[0]):
+                    date = pd.to_datetime(split_data.pop(0))
+                    if not is_valid_time_format(split_data[0]):
+                        raise ValueError(
+                            f"Error parsing timeseries {ts_name!r} time: {split_data[0]}"
+                        )
+                    hours, minutes = split_data.pop(0).split(":")
+                    time = pd.Timedelta(hours=int(hours), minutes=int(minutes))
+                    time = date + time
+                    value = split_data.pop(0)
+                current_time_series_data.append([time, value, line_comment])
+
+            line_comment = ""
+
+        # instantiate DataFrame
+        return cls(ts=timeseries)
+
+    @classmethod
+    def _from_section_text(cls, text: str, *args, **kwargs) -> Self:
+        raise NotImplementedError
+
+    @classmethod
+    def _new_empty(cls) -> Self:
+        return cls(ts={})
+
+    @classmethod
+    def _newobj(cls, *args, **kwargs) -> Self:
+        return cls(*args, **kwargs)
+
+    def to_swmm_string(self) -> str:
+        out_str = textwrap.dedent(
+            """\
+            ;;Name           Date       Time       Value     
+            ;;-------------- ---------- ---------- ----------
+        """
+        )
+        for ts_name, ts_data in self._timeseries.items():
+            if isinstance(ts_data, pd.DataFrame):
+                out_str += self._timeseries_to_swmm_dat(ts_data, ts_name)
+            elif isinstance(ts_data, self.TimeseriesFile):
+                out_str += ts_data.to_swmm()
+        return out_str
+
+    def add_file_timeseries(self, name: str, Fname: str, comment: str = "") -> Self:
+        self._timeseries[name] = self.TimeseriesFile(
+            name=name, Fname=Fname, comment=comment
+        )
+        return self
+
+    def __setitem__(self, key, data) -> None:
+        if isinstance(data, pd.DataFrame):
+            if "value" not in data.columns:
+                raise ValueError(
+                    f"Expected 'value' columns in dataframe, got {data.columns!r}"
+                )
+
+            self._timeseries[key] = data.reindex(["value", "comment"], axis=1)
+        else:
+            raise TypeError(
+                f"__setitem__ currently only supports dataframes, got {type(data)}. "
+                "Use the `add_file_timeseries` method to add file-based timeseries"
+            )
+
+    def __getitem__(self, name) -> TimeseriesFile | pd.DataFrame:
+        return self._timeseries[name]
+
+    def __repr__(self) -> str:
+        longest_name = max(map(len, self._timeseries.keys()))
+        width = longest_name + 2
+        reprstr = ""
+        for name, value in self._timeseries.items():
+            if isinstance(value, self.TimeseriesFile):
+                reprstr += f"{name:{width}}|  TimeseriesFile(Fname={value.Fname!r}, comment={value.comment!r})\n"
+            elif isinstance(value, pd.DataFrame):
+                reprstr += f"{name:{width}}|  DataFrame(start={value.index[0]!r}, end={value.index[-1]!r},len={len(value)})\n"
+        return reprstr
+
+    def __iter__(self) -> Iterator[TimeseriesFile | pd.DataFrame]:
+        return iter(self._timeseries.values())
+
+    def _ipython_key_completions_(self) -> list[str]:
+        """Provide method for the key-autocompletions in IPython.
+        See http://ipython.readthedocs.io/en/stable/config/integrating.html#tab-completion
+        For the details.
+        """
+
+        return list(self._timeseries.keys())
 
 
 class Inlet(SectionDf):

@@ -53,7 +53,7 @@ _sections = {
     "HYDROGRAPH": Hydrographs,
     "CURVE": Curves,
     # TODO build parser for this table
-    "TIMESERIES": SectionDf,
+    "TIMESERIES": Timeseries,
     # TODO build parser for this table
     "PATTERN": SectionDf,
     "MAP": Map,

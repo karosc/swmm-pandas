@@ -48,7 +48,7 @@
 | RDII          | :heavy_check_mark: | :x:                |                                            |
 | HYDROGRAPHS   | :heavy_check_mark: | :x:                |                                            |
 | CURVES        | :heavy_check_mark: | :x:                |                                            |
-| TIMESERIES    | :x:                | :x:                |                                            |
+| TIMESERIES    | :heavy_check_mark: | :x:                |                                            |
 | PATTERNS      | :x:                | :x:                |                                            |
 | MAP           | :x:                | :x:                |                                            |
 | POLYGONS      | :heavy_check_mark: | :x:                |                                            |
