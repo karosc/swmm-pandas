@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from ast import Index
 import logging
 from numbers import Number
 import warnings
@@ -1400,7 +1401,7 @@ class Hydrographs(SectionDf):
     _index_col = ["Name", "Month_RG", "Response"]
 
     @classmethod
-    def from_section_text(cls, text: str):
+    def from_section_text(cls, text: str) -> Self:
 
         df = super()._from_section_text(text, cls._ncol).reset_index()
         rg_rows = cls._find_rain_gauge_rows(df)
@@ -1409,11 +1410,11 @@ class Hydrographs(SectionDf):
         return df.set_index(cls._index_col)
 
     @property
-    def rain_gauges(self):
+    def rain_gauges(self) -> dict[str, str]:
         return self.attrs
 
     @staticmethod
-    def _find_rain_gauge_rows(df):
+    def _find_rain_gauge_rows(df) -> pd.Index:
         # Function to check if a row matches the raingauge criteria
         def is_raingauge_row(row):
             return (row != "").sum() == 2
@@ -1423,7 +1424,7 @@ class Hydrographs(SectionDf):
 
         return raingauge_indices
 
-    def to_swmm_string(self):
+    def to_swmm_string(self) -> str:
 
         def month_to_number(month):
             try:
@@ -1488,7 +1489,7 @@ class Curves(SectionDf):
         return out
 
     @classmethod
-    def _validate_curve_types(cls, df):
+    def _validate_curve_types(cls, df: pd.DataFrame) -> dict[str, str]:
         unique_curves = df.reset_index()[["Name", "Type"]].dropna().drop_duplicates()
         if unique_curves["Name"].duplicated().any():
             raise ValueError(
@@ -1501,26 +1502,33 @@ class Curves(SectionDf):
             invalid_curves = unique_curves["Type"].iloc[~np.array(bools)].to_list()
             raise ValueError(f"Unknown curves {invalid_curves!r}")
 
-        df["Type"] = (
-            df.reset_index()["Name"].map(unique_curves.set_index("Name")["Type"]).values
-        )
-        return df
+        return unique_curves.set_index("Name")["Type"].to_dict()
 
     @classmethod
-    def from_section_text(cls, text: str):
-        df = cls._validate_curve_types(
-            super()._from_section_text(text, cls._ncol)
-        ).reset_index()
-
+    def from_section_text(cls, text: str) -> Self:
+        df = super()._from_section_text(text, cls._ncol)
+        curve_types = cls._validate_curve_types(df)
+        df = df.reset_index().drop("Type", axis=1)
         df["Curve_Index"] = df.groupby("Name").cumcount()
+        df.attrs = curve_types
         return df.set_index(["Name", "Curve_Index"])
 
-    def to_swmm_string(self):
+    def to_swmm_string(self) -> str:
         df = self.copy()
-        df = self._validate_curve_types(df).sort_index()
-        dupped_types = df.reset_index().duplicated(subset=["Name", "Type"]).values
-        df.loc[dupped_types, "Type"] = ""
+
+        # add type back into frame in first row of curve
+        type_idx = pd.MultiIndex.from_frame(
+            df.index.to_frame()
+            .drop("Name", axis=1)
+            .groupby("Name")["Curve_Index"]
+            .min()
+            .reset_index()
+        )
+        type_values = type_idx.get_level_values(0).map(df.attrs).to_numpy()
+        df.loc[:, "Type"] = ""
+        df.loc[type_idx, "Type"] = type_values
         df.index = df.index.droplevel("Curve_Index")
+
         return super(Curves, df).to_swmm_string()
 
 
