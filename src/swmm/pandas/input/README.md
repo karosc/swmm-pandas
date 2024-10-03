@@ -1,7 +1,7 @@
 ## Input File Interface Progress
 
-| Section       | Parser             | Testing            | Structure Type   | TODO                                       |
-|---------------|--------------------|--------------------|------------------|--------------------------------------------|
+| Section       | Parser             | Testing            | Structure Type                     | TODO                                       |
+|---------------|--------------------|--------------------|------------------------------------|--------------------------------------------|
 | TITLE         | :heavy_check_mark: | :heavy_check_mark: | String                             |                                            |
 | OPTIONS       | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
 | REPORT        | :heavy_check_mark: | :heavy_check_mark: | Custom Object                      |                                            |
@@ -24,9 +24,9 @@
 | OUTFALLS      | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
 | DIVIDERS      | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
 | STORAGE       | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
-| CONDUITS      | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
-| PUMPS         | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
-| ORIFICES      | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| CONDUITS      | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
+| PUMPS         | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
+| ORIFICES      | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
 | WEIRS         | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
 | OUTLETS       | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
 | XSECTIONS     | :heavy_check_mark: | :x:                | Dataframe                          |                                            |

@@ -22,9 +22,11 @@ class InputTest(unittest.TestCase):
         self.test_pump_model_path = str(_HERE / "data" / "Pump_Control_Model.inp")
         self.test_drainage_model_path = str(_HERE / "data" / "Site_Drainage_Model.inp")
         self.test_lid_model_path = str(_HERE / "data" / "LID_Model.inp")
+        self.test_det_pond_model_path = str(_HERE / "data" / "Detention_Pond_Model.inp")
 
         self.test_base_model = Input(self.test_base_model_path)
         self.test_lid_model = Input(self.test_lid_model_path)
+        self.test_det_pond_model = Input(self.test_det_pond_model_path)
 
         self.maxDiff = 1000
 
@@ -479,7 +481,10 @@ class InputTest(unittest.TestCase):
     def test_aquifers(self) -> None:
         inp = self.test_base_model
 
-        self.assertEqual(inp.aquifer.shape, (3, 14))
+        self.assertEqual(
+            inp.aquifer.shape,
+            (3, 14),
+        )
 
         inp.aquifer.loc["SUB3", "FC"] = 10
 
@@ -499,7 +504,10 @@ class InputTest(unittest.TestCase):
     def test_groundwater(self) -> None:
         inp = self.test_base_model
 
-        self.assertEqual(inp.groundwater.shape, (3, 14))
+        self.assertEqual(
+            inp.groundwater.shape,
+            (3, 14),
+        )
 
         inp.groundwater.loc[:, "Egwt"] = 100
         inp.groundwater.loc[:, "desc"] = "update Egwt"
@@ -575,7 +583,10 @@ class InputTest(unittest.TestCase):
 
     def test_junctions(self):
         inp = self.test_base_model
-        self.assertEqual(inp.junc.reset_index().shape, (5, 7))
+        self.assertEqual(
+            inp.junc.reset_index().shape,
+            (5, 7),
+        )
 
         inp.junc.loc["JUNC4", "Elevation"] -= 5
         inp.junc.loc["JUNC4", "desc"] = "dropped invert 5ft"
@@ -598,7 +609,10 @@ class InputTest(unittest.TestCase):
 
     def test_outfalls(self):
         inp = self.test_base_model
-        self.assertEqual(inp.outfall.reset_index().shape, (3, 7))
+        self.assertEqual(
+            inp.outfall.reset_index().shape,
+            (3, 7),
+        )
 
         inp.outfall.loc["OUT1", "TYPE"] = "NORMAL"
         inp.outfall.loc["OUT1", "desc"] = "changed to normal outfall"
@@ -619,7 +633,10 @@ class InputTest(unittest.TestCase):
 
     def test_storage(self):
         inp = self.test_base_model
-        self.assertEqual(inp.storage.reset_index().shape, (2, 15))
+        self.assertEqual(
+            inp.storage.reset_index().shape,
+            (2, 15),
+        )
 
         inp.storage.loc["STOR1", "A1_L"] = 200
         inp.storage.loc["STOR1", "desc"] = "shrunk store"
@@ -636,3 +653,88 @@ class InputTest(unittest.TestCase):
                 """
             ),
         )
+
+    def test_conduit(self):
+        inp = self.test_base_model
+        self.assertEqual(
+            inp.conduit.reset_index().shape,
+            (6, 10),
+        )
+
+        inp.conduit.loc["COND3", "FromNode"] = "JUNC1"
+        inp.conduit.loc["COND3", "desc"] = "update from node"
+
+        self.assertMultiLineEqual(
+            inp.conduit.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Name  FromNode  ToNode  Length   Roughness  InOffset  OutOffset  InitFlow  MaxFlow  
+                    ;;----  --------  ------  -------  ---------  --------  ---------  --------  -------  
+                    COND1   JUNC1     JUNC2   932.363  0.015      0         0.25       0         0        
+                    ;cond2 comment
+                    COND2   JUNC2     JUNC3   599.52   0.019      0         0.25       0         0        
+                    ;update from node
+                    COND3   JUNC1     JUNC4   541.1    0.019      0         0.5        0         0        
+                    COND4   JUNC4     JUNC5   732.48   0.019      0         0.0        0         0        
+                    COND5   JUNC5     STOR1   64.72    0.019      0         8.74       0         0        
+                    COND6   JUNC6     OUT1    37.72    0.015      0         0.0        0         0        
+                """
+            ),
+        )
+
+    def test_pump(self):
+        inp = self.test_base_model
+
+        self.assertEqual(inp.pump.reset_index().shape, (1, 8))
+
+        inp.pump.loc["PUMP1", "Status"] = "OFF"
+        inp.pump.add_element(
+            Name="PUMP2",
+            FromNode="STOR1",
+            ToNode="JUNC6",
+            PumpCurve="P1",
+            Status="ON",
+        )
+
+        self.assertMultiLineEqual(
+            inp.pump.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Name  FromNode  ToNode  PumpCurve  Status  Startup  Shutoff  
+                    ;;----  --------  ------  ---------  ------  -------  -------  
+                    PUMP1   STOR1     JUNC6   P1         OFF     1.3      0.3      
+                    PUMP2   STOR1     JUNC6   P1         ON                        
+                """
+            ),
+        )
+
+    def test_orifice(self):
+        inp = self.test_det_pond_model
+
+        self.assertEqual(inp.orifice.reset_index().shape, (1, 9))
+
+        inp.orifice.loc["O1", "Gated"] = "YES"
+        inp.orifice.add_element(
+            Name="O2",
+            FromNode="SU1",
+            ToNode="J_out",
+            Type="SIDE",
+            Offset=1.25,
+            Gate=False,
+            CloseTime=6,
+            desc="a new orifice!",
+        )
+
+        self.assertMultiLineEqual(
+            inp.orifice.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Name  FromNode  ToNode  Type  Offset  Qcoeff  Gated  CloseTime  
+                    ;;----  --------  ------  ----  ------  ------  -----  ---------  
+                    O1      SU1       J_out   SIDE  0.0     0.65    YES    0          
+                    ;a new orifice!
+                    O2      SU1       J_out   SIDE  1.25                   6          
+                """
+            ),
+        )
+        print("this")
