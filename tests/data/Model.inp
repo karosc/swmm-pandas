@@ -57,11 +57,11 @@ ADC          PERVIOUS   1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0
 ;;Name           Format    Interval SCF      Source    
 ;;-------------- --------- -------- -------- ----------
 ;fake raingage for testing swmm.pandas
-RG1              VOLUME    0:05     1.0      FILE       "\\wsl\ckaros\src\swmm-pandas\tests\data\rain.dat" RG1        IN   
+RG1              VOLUME    0:05     1.0      FILE             rain.dat RG1        IN   
 RainGauge_A      VOLUME    0:05     1.0      TIMESERIES       SCS_Type_III_3in 
 RainGauge_B      VOLUME    0:05     1.0      TIMESERIES       SCS_Type_III_3in
 RainGauge_C      VOLUME    0:05     1.0      TIMESERIES       SCS_Type_III_3in
-SCS_Type_III_3in VOLUME    0:15     1.0      TIMESERIES SCS_Type_III_3in
+SCS_Type_III_3in VOLUME    0:15     1.0      TIMESERIES       SCS_Type_III_3in
 
 [SUBCATCHMENTS]
 ;;Name           Rain Gage        Outlet           Area     %Imperv  Width    %Slope   CurbLen  SnowPack        
@@ -80,8 +80,8 @@ SUB3             0.05       0.2        0.05       0.1        25         PERVIOUS
 [INFILTRATION]
 ;;Subcatchment   Param1     Param2     Param3     Param4     Param5    
 ;;-------------- ---------- ---------- ---------- ---------- ----------
-SUB1             4.3        0.86       0.23       0          0         
-SUB2             4.3        0.86       0.23       0          0          MODIFIED_GREEN_AMPT
+SUB1             4.3        0.86       0.23
+SUB2             4.3        0.86       0.23                             MODIFIED_GREEN_AMPT
 SUB3             4.3        0.86       0.23       0.04       2          HORTON
 
 [AQUIFERS]
@@ -304,7 +304,7 @@ SCS_Type_III_1in            1:36       0.001
 SCS_Type_III_1in            1:42       0.001     
 SCS_Type_III_1in            1:48       0.001     
 SCS_Type_III_1in            1:54       0.001     
-SCS_Type_III_1in            2:00       0.00101   
+SCS_Type_III_1in 01/01/2014 2:00       0.00101   
 SCS_Type_III_1in            2:06       0.00102   
 SCS_Type_III_1in            2:12       0.00104   
 SCS_Type_III_1in            2:18       0.00105   
@@ -628,6 +628,8 @@ Temp             1/1/2000   0:00       70
 
 head_series      1/1/1900   0:00       70        
 head_series      1/1/2000   0:00       70   
+
+file_series     FILE  "\\wsl\ckaros\src\swmm-pandas\tests\data\rain.dat"
 
 [PATTERNS]
 ;;Name           Type       Multipliers

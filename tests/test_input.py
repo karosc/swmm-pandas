@@ -14,7 +14,7 @@ from swmm.pandas import Input
 _HERE = pathlib.Path(__file__).parent
 
 
-class InuptTest(unittest.TestCase):
+class InputTest(unittest.TestCase):
     def setUp(self):
         self.test_base_model_path = str(_HERE / "data" / "Model.inp")
         self.test_groundwater_model_path = str(_HERE / "data" / "Groundwater_Model.inp")
@@ -25,6 +25,8 @@ class InuptTest(unittest.TestCase):
 
         self.test_base_model = Input(self.test_base_model_path)
         self.test_lid_model = Input(self.test_lid_model_path)
+
+        self.maxDiff = 1000
 
         # self.test_groundwater_model = Input(self.test_groundwater_model_path)
         # self.test_street_model = Input(self.test_street_model_path)
@@ -154,11 +156,11 @@ class InuptTest(unittest.TestCase):
         )
 
         nptest.assert_equal(
-            inp.raingage.loc["RG1"].values,
+            inp.raingage.loc["RG1"].tolist(),
             [
                 "VOLUME",
                 "0:05",
-                "1.0",
+                1.0,
                 "FILE",
                 "rain.dat",
                 "RG1",
@@ -168,14 +170,14 @@ class InuptTest(unittest.TestCase):
         )
 
         nptest.assert_equal(
-            inp.raingage.loc["SCS_Type_III_3in"].values,
-            ["VOLUME", "0:15", "1.0", "TIMESERIES", "SCS_Type_III_3in", "", "", ""],
+            inp.raingage.loc["SCS_Type_III_3in"].tolist(),
+            ["VOLUME", "0:15", 1.0, "TIMESERIES", "SCS_Type_III_3in", "", "", ""],
         )
 
         inp.raingage.loc["new_rg"] = [
             "VOLUME",
             "0:5",
-            1,
+            1.0,
             "FILE",
             "MYFILE",
             "RG1",
@@ -183,12 +185,12 @@ class InuptTest(unittest.TestCase):
             "my_new_gage",
         ]
         self.assertEqual(
-            inp.raingage.to_swmm_string().split("\n")[5].strip(),
+            inp.raingage.to_swmm_string().split("\n")[8].strip(),
             ";my_new_gage",
         )
         self.assertEqual(
-            inp.raingage.to_swmm_string().split("\n")[6].strip(),
-            "new_rg            VOLUME  0:5       1    FILE         MYFILE            RG1      Inches",
+            inp.raingage.to_swmm_string().split("\n")[9].strip(),
+            "new_rg            VOLUME  0:5       1.0  FILE         MYFILE            RG1      Inches",
         )
 
     def test_evap(self):
@@ -300,7 +302,7 @@ class InuptTest(unittest.TestCase):
 
         self.assertEqual(
             inp.adjustments.to_swmm_string().split("\n")[3].strip(),
-            "EVAPORATION   1    2    -3   -4   -3.375  -2.75  -2.125  -1.5   -0.875  -0.25  0.375  1",
+            "EVAPORATION   1.0  2    -3   -4   -3.375  -2.75  -2.125  -1.5   -0.875  -0.25  0.375  1.0",
         )
 
     def test_subcatchments(self) -> None:
@@ -428,7 +430,14 @@ class InuptTest(unittest.TestCase):
 
         nptest.assert_equal(
             inp.lid_control.index.unique().to_numpy(),
-            ["GreenRoof", "PorousPave", "Planters", "InfilTrench", "RainBarrels", "Swale"],
+            [
+                "GreenRoof",
+                "PorousPave",
+                "Planters",
+                "InfilTrench",
+                "RainBarrels",
+                "Swale",
+            ],
         )
 
     def test_lid_usage(self) -> None:
@@ -467,15 +476,12 @@ class InuptTest(unittest.TestCase):
             ),
         )
 
-    def test_aquifers(self)->None:
+    def test_aquifers(self) -> None:
         inp = self.test_base_model
 
-        self.assertEqual(
-            inp.aquifer.shape,
-            (3,14)
-        )
+        self.assertEqual(inp.aquifer.shape, (3, 14))
 
-        inp.aquifer.loc['SUB3','FC'] = 10
+        inp.aquifer.loc["SUB3", "FC"] = 10
 
         self.assertMultiLineEqual(
             inp.aquifer.to_swmm_string(),
@@ -489,17 +495,14 @@ class InuptTest(unittest.TestCase):
                 """,
             ),
         )
-    
-    def test_groundwater(self)->None:
+
+    def test_groundwater(self) -> None:
         inp = self.test_base_model
 
-        self.assertEqual(
-            inp.groundwater.shape,
-            (3,14)
-        )
+        self.assertEqual(inp.groundwater.shape, (3, 14))
 
-        inp.groundwater.loc[:,'Egwt'] = 100
-        inp.groundwater.loc[:,'desc'] = 'update Egwt'
+        inp.groundwater.loc[:, "Egwt"] = 100
+        inp.groundwater.loc[:, "desc"] = "update Egwt"
 
         self.assertMultiLineEqual(
             inp.groundwater.to_swmm_string(),
@@ -516,16 +519,19 @@ class InuptTest(unittest.TestCase):
                 """,
             ),
         )
-    
-    def test_gwf(self)->None:
+
+    def test_gwf(self) -> None:
         inp = self.test_base_model
 
         self.assertEqual(
             inp.gwf.shape,
-            (2,2),
+            (2, 2),
         )
 
-        inp.gwf.loc[('SUB3','LATERAL'),:] = ["0.001*Hgw + 0.05*(Hgw–5)*STEP(Hgw–5)",'add gwf for SUB3']
+        inp.gwf.loc[("SUB3", "LATERAL"), :] = [
+            "0.001*Hgw + 0.05*(Hgw-5)*STEP(Hgw-5)",
+            "add gwf for SUB3",
+        ]
 
         self.assertMultiLineEqual(
             inp.gwf.to_swmm_string(),
@@ -533,10 +539,10 @@ class InuptTest(unittest.TestCase):
                 """\
                     ;;Subcatch  Type     Expr                                  
                     ;;--------  -------  ------------------------------------  
-                    SUB1        LATERAL  0.001*Hgw+0.05*(Hgw–5)*STEP(Hgw–5)    
+                    SUB1        LATERAL  0.001*Hgw+0.05*(Hgw-5)*STEP(Hgw-5)    
                     SUB2        DEEP     0.002                                 
                     ;add gwf for SUB3
-                    SUB3        LATERAL  0.001*Hgw + 0.05*(Hgw–5)*STEP(Hgw–5)  
+                    SUB3        LATERAL  0.001*Hgw + 0.05*(Hgw-5)*STEP(Hgw-5)  
                 """,
             ),
         )
@@ -546,11 +552,11 @@ class InuptTest(unittest.TestCase):
 
         self.assertEqual(
             inp.snowpack.reset_index().shape,
-            (4,10),
+            (4, 10),
         )
 
-        inp.snowpack.loc[('SNOW1','REMOVAL'), 'param1'] = 4
-        inp.snowpack.loc[('SNOW1','REMOVAL'), 'desc'] = 'Update plow depth'
+        inp.snowpack.loc[("SNOW1", "REMOVAL"), "param1"] = 4
+        inp.snowpack.loc[("SNOW1", "REMOVAL"), "desc"] = "Update plow depth"
 
         self.assertMultiLineEqual(
             inp.snowpack.to_swmm_string(),
@@ -564,5 +570,69 @@ class InuptTest(unittest.TestCase):
                     ;Update plow depth
                     SNOW1   REMOVAL     4         0         0          1         0.000000  0.000000            
                 """,
+            ),
+        )
+
+    def test_junctions(self):
+        inp = self.test_base_model
+        self.assertEqual(inp.junc.reset_index().shape, (5, 7))
+
+        inp.junc.loc["JUNC4", "Elevation"] -= 5
+        inp.junc.loc["JUNC4", "desc"] = "dropped invert 5ft"
+
+        self.assertMultiLineEqual(
+            inp.junc.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Name  Elevation  MaxDepth  InitDepth  SurDepth  Aponded  
+                    ;;----  ---------  --------  ---------  --------  -------  
+                    JUNC1   1.5        10.25     0          0         5000     
+                    JUNC2   -1.04      6.2       0          0         5000     
+                    JUNC3   -3.47      11.5      0          0         5000     
+                    ;dropped invert 5ft
+                    JUNC4   -10.25     13.8      0          0         5000     
+                    JUNC6   0.0        9.0       0          200       0        
+                """,
+            ),
+        )
+
+    def test_outfalls(self):
+        inp = self.test_base_model
+        self.assertEqual(inp.outfall.reset_index().shape, (3, 7))
+
+        inp.outfall.loc["OUT1", "TYPE"] = "NORMAL"
+        inp.outfall.loc["OUT1", "desc"] = "changed to normal outfall"
+
+        self.assertMultiLineEqual(
+            inp.outfall.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Name  Elevation  Type        StageData    Gated  RouteTo  
+                    ;;----  ---------  ----------  -----------  -----  -------  
+                    ;changed to normal outfall
+                    OUT1    0.1        FREE                     NO              
+                    OUT2    -1.04      FREE                     NO              
+                    OUT3    0.0        TIMESERIES  head_series  YES    SUB1     
+                """
+            ),
+        )
+
+    def test_storage(self):
+        inp = self.test_base_model
+        self.assertEqual(inp.storage.reset_index().shape, (2, 15))
+
+        inp.storage.loc["STOR1", "A1_L"] = 200
+        inp.storage.loc["STOR1", "desc"] = "shrunk store"
+
+        self.assertMultiLineEqual(
+            inp.storage.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Name  Elev    MaxDepth  InitDepth  Shape       CurveName  A1_L  A2_W  A0_Z  SurDepth  Fevap  Psi  Ksat  IMD  
+                    ;;----  ------  --------  ---------  ----------  ---------  ----  ----  ----  --------  -----  ---  ----  ---  
+                    JUNC5   -6.5    13.2      0          TABULAR     Store1                       0         2      2    2     0.5  
+                    ;shrunk store
+                    STOR1   -15.25  21.75     0          FUNCTIONAL             200   1     2     10        3                      
+                """
             ),
         )

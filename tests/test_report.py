@@ -46,7 +46,7 @@ def test_analysis_options(rptfile):
     print(type(reference))
     reference.index.name = "Option"
     opts = rptfile.analysis_options
-    assert all(opts.sort_index() == reference)
+    assert all(opts.sort_index() == reference.sort_index())
 
 
 def test_runoff_quantity_continuity(rptfile):

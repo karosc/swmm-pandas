@@ -60,7 +60,7 @@ class classproperty(object):
 def _coerce_numeric(data: str) -> str | float | int:
     try:
         number = float(data)
-        number = int(number) if number.is_integer() else number
+        number = int(number) if number.is_integer() and "." not in data else number
         if str(number) == data:
             return number
     except ValueError:
@@ -287,7 +287,8 @@ class SectionDf(SectionBase, pd.DataFrame):
     @classmethod
     def _new_empty(cls):
         """Construct and empty instance"""
-        return cls(data=[], columns=cls.headings).set_index(cls._index_col)
+        df = cls(data=[], columns=cls.headings)
+        return df.set_index(cls._index_col) if cls._index_col else df
 
     @classmethod
     def _newobj(cls, *args, **kwargs):
@@ -1195,6 +1196,9 @@ class Street(SectionDf):
         return super()._from_section_text(text, cls._ncol)
 
 
+class Transects(SectionText): ...
+
+
 class Timeseries(SectionBase):
     def __init__(self, ts: dict):
         self._timeseries = ts
@@ -1393,6 +1397,9 @@ class Timeseries(SectionBase):
     def __iter__(self) -> Iterator[TimeseriesFile | pd.DataFrame]:
         return iter(self._timeseries.values())
 
+    def __len__(self) -> int:
+        return len(self._timeseries)
+
     def _ipython_key_completions_(self) -> list[str]:
         """Provide method for the key-autocompletions in IPython.
         See http://ipython.readthedocs.io/en/stable/config/integrating.html#tab-completion
@@ -1400,6 +1407,9 @@ class Timeseries(SectionBase):
         """
 
         return list(self._timeseries.keys())
+
+
+class Patterns(SectionText): ...
 
 
 class Inlet(SectionDf):
@@ -1443,6 +1453,9 @@ class Losses(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol)
+
+
+class Controls(SectionText): ...
 
 
 class Pollutants(SectionDf):
@@ -1520,7 +1533,7 @@ class Loading(SectionDf):
 class Buildup(SectionDf):
     _ncol = 4
     _headings = ["Landuse", "Pollutant", "FuncType", "C1", "C2", "C3", "PerUnit"]
-    _index_col = ["Landuse", "Polutant"]
+    _index_col = ["Landuse", "Pollutant"]
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -1530,7 +1543,7 @@ class Buildup(SectionDf):
 class Washoff(SectionDf):
     _ncol = 4
     _headings = ["Landuse", "Pollutant", "FuncType", "C1", "C2", "SweepRmvl", "BmpRmvl"]
-    _index_col = ["Landuse", "Polutant"]
+    _index_col = ["Landuse", "Pollutant"]
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -1752,7 +1765,7 @@ class Coordinates(SectionDf):
         return super()._from_section_text(text, cls._ncol)
 
 
-class Verticies(SectionDf):
+class Vertices(SectionDf):
     _ncol = 3
     _headings = ["Link", "X", "Y"]
     _index_col = "Link"
@@ -1808,6 +1821,9 @@ class Tags(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol)
+
+
+class Profile(SectionText): ...
 
 
 class LID_Control(SectionDf):

@@ -1,61 +1,61 @@
 ## Input File Interface Progress
 
-| Section       | Parser             | Testing            | TODO                                       |
-|---------------|--------------------|--------------------|--------------------------------------------|
-| TITLE         | :heavy_check_mark: | :heavy_check_mark: |                                            |
-| OPTIONS       | :heavy_check_mark: | :heavy_check_mark: |                                            |
-| REPORT        | :heavy_check_mark: | :heavy_check_mark: |                                            |
-| EVENT         | :heavy_check_mark: | :heavy_check_mark: |                                            |
-| FILES         | :heavy_check_mark: | :x:                | build better interface than text interface |
-| RAINGAGES     | :heavy_check_mark: | :heavy_check_mark: |                                            |
-| EVAPORATION   | :heavy_check_mark: | :heavy_check_mark: | better column names                        |
-| TEMPERATURE   | :heavy_check_mark: | :heavy_check_mark: |                                            |
-| ADJUSTMENTS   | :heavy_check_mark: | :heavy_check_mark: |                                            |
-| SUBCATCHMENTS | :heavy_check_mark: | :heavy_check_mark: |                                            |
-| SUBAREAS      | :heavy_check_mark: | :heavy_check_mark: |                                            |
-| INFILTRATION  | :heavy_check_mark: | :heavy_check_mark: | better column names                        |
-| LID_CONTROLS  | :heavy_check_mark: | :heavy_check_mark: |                                            |
-| LID_USAGE     | :heavy_check_mark: | :heavy_check_mark: |                                            |
-| AQUIFERS      | :heavy_check_mark: | :heavy_check_mark: |                                            |
-| GROUNDWATER   | :heavy_check_mark: | :heavy_check_mark: |                                            |
-| GWF           | :heavy_check_mark: | :heavy_check_mark: |                                            |
-| SNOWPACKS     | :heavy_check_mark: | :heavy_check_mark: |                                            |
-| JUNCTIONS     | :heavy_check_mark: | :x:                |                                            |
-| OUTFALLS      | :heavy_check_mark: | :x:                |                                            |
-| DIVIDERS      | :heavy_check_mark: | :x:                |                                            |
-| STORAGE       | :heavy_check_mark: | :x:                |                                            |
-| CONDUITS      | :heavy_check_mark: | :x:                |                                            |
-| PUMPS         | :heavy_check_mark: | :x:                |                                            |
-| ORIFICES      | :heavy_check_mark: | :x:                |                                            |
-| WEIRS         | :heavy_check_mark: | :x:                |                                            |
-| OUTLETS       | :heavy_check_mark: | :x:                |                                            |
-| XSECTIONS     | :heavy_check_mark: | :x:                |                                            |
-| TRANSECTS     | :x:                | :x:                |                                            |
-| STREETS       | :heavy_check_mark: | :x:                |                                            |
-| INLETS        | :heavy_check_mark: | :x:                |                                            |
-| INLET_USAGE   | :heavy_check_mark: | :x:                |                                            |
-| LOSSES        | :heavy_check_mark: | :x:                |                                            |
-| CONTROLS      | :x:                | :x:                |                                            |
-| POLLUTANTS    | :heavy_check_mark: | :x:                |                                            |
-| LANDUSES      | :heavy_check_mark: | :x:                |                                            |
-| COVERAGES     | :heavy_check_mark: | :x:                |                                            |
-| LOADINGS      | :heavy_check_mark: | :x:                |                                            |
-| BUILDUP       | :heavy_check_mark: | :x:                |                                            |
-| WASHOFF       | :heavy_check_mark: | :x:                |                                            |
-| TREATMENT     | :heavy_check_mark: | :x:                |                                            |
-| INFLOWS       | :heavy_check_mark: | :x:                |                                            |
-| DWF           | :heavy_check_mark: | :x:                |                                            |
-| RDII          | :heavy_check_mark: | :x:                |                                            |
-| HYDROGRAPHS   | :heavy_check_mark: | :x:                |                                            |
-| CURVES        | :heavy_check_mark: | :x:                |                                            |
-| TIMESERIES    | :heavy_check_mark: | :x:                |                                            |
-| PATTERNS      | :x:                | :x:                |                                            |
-| MAP           | :x:                | :x:                |                                            |
-| POLYGONS      | :heavy_check_mark: | :x:                |                                            |
-| COORDINATES   | :heavy_check_mark: | :x:                |                                            |
-| VERTICIES     | :heavy_check_mark: | :x:                |                                            |
-| LABELS        | :heavy_check_mark: | :x:                |                                            |
-| SYMBOLS       | :heavy_check_mark: | :x:                |                                            |
-| BACKDROP      | :x:                | :x:                |                                            |
-| PROFILE       | :x:                | :x:                |                                            |
-| TAGS          | :heavy_check_mark: | :x:                |                                            |
+| Section       | Parser             | Testing            | Structure Type   | TODO                                       |
+|---------------|--------------------|--------------------|------------------|--------------------------------------------|
+| TITLE         | :heavy_check_mark: | :heavy_check_mark: | String                             |                                            |
+| OPTIONS       | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
+| REPORT        | :heavy_check_mark: | :heavy_check_mark: | Custom Object                      |                                            |
+| EVENT         | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
+| FILES         | :x:                | :x:                | String                             | build better interface than text interface |
+| RAINGAGES     | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
+| EVAPORATION   | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          | better column names                        |
+| TEMPERATURE   | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
+| ADJUSTMENTS   | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
+| SUBCATCHMENTS | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
+| SUBAREAS      | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
+| INFILTRATION  | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          | better column names                        |
+| LID_CONTROLS  | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
+| LID_USAGE     | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
+| AQUIFERS      | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
+| GROUNDWATER   | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
+| GWF           | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
+| SNOWPACKS     | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
+| JUNCTIONS     | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
+| OUTFALLS      | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
+| DIVIDERS      | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| STORAGE       | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
+| CONDUITS      | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| PUMPS         | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| ORIFICES      | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| WEIRS         | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| OUTLETS       | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| XSECTIONS     | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| TRANSECTS     | :x:                | :x:                | String                             |                                            |
+| STREETS       | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| INLETS        | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| INLET_USAGE   | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| LOSSES        | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| CONTROLS      | :x:                | :x:                | String                             |                                            |
+| POLLUTANTS    | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| LANDUSES      | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| COVERAGES     | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| LOADINGS      | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| BUILDUP       | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| WASHOFF       | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| TREATMENT     | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| INFLOWS       | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| DWF           | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| RDII          | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| HYDROGRAPHS   | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| CURVES        | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| TIMESERIES    | :heavy_check_mark: | :x:                | Hashmap of Dataframes and Objects  |                                            |
+| PATTERNS      | :x:                | :x:                | String                             |                                            |
+| MAP           | :x:                | :x:                | String                             | Build a better data structure for this.    |
+| POLYGONS      | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| COORDINATES   | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| VERTICIES     | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| LABELS        | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| SYMBOLS       | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| BACKDROP      | :x:                | :x:                | String                             |                                            |
+| PROFILE       | :x:                | :x:                | String                             |                                            |
+| TAGS          | :heavy_check_mark: | :x:                | Dataframe                          |                                            |

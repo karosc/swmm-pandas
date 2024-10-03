@@ -3,6 +3,7 @@
 #   - high level api for loading, inspecting, changing, and
 #     altering a SWMM input file using pandas dataframes
 from __future__ import annotations
+import profile
 
 from swmm.pandas.input.sections import _sections
 import swmm.pandas.input._section_classes as sc
@@ -14,11 +15,11 @@ class Input:
     _section_re = re.compile(R"^\[[\s\S]*?(?=^\[)", re.MULTILINE)
     _section_keys = tuple(_sections.keys())
 
-    # title: sc.Section = None
+    title: sc.Title = None
     option: sc.Option = None
     report: sc.Report = None
     event: sc.Event = None
-    file = sc.Files = None
+    files = sc.Files = None
     raingage: sc.Raingage = None
     evap: sc.Evap = None
     temperature: sc.Temperature = None
@@ -34,6 +35,7 @@ class Input:
     snowpack: sc.Snowpack = None
     junc: sc.Junc = None
     outfall: sc.Outfall = None
+    divider: sc.Divider = None
     storage: sc.Storage = None
     conduit: sc.Conduit = None
     pump: sc.Pump = None
@@ -46,7 +48,7 @@ class Input:
     inlet: sc.Inlet = None
     inlet_usage = sc.Inlet_Usage = None
     losses: sc.Losses = None
-    # controls: sc.Controls = None
+    controls: sc.Controls = None
     pollutants: sc.Pollutants = None
     landuse: sc.LandUse = None
     coverage: sc.Coverage = None
@@ -60,6 +62,15 @@ class Input:
     hydrographs: sc.Hydrographs = None
     curves: sc.Curves = None
     timeseries: sc.Timeseries = None
+    pattern: sc.Pattern = None
+    map: sc.Map = (None,)
+    polygon: sc.Polygons = None
+    coordinate: sc.Coordinates = None
+    vertices: sc.Vertices
+    labels: sc.Labels = None
+    symbol: sc.Symbols = None
+    backdrop: sc.Backdrop = None
+    profile: sc.Profile = None
 
     def __init__(self, inpfile: str):
         self.path: str = inpfile
