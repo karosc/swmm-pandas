@@ -103,7 +103,7 @@ class Input:
             name = re.findall(R"^\[(.*)\]", section)[0]
 
             data = "\n".join(re.findall(R"^(?!;{2,}|\[).+$", section, re.MULTILINE))
-            self._section_texts[name] = data
+            # self._section_texts[name] = data
 
             try:
                 section_idx = list(

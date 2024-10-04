@@ -33,8 +33,8 @@ _sections = {
     # TODO build parser for this table
     "TRANSECT": Transects,
     "STREETS": Street,
-    "INLET": Inlet,
     "INLET_USAGE": Inlet_Usage,
+    "INLET": Inlet,
     "LOSS": Losses,
     # TODO build parser for this table
     "CONTROL": Controls,

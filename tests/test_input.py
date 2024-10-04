@@ -23,10 +23,13 @@ class InputTest(unittest.TestCase):
         self.test_drainage_model_path = str(_HERE / "data" / "Site_Drainage_Model.inp")
         self.test_lid_model_path = str(_HERE / "data" / "LID_Model.inp")
         self.test_det_pond_model_path = str(_HERE / "data" / "Detention_Pond_Model.inp")
+        self.test_inlet_model_path = str(_HERE / "data" / "Inlet_Drains_Model.inp")
 
         self.test_base_model = Input(self.test_base_model_path)
         self.test_lid_model = Input(self.test_lid_model_path)
         self.test_det_pond_model = Input(self.test_det_pond_model_path)
+        self.test_street_model = Input(self.test_street_model_path)
+        self.test_site_drainage_model = Input(self.test_drainage_model_path)
 
         self.maxDiff = 1000
 
@@ -737,4 +740,177 @@ class InputTest(unittest.TestCase):
                 """
             ),
         )
-        print("this")
+
+    def test_xsect(self):
+        inp = self.test_base_model
+
+        self.assertEqual(inp.xsections.reset_index().shape, (8, 10))
+        inp.xsections.loc["COND7", "Barrels"] = 1
+        inp.xsections.loc["COND7", "desc"] = "changed to single barrel"
+
+        self.assertMultiLineEqual(
+            inp.xsections.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Link  Shape            Geom1  Curve   Geom2  Geom3  Geom4  Barrels  Culvert  
+                    ;;----  ---------------  -----  ------  -----  -----  -----  -------  -------  
+                    COND1   CIRCULAR         1.0            0      0      0      1        0        
+                    COND2   FILLED_CIRCULAR  1.25           0.5    0      0      1        0        
+                    COND3   FILLED_CIRCULAR  1.5            0.5    0      0      1        0        
+                    COND4   FILLED_CIRCULAR  2.0            0.5    0      0      1        0        
+                    COND5   FILLED_CIRCULAR  2.0            1      0      0      1        0        
+                    COND5   FILLED_CIRCULAR  2.0            1      0      0      1        0        
+                    ;changed to single barrel
+                    COND7   CUSTOM           10.0   Store1                       1                 
+                    WR1     RECT_OPEN        3.2            3      0      0                        
+                """
+            ),
+        )
+
+    def test_street(self):
+        inp = self.test_street_model
+
+        self.assertEqual(inp.street.reset_index().shape, (2, 12))
+
+        inp.street.loc["FullStreet", "nRoad"] = 0.012
+        inp.street.loc["FullStreet", "desc"] = "lowered road n-value"
+
+        self.assertMultiLineEqual(
+            inp.street.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Name      Tcrown  Hcurb  Sroad  nRoad  Hdep  Wdep  Sides  Wback  Sback  nBack  
+                    ;;--------  ------  -----  -----  -----  ----  ----  -----  -----  -----  -----  
+                    HalfStreet  20      0.5    4      0.016  0     0     1      20     4      0.016  
+                    ;lowered road n-value
+                    FullStreet  20      0.5    4      0.012  0     0     2      20     4      0.016  
+                """
+            ),
+        )
+
+    def test_inlet(self):
+        inp = self.test_street_model
+
+        self.assertEqual(inp.inlet.reset_index().shape, (2, 8))
+
+        inp.inlet.loc[("ComboInlet", "GRATE"), "param4"] = 0.5
+        inp.inlet.loc[("ComboInlet", "GRATE"), "param5"] = 0.3
+        inp.inlet.loc[("ComboInlet", "GRATE"), "desc"] = (
+            "update pct open and splace velocity of grate"
+        )
+
+        self.assertMultiLineEqual(
+            inp.inlet.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Name      Type   param1  param2  param3      param4  param5  
+                    ;;--------  -----  ------  ------  ----------  ------  ------  
+                    ;update pct open and splace velocity of grate
+                    ComboInlet  GRATE  2       2.0     P_BAR-50    0.5     0.3     
+                    ComboInlet  CURB   2       0.5     HORIZONTAL                  
+                """
+            ),
+        )
+
+    def test_inlet_usage(self):
+        inp = self.test_street_model
+
+        self.assertEqual(inp.inlet_usage.reset_index().shape, (4, 10))
+
+        inp.inlet_usage.loc["Street5", "Placement"] = "ON_SAG"
+        inp.inlet_usage.loc["Street5", "desc"] = "updated placement"
+
+        self.assertMultiLineEqual(
+            inp.inlet_usage.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Conduit  Inlet       Node  Number  %Clogged  MaxFlow  hDStore  wDStore  Placement  
+                    ;;-------  ----------  ----  ------  --------  -------  -------  -------  ---------  
+                    Street1    ComboInlet  J1    1       0         0        0        0                   
+                    Street3    ComboInlet  J2a   1       0         0        0        0                   
+                    Street4    ComboInlet  J2    1       0         0        0        0                   
+                    ;updated placement
+                    Street5    ComboInlet  J11   2       0         0        0        0        ON_SAG     
+                """
+            ),
+        )
+
+    def test_pollutant(self):
+        inp = self.test_base_model
+
+        self.assertEqual(inp.pollutants.reset_index().shape, (3, 12))
+
+        inp.pollutants.loc["Sewage", "Cinit"] = 100
+        inp.pollutants.loc["Sewage", "desc"] = "updated initial conc"
+
+        self.assertMultiLineEqual(
+            inp.pollutants.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Name       Units  Crain  Cgw  Crdii  Kdecay  SnowOnly  CoPollutant  CoFrac  Cdwf  Cinit  
+                    ;;---------  -----  -----  ---  -----  ------  --------  -----------  ------  ----  -----  
+                    Groundwater  MG/L   0      100  0      0       NO        *            0.0     0     0      
+                    Rainfall     MG/L   100    0    0      0       NO        *            0.0     0     0      
+                    ;updated initial conc
+                    Sewage       MG/L   0      0    0      0       NO        *            0.0     100   100    
+                """
+            ),
+        )
+
+    def test_landuse(self):
+        inp = self.test_site_drainage_model
+
+        self.assertEqual(inp.landuse.reset_index().shape, (4, 5))
+
+        inp.landuse.loc["Residential_1", "SweepInterval"] = 7
+        inp.landuse.loc["Residential_1", "Availability"] = 0.5
+        inp.landuse.loc["Residential_1", "LastSweep"] = 3
+        inp.landuse.loc["Residential_1", "desc"] = "set weekly street sweeping"
+
+        self.assertMultiLineEqual(
+            inp.landuse.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Name         SweepInterval  Availability  LastSweep  
+                    ;;-----------  -------------  ------------  ---------  
+                    ;set weekly street sweeping
+                    Residential_1  7              0.5           3          
+                    Residential_2  0              0.0           0          
+                    Commercial     0              0.0           0          
+                    Undeveloped    0              0.0           0          
+                """
+            ),
+        )
+
+    def test_coverage(self):
+        inp = self.test_site_drainage_model
+
+        self.assertEqual(inp.coverage.reset_index().shape, (10, 4))
+
+        inp.coverage.loc[("S5", "Commercial"), "Percent"] = 50
+        inp.coverage.loc[("S5", "Commercial"), "desc"] = "reduced to 50%"
+        inp.coverage.loc[("S5", "Residential_2"), "Percent"] = 50
+        inp.coverage.loc[("S5", "Residential_2"), "desc"] = "added"
+
+        self.assertMultiLineEqual(
+            inp.coverage.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Subcatchment  landuse        Percent  
+                    ;;------------  -------------  -------  
+                    S1              Residential_1  100.0    
+                    S2              Residential_1  27.0     
+                    S2              Residential_2  73.0     
+                    S3              Residential_1  27.0     
+                    S3              Residential_2  32.0     
+                    S4              Residential_1  9.0      
+                    S4              Residential_2  30.0     
+                    S4              Commercial     26.0     
+                    ;reduced to 50%
+                    S5              Commercial     50.0     
+                    S6              Commercial     100.0    
+                    ;added
+                    S5              Residential_2  50.0     
+                """
+            ),
+        )

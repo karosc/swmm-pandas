@@ -1143,6 +1143,7 @@ class Xsections(SectionDf):
         "Barrels",
         "Culvert",
     ]
+    _index_col = "Link"
 
     @classmethod
     def _tabulate(cls, line: list):
@@ -1155,7 +1156,7 @@ class Xsections(SectionDf):
                 line[1],
                 line[0],
             )
-            out[cls.headings.index("Barrels")] = out[2] if len(out) > 2 else 1
+            out[cls.headings.index("Barrels")] = line[2] if len(line) > 2 else 1
             return out
         elif out[1].lower() == "irregular":
             out[cls._headings.index("Curve")] = line[0]
@@ -1418,7 +1419,7 @@ class Inlet(SectionDf):
         "Name",
         "Type",
     ]
-    _index_col = "Name"
+    _index_col = ["Name", "Type"]
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -1426,7 +1427,7 @@ class Inlet(SectionDf):
 
 
 class Inlet_Usage(SectionDf):
-    _ncol = 7
+    _ncol = 9
     _headings = [
         "Conduit",
         "Inlet",

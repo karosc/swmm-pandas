@@ -164,6 +164,7 @@ COND3            FILLED_CIRCULAR 1.5           0.5        0          0          
 COND4            FILLED_CIRCULAR 2             0.5        0          0          1          0         
 COND5            FILLED_CIRCULAR 2             1          0          0          1          0         
 COND6            FORCE_MAIN   1                130        0          0          1          0         
+COND7            CUSTOM       10               Store1                           2         
 WR1              RECT_OPEN    3.2              3          0          0         
 
 [LOSSES]
