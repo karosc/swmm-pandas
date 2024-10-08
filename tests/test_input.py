@@ -24,12 +24,14 @@ class InputTest(unittest.TestCase):
         self.test_lid_model_path = str(_HERE / "data" / "LID_Model.inp")
         self.test_det_pond_model_path = str(_HERE / "data" / "Detention_Pond_Model.inp")
         self.test_inlet_model_path = str(_HERE / "data" / "Inlet_Drains_Model.inp")
+        self.test_divider_model_path = str(_HERE / "data" / "Divider_Example.inp")
 
         self.test_base_model = Input(self.test_base_model_path)
         self.test_lid_model = Input(self.test_lid_model_path)
         self.test_det_pond_model = Input(self.test_det_pond_model_path)
         self.test_street_model = Input(self.test_street_model_path)
         self.test_site_drainage_model = Input(self.test_drainage_model_path)
+        self.test_divider_model = Input(self.test_divider_model_path)
 
         self.maxDiff = 1_000_000
 
@@ -661,7 +663,7 @@ class InputTest(unittest.TestCase):
         inp = self.test_base_model
         self.assertEqual(
             inp.conduit.reset_index().shape,
-            (6, 10),
+            (8, 10),
         )
 
         inp.conduit.loc["COND3", "FromNode"] = "JUNC1"
@@ -681,6 +683,8 @@ class InputTest(unittest.TestCase):
                     COND4   JUNC4     JUNC5   732.48   0.019      0         0.0        0         0        
                     COND5   JUNC5     STOR1   64.72    0.019      0         8.74       0         0        
                     COND6   JUNC6     OUT1    37.72    0.015      0         0.0        0         0        
+                    COND7   JUNC6     OUT1    37.72    0.015      0         0.0        0         0        
+                    COND8   JUNC6     OUT1    37.72    0.015      0         0.0        0         0        
                 """
             ),
         )
@@ -744,7 +748,7 @@ class InputTest(unittest.TestCase):
     def test_xsect(self):
         inp = self.test_base_model
 
-        self.assertEqual(inp.xsections.reset_index().shape, (8, 10))
+        self.assertEqual(inp.xsections.reset_index().shape, (9, 10))
         inp.xsections.loc["COND7", "Barrels"] = 1
         inp.xsections.loc["COND7", "desc"] = "changed to single barrel"
 
@@ -752,17 +756,18 @@ class InputTest(unittest.TestCase):
             inp.xsections.to_swmm_string(),
             dedent(
                 """\
-                    ;;Link  Shape            Geom1  Curve   Geom2  Geom3  Geom4  Barrels  Culvert  
-                    ;;----  ---------------  -----  ------  -----  -----  -----  -------  -------  
-                    COND1   CIRCULAR         1.0            0      0      0      1        0        
-                    COND2   FILLED_CIRCULAR  1.25           0.5    0      0      1        0        
-                    COND3   FILLED_CIRCULAR  1.5            0.5    0      0      1        0        
-                    COND4   FILLED_CIRCULAR  2.0            0.5    0      0      1        0        
-                    COND5   FILLED_CIRCULAR  2.0            1      0      0      1        0        
-                    COND6   FORCE_MAIN       1.0            130    0      0      1        0        
+                    ;;Link  Shape            Geom1  Curve        Geom2  Geom3  Geom4  Barrels  Culvert  
+                    ;;----  ---------------  -----  -----------  -----  -----  -----  -------  -------  
+                    COND1   CIRCULAR         1.0                 0.0    0      0      1        0        
+                    COND2   FILLED_CIRCULAR  1.25                0.5    0      0      1        0        
+                    COND3   FILLED_CIRCULAR  1.5                 0.5    0      0      1        0        
+                    COND4   FILLED_CIRCULAR  2.0                 0.5    0      0      1        0        
+                    COND5   FILLED_CIRCULAR  2.0                 1.0    0      0      1        0        
+                    COND6   FORCE_MAIN       1.0                 130.0  0      0      1        0        
                     ;changed to single barrel
-                    COND7   CUSTOM           10.0   Store1                       1                 
-                    WR1     RECT_OPEN        3.2            3      0      0                        
+                    COND7   CUSTOM           10.0   COND7_curve  0.0    0      0      1                 
+                    COND8   IRREGULAR               Transect                                            
+                    WR1     RECT_OPEN        3.2                 3.0    0      0                        
                 """
             ),
         )
@@ -1165,7 +1170,7 @@ class InputTest(unittest.TestCase):
 
     def test_curves(self):
         inp = self.test_base_model
-        self.assertEqual(inp.curves.reset_index().shape, (5, 5))
+        self.assertEqual(inp.curves.reset_index().shape, (9, 5))
 
         inp.curves.loc[("P1", 2), :] = [10, 10, "extended the curve"]
 
@@ -1173,15 +1178,19 @@ class InputTest(unittest.TestCase):
             inp.curves.to_swmm_string(),
             dedent(
                 """\
-                    ;;Name  Type     X_Value  Y_Value  
-                    ;;----  -------  -------  -------  
-                    P1      PUMP5    0        0.0      
-                    P1               7        5.8      
+                    ;;Name       Type     X_Value  Y_Value  
+                    ;;---------  -------  -------  -------  
+                    COND7_curve  SHAPE    0.1      2.0      
+                    COND7_curve           0.2      5.0      
+                    COND7_curve           0.5      10.0     
+                    COND7_curve           1.0      10.0     
+                    P1           PUMP5    0.0      0.0      
+                    P1                    7.0      5.8      
                     ;extended the curve
-                    P1               10       10.0     
-                    Store1  STORAGE  1        20.0     
-                    Store1           2        30.0     
-                    Store1           3        40.0     
+                    P1                    10.0     10.0     
+                    Store1       STORAGE  1.0      20.0     
+                    Store1                2.0      30.0     
+                    Store1                3.0      40.0     
                 """
             ),
         )
@@ -1208,3 +1217,44 @@ class InputTest(unittest.TestCase):
         with open(_HERE / "data" / "timeseries_benchmark.dat") as bench_file:
             bench_text = bench_file.read()
             self.assertMultiLineEqual(inp.timeseries.to_swmm_string(), bench_text)
+
+    def test_weir(self):
+        inp = self.test_base_model
+        self.assertEqual(inp.weir.reset_index().shape, (1, 14))
+
+        inp.weir.loc["WR1", "Type"] = "SIDE"
+        inp.weir.loc["WR1", "desc"] = "changed weir type"
+
+        self.assertMultiLineEqual(
+            inp.weir.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Name  FromNode  ToNode  Type  CrestHt  Qcoeff  Gated  EndCon  EndCoeff  Surcharge  RoadWidth  RoadSurf  CoeffCurve  
+                    ;;----  --------  ------  ----  -------  ------  -----  ------  --------  ---------  ---------  --------  ----------  
+                    ;changed weir type
+                    WR1     JUNC2     OUT2    SIDE  3        3.33    NO     0       0         YES                                         
+                """
+            ),
+        )
+
+    def test_divider(self):
+        inp = self.test_divider_model
+        self.assertEqual(inp.divider.reset_index().shape, (4, 13))
+
+        inp.divider.loc["KRO1004", "Ymax"] = 100
+        inp.divider.loc["KRO1004", "desc"] = "bumped ymax"
+
+        self.assertMultiLineEqual(
+            inp.divider.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Name   Elevation  DivLink  DivType   DivCurve  Qmin  Height  Cd    Ymax  Y0  Ysur  Apond  
+                    ;;-----  ---------  -------  --------  --------  ----  ------  ----  ----  --  ----  -----  
+                    KRO1003  594.73     C3       TABULAR   Outflow                       5     0   0     0      
+                    ;bumped ymax
+                    KRO1004  584.0      C2       WEIR                0.2   5       3.33  100   0   0     0      
+                    KRO1010  584.82     C1       CUTOFF              0.2                 11    0   0     0      
+                    KRO4008  583.48     C4       OVERFLOW                                10    0   0     0      
+                """
+            ),
+        )

@@ -613,7 +613,7 @@ class Event(SectionDf):
 
     @classmethod
     def _tabulate(cls, line: list):
-        out = [""] * Event._ncol
+        out = [""] * cls._ncol
         if len(line) != 4:
             raise ValueError(f"Event lines must have 4 values but found {len(line)}")
 
@@ -744,7 +744,7 @@ class Infil(SectionDf):
 
     @classmethod
     def _tabulate(cls, line: list):
-        out = [""] * Infil._ncol
+        out = [""] * cls._ncol
 
         # pop first entry in the line (subcatch name)
         out[0] = line.pop(0)
@@ -866,7 +866,7 @@ class Outfall(SectionDf):
 
     @classmethod
     def _tabulate(cls, line: list):
-        out = [""] * Outfall._ncol
+        out = [""] * cls._ncol
 
         # pop first three entries in the line
         # (required entries for every outfall type)
@@ -911,7 +911,7 @@ class Storage(SectionDf):
 
     @classmethod
     def _tabulate(cls, line: list):
-        out = [""] * Storage._ncol
+        out = [""] * cls._ncol
         out[: cls._headings.index("CurveName")] = line[:5]
         line = line[5:]
         shape = out[cls._headings.index("Shape")].lower()
@@ -934,7 +934,7 @@ class Storage(SectionDf):
 
 
 class Divider(SectionDf):
-    _ncol = 11
+    _ncol = 12
     _headings = [
         "Name",
         "Elevation",
@@ -953,7 +953,7 @@ class Divider(SectionDf):
 
     @classmethod
     def _tabulate(cls, line: list):
-        out = [""] * Outfall._ncol
+        out = [""] * cls._ncol
 
         # pop first four entries in the line
         # (required entries for every Divider type)
@@ -1083,7 +1083,7 @@ class Outlet(SectionDf):
 
     @classmethod
     def _tabulate(cls, line: list):
-        out = [""] * Outlet._ncol
+        out = [""] * cls._ncol
         out[: cls._headings.index("CurveName")] = line[:5]
         line = line[5:]
 
@@ -1108,7 +1108,7 @@ class Xsections(SectionDf):
         "CIRCULAR",
         "FORCE_MAIN",
         "FILLED_CIRCULAR",
-        "Depth",
+        "DUMMY",
         "RECT_CLOSED",
         "RECT_OPEN",
         "TRAPEZOIDAL",
@@ -1119,9 +1119,7 @@ class Xsections(SectionDf):
         "PARABOLIC",
         "POWER",
         "RECT_TRIANGULAR",
-        "Height",
         "RECT_ROUND",
-        "Radius",
         "MODBASKETHANDLE",
         "EGG",
         "HORSESHOE",
@@ -1130,6 +1128,7 @@ class Xsections(SectionDf):
         "SEMIELLIPTICAL",
         "BASKETHANDLE",
         "SEMICIRCULAR",
+        "CUSTOM",
     )
 
     _ncol = 8
@@ -1148,7 +1147,7 @@ class Xsections(SectionDf):
 
     @classmethod
     def _tabulate(cls, line: list):
-        out = [""] * Outlet._ncol
+        out = [""] * cls._ncol
         out[:2] = line[:2]
         line = line[2:]
 
@@ -1174,6 +1173,14 @@ class Xsections(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol)
+
+    def to_swmm_string(self):
+        df = self.copy(deep=True)
+        mask = df["Shape"].isin(self._shapes)
+        geom_cols = [f"Geom{i}" for i in range(1, 5)]
+        df.loc[mask, geom_cols] = df.loc[mask, geom_cols].fillna(0)
+        df.loc[mask, geom_cols] = df.loc[mask, geom_cols].replace("", 0)
+        return super(Xsections, df).to_swmm_string()
 
 
 class Street(SectionDf):

@@ -22,12 +22,12 @@
 | SNOWPACKS     | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
 | JUNCTIONS     | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
 | OUTFALLS      | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
-| DIVIDERS      | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| DIVIDERS      | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
 | STORAGE       | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
 | CONDUITS      | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
 | PUMPS         | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
 | ORIFICES      | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
-| WEIRS         | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| WEIRS         | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
 | OUTLETS       | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
 | XSECTIONS     | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
 | TRANSECTS     | :x:                | :heavy_check_mark: | String                             |                                            |
