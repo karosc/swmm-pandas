@@ -349,7 +349,7 @@ head_series 01/01/2000 00:00 70
 inflow_series 01/01/1900 00:00 100 
 inflow_series 01/01/2000 00:00 100 
 
-file_series  FILE  ./rain.dat
+file_series  FILE  ./rain_ts.dat
 
 ;a new timeseries
 new_ts 01/01/1900 00:00 100 

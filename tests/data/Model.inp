@@ -144,8 +144,8 @@ COND3            JUNC3            JUNC4            541.1      0.019      0      
 COND4            JUNC4            JUNC5            732.48     0.019      0          0          0          0         
 COND5            JUNC5            STOR1            64.72      0.019      0          8.74       0          0         
 COND6            JUNC6            OUT1             37.72      0.015      0          0          0          0         
-COND7            JUNC6            OUT1             37.72      0.015      0          0          0          0         
-COND8            JUNC6            OUT1             37.72      0.015      0          0          0          0         
+COND7            JUNC5            STOR1             37.72      0.015      0          0          0          0         
+COND8            JUNC5            STOR1             37.72      0.015      0          0          0          0         
 
 [PUMPS]
 ;;Name           From Node        To Node          Pump Curve       Status   Startup  Shutoff 
@@ -180,6 +180,8 @@ GR 2        1        1        2        2        3
 [LOSSES]
 ;;Link           Kentry     Kexit      Kavg       Flap Gate  Seepage   
 ;;-------------- ---------- ---------- ---------- ---------- ----------
+COND1            1          2          3          NO         4
+COND2            0          0          0          YES        0
 
 [POLLUTANTS]
 ;;Name           Units  Crain      Cgw        Crdii      Kdecay     SnowOnly   Co-Pollutant     Co-Frac    Cdwf       Cinit     
@@ -667,7 +669,7 @@ head_series      1/1/2000   0:00       70
 inflow_series      1/1/1900   0:00       100       
 inflow_series      1/1/2000   0:00       100   
 
-file_series     FILE  ./rain.dat
+file_series     FILE  ./rain_ts.dat
 
 [PATTERNS]
 ;;Name           Type       Multipliers
@@ -676,6 +678,20 @@ HOURLY           HOURLY     0.890000 0.850000 0.790000 0.780000 0.740000 0.83000
 HOURLY                      0.980000 0.950000 1.120000 1.120000 1.100000 1.120000
 HOURLY                      1.130000 1.120000 1.070000 1.050000 1.050000 1.090000
 HOURLY                      1.100000 1.140000 1.120000 1.060000 1.020000 0.800000
+
+Monthly          MONTHLY    1.2   1     1.0   1.0   1.0   1.0  
+Monthly                     1.0   1.0   1.0   1.0   1     1.2  
+
+Weekend          WEEKEND    0.845175541 0.897928725 0.871789152 0.825412847 0.806656353 0.810151807
+Weekend                     0.945772601 1.085291671 1.126223117 1.14557287 1.099205069 1.063918518
+Weekend                     1.040865377 1.016065669 1.070370843 1.065195623 1.096448729 1.091609599
+Weekend                     1.067749499 1.075882058 1.067884055 1.003229315 0.967544843 0.914056154
+
+Hourly2          HOURLY     0.795056189 0.762389143 0.71133836 0.688576923 0.686790832 0.823412916
+Hourly2                     1.1439293 1.27566998 1.187007704 1.16442794 1.084216899 1.039707077
+Hourly2                     0.970612488 0.993236819 0.966537193 0.996435649 1.043783828 1.120655569
+Hourly2                     1.159686031 1.177063799 1.205062359 1.113619388 0.987596686 0.9031883
+
 
 [REPORT]
 ;;Reporting Options

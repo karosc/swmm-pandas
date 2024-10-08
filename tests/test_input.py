@@ -463,24 +463,24 @@ class InputTest(unittest.TestCase):
 
         inp.lid_usage.loc[(slice(None), "Swale"), "Width"] = 100
         inp.lid_usage.loc[(slice(None), "Swale"), "desc"] = "Update width"
-        self.maxDiff
+
         self.assertMultiLineEqual(
             inp.lid_usage.to_swmm_string(),
             dedent(
                 """\
                     ;;Subcatchment  LIDProcess   Number  Area      Width  InitSat  FromImp  ToPerv  RptFile  DrainTo  FromPerv  
                     ;;------------  -----------  ------  --------  -----  -------  -------  ------  -------  -------  --------  
-                    S1              InfilTrench  4       532       133    0        40       0       *        *        0         
-                    S1              RainBarrels  32      5         0      0        17       1       *        *        0         
-                    S4              Planters     30      500       0      0        80       0       *        *        0         
-                    S5              PorousPave   1       232872    683    0        0        0       *        *        0         
-                    S5              GreenRoof    1       18400     136    0        0        0       *        *        0         
+                    S1              InfilTrench  4       532.0     133    0        40       0       *        *        0         
+                    S1              RainBarrels  32      5.0       0      0        17       1       *        *        0         
+                    S4              Planters     30      500.0     0      0        80       0       *        *        0         
+                    S5              PorousPave   1       232872.0  683    0        0        0       *        *        0         
+                    S5              GreenRoof    1       18400.0   136    0        0        0       *        *        0         
                     ;Update width
-                    Swale3          Swale        1       14374.80  100    0        0        0       *        *        0         
+                    Swale3          Swale        1       14374.8   100    0        0        0       *        *        0         
                     ;Update width
-                    Swale4          Swale        1       21780.00  100    0        0        0       *        *        0         
+                    Swale4          Swale        1       21780.0   100    0        0        0       *        *        0         
                     ;Update width
-                    Swale6          Swale        1       17859.60  100    0        0        0       *        *        0         
+                    Swale6          Swale        1       17859.6   100    0        0        0       *        *        0         
                 """,
             ),
         )
@@ -577,13 +577,13 @@ class InputTest(unittest.TestCase):
             inp.snowpack.to_swmm_string(),
             dedent(
                 """\
-                    ;;Name  Surface     param1    param2    param3     param4    param5    param6    param7    
-                    ;;----  ----------  --------  --------  ---------  --------  --------  --------  --------  
-                    SNOW1   PLOWABLE    0.005000  0.007000  24.000000  0.200000  0.000000  0.000000  0.100000  
-                    SNOW1   IMPERVIOUS  0.005000  0.007000  24.000000  0.200000  0.000000  0.000000  2.000000  
-                    SNOW1   PERVIOUS    0.004000  0.004000  25.000000  0.200000  0.000000  0.000000  2.000000  
+                    ;;Name  Surface     param1  param2  param3  param4  param5  param6  param7  
+                    ;;----  ----------  ------  ------  ------  ------  ------  ------  ------  
+                    SNOW1   PLOWABLE    0.005   0.007   24.0    0.2     0.0     0.0     0.1     
+                    SNOW1   IMPERVIOUS  0.005   0.007   24.0    0.2     0.0     0.0     2.0     
+                    SNOW1   PERVIOUS    0.004   0.004   25.0    0.2     0.0     0.0     2.0     
                     ;Update plow depth
-                    SNOW1   REMOVAL     4         0         0          1         0.000000  0.000000            
+                    SNOW1   REMOVAL     4.0     0.0     0.0     1.0     0.0     0.0             
                 """,
             ),
         )
@@ -1303,3 +1303,15 @@ class InputTest(unittest.TestCase):
                 """
             ),
         )
+
+    def test_patterns(self):
+        inp = self.test_base_model
+
+        self.assertEqual(inp.patterns.reset_index().shape, (84, 4))
+
+        inp.patterns.loc[("Monthly", slice(None)), "Multiplier"] *= 100
+        inp.patterns.loc[("Monthly", 0), "desc"] = "A massive monthly pattern"
+
+        with open(_HERE / "data" / "pattern_benchmark.dat") as bench_file:
+            bench_text = bench_file.read()
+            self.assertMultiLineEqual(inp.patterns.to_swmm_string(), bench_text)

@@ -1,0 +1,87 @@
+;;Name   Type     Multiplier   
+;;-----  -------  -----------  
+HOURLY   HOURLY   0.89         
+HOURLY            0.85         
+HOURLY            0.79         
+HOURLY            0.78         
+HOURLY            0.74         
+HOURLY            0.83         
+HOURLY            0.98         
+HOURLY            0.95         
+HOURLY            1.12         
+HOURLY            1.12         
+HOURLY            1.1          
+HOURLY            1.12         
+HOURLY            1.13         
+HOURLY            1.12         
+HOURLY            1.07         
+HOURLY            1.05         
+HOURLY            1.05         
+HOURLY            1.09         
+HOURLY            1.1          
+HOURLY            1.14         
+HOURLY            1.12         
+HOURLY            1.06         
+HOURLY            1.02         
+HOURLY            0.8          
+Hourly2  HOURLY   0.795056189  
+Hourly2           0.762389143  
+Hourly2           0.71133836   
+Hourly2           0.688576923  
+Hourly2           0.686790832  
+Hourly2           0.823412916  
+Hourly2           1.1439293    
+Hourly2           1.27566998   
+Hourly2           1.187007704  
+Hourly2           1.16442794   
+Hourly2           1.084216899  
+Hourly2           1.039707077  
+Hourly2           0.970612488  
+Hourly2           0.993236819  
+Hourly2           0.966537193  
+Hourly2           0.996435649  
+Hourly2           1.043783828  
+Hourly2           1.120655569  
+Hourly2           1.159686031  
+Hourly2           1.177063799  
+Hourly2           1.205062359  
+Hourly2           1.113619388  
+Hourly2           0.987596686  
+Hourly2           0.9031883    
+;A massive monthly pattern
+Monthly  MONTHLY  120.0        
+Monthly           100.0        
+Monthly           100.0        
+Monthly           100.0        
+Monthly           100.0        
+Monthly           100.0        
+Monthly           100.0        
+Monthly           100.0        
+Monthly           100.0        
+Monthly           100.0        
+Monthly           100.0        
+Monthly           120.0        
+Weekend  WEEKEND  0.845175541  
+Weekend           0.897928725  
+Weekend           0.871789152  
+Weekend           0.825412847  
+Weekend           0.806656353  
+Weekend           0.810151807  
+Weekend           0.945772601  
+Weekend           1.085291671  
+Weekend           1.126223117  
+Weekend           1.14557287   
+Weekend           1.099205069  
+Weekend           1.063918518  
+Weekend           1.040865377  
+Weekend           1.016065669  
+Weekend           1.070370843  
+Weekend           1.065195623  
+Weekend           1.096448729  
+Weekend           1.091609599  
+Weekend           1.067749499  
+Weekend           1.075882058  
+Weekend           1.067884055  
+Weekend           1.003229315  
+Weekend           0.967544843  
+Weekend           0.914056154  

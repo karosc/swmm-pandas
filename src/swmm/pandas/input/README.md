@@ -6,7 +6,7 @@
 | OPTIONS       | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                                       |
 | REPORT        | :heavy_check_mark: | :heavy_check_mark: | Custom Object                      |                                                       |
 | EVENT         | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                                       |
-| FILES         | :x:                | :x:                | String                             | build better interface than text interfac             |
+| FILES         | :x:                | :x:                | String                             | build better interface than text interface            |
 | RAINGAGES     | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                                       |
 | EVAPORATION   | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          | better column names                                   |
 | TEMPERATURE   | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                                       |
@@ -35,7 +35,7 @@
 | INLETS        | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                                       |
 | INLET_USAGE   | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                                       |
 | LOSSES        | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                                       |
-| CONTROLS      | :x:                | :x:                | String                             |                                                       |
+| CONTROLS      | :x:                | :x:                | String                             | build better interface than text interface            |
 | POLLUTANTS    | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                                       |
 | LANDUSES      | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                                       |
 | COVERAGES     | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          | Support parsing multiple coverages on a single line   |
@@ -49,7 +49,7 @@
 | HYDROGRAPHS   | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                                       |
 | CURVES        | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                                       |
 | TIMESERIES    | :heavy_check_mark: | :heavy_check_mark: | Hashmap of Dataframes and Objects  | Better output string formatting.                      |
-| PATTERNS      | :x:                | :x:                | String                             |                                                       |
+| PATTERNS      | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                                       |
 | MAP           | :x:                | :x:                | String                             | Build a better data structure for this.               |
 | POLYGONS      | :heavy_check_mark: | :x:                | Dataframe                          | Add coordinate index                                  |
 | COORDINATES   | :heavy_check_mark: | :x:                | Dataframe                          |                                                       |

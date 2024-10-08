@@ -61,8 +61,9 @@ def _coerce_numeric(data: str) -> str | float | int:
     try:
         number = float(data)
         number = int(number) if number.is_integer() and "." not in data else number
-        if str(number) == data:
-            return number
+        return number
+        # if str(number) == data:
+        #     return number
     except ValueError:
         pass
 
@@ -1431,7 +1432,82 @@ class Timeseries(SectionBase):
         return list(self._timeseries.keys())
 
 
-class Patterns(SectionText): ...
+class Patterns(SectionDf):
+    _ncol = 3
+    _headings = ["Name", "Type", "Multiplier"]
+    _index_col = ["Name"]
+    _valid_types = [
+        "MONTHLY",
+        "DAILY",
+        "HOURLY",
+        "WEEKEND",
+    ]
+
+    @classmethod
+    def _tabulate(
+        cls, line: list[str | float]
+    ) -> list[str | float] | list[list[str | float]]:
+        out = []
+        name = line.pop(0)
+
+        if str(line[0]).upper() in cls._valid_types:
+            pattern_type = line.pop(0).upper()
+        elif isinstance(line[0], Number):
+            pattern_type = pd.NA
+        else:
+            raise ValueError(f"Error parsing pattern line {[name]+line!r}")
+
+        for value in line:
+            row = [""] * cls._ncol
+            float_val = float(value)
+            row[0:3] = name, pattern_type, float_val
+            out.append(row)
+        return out
+
+    @classmethod
+    def _validate_pattern_types(cls, df: pd.DataFrame) -> dict[str, str]:
+        unique_patterns = df.reset_index()[["Name", "Type"]].dropna().drop_duplicates()
+        if unique_patterns["Name"].duplicated().any():
+            raise ValueError(
+                "Pattern with duplicate types found in input file. "
+                "Each pattern must only specify a single type to work with swmm.pandas"
+            )
+        if not all(
+            bools := [pattern in cls._valid_types for pattern in unique_patterns.Type]
+        ):
+            invalid_patterns = unique_patterns["Type"].iloc[~np.array(bools)].to_list()
+            raise ValueError(f"Unknown curves {invalid_patterns!r}")
+
+        return unique_patterns.set_index("Name")["Type"].to_dict()
+
+    @classmethod
+    def from_section_text(cls, text: str) -> Self:
+        df = super()._from_section_text(text, cls._ncol)
+        pattern_types = cls._validate_pattern_types(df)
+        df = df.reset_index().drop("Type", axis=1)
+        df["Pattern_Index"] = df.groupby("Name").cumcount()
+        df.attrs = pattern_types
+        return df.set_index(["Name", "Pattern_Index"])
+
+    def to_swmm_string(self) -> str:
+        df = self.copy()
+
+        # add type back into frame in first row of curve
+        type_idx = pd.MultiIndex.from_frame(
+            df.index.to_frame()
+            .drop("Name", axis=1)
+            .groupby("Name")["Pattern_Index"]
+            .min()
+            .reset_index()
+        )
+        type_values = type_idx.get_level_values(0).map(df.attrs).to_numpy()
+        df.loc[:, "Type"] = ""
+        df.loc[type_idx, "Type"] = type_values
+
+        # sort by name and index then drop the curve index field since swmm doesn't use it
+        df = df.sort_index(ascending=[True, True])
+        df.index = df.index.droplevel("Pattern_Index")
+        return super(Patterns, df).to_swmm_string()
 
 
 class Inlet(SectionDf):
