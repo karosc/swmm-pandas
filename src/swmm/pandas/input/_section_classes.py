@@ -1131,7 +1131,7 @@ class Xsections(SectionDf):
         "CUSTOM",
     )
 
-    _ncol = 8
+    _ncol = 9
     _headings = [
         "Link",
         "Shape",
@@ -1156,7 +1156,13 @@ class Xsections(SectionDf):
                 line[1],
                 line[0],
             )
-            out[cls.headings.index("Barrels")] = line[2] if len(line) > 2 else 1
+            ## TODO: Fix this depending on results from https://github.com/USEPA/Stormwater-Management-Model/issues/193
+            # out[cls.headings.index("Barrels")] = line[2] if len(line) > 2 else 1
+            out[
+                cls._headings.index("Geom3") : cls._headings.index("Geom3")
+                + len(line)
+                - 2
+            ] = line[2:]
             return out
         elif out[1].lower() == "irregular":
             out[cls._headings.index("Curve")] = line[0]
@@ -1176,10 +1182,17 @@ class Xsections(SectionDf):
 
     def to_swmm_string(self):
         df = self.copy(deep=True)
+
+        # fill geoms
         mask = df["Shape"].isin(self._shapes)
         geom_cols = [f"Geom{i}" for i in range(1, 5)]
         df.loc[mask, geom_cols] = df.loc[mask, geom_cols].fillna(0)
         df.loc[mask, geom_cols] = df.loc[mask, geom_cols].replace("", 0)
+
+        # fix custom shapes, Geom2 needs to be empty since the curve goes there
+        mask = df["Shape"].astype(str).str.upper() == "CUSTOM"
+        df.loc[mask, "Geom2"] = ""
+
         return super(Xsections, df).to_swmm_string()
 
 

@@ -25,6 +25,7 @@ class InputTest(unittest.TestCase):
         self.test_det_pond_model_path = str(_HERE / "data" / "Detention_Pond_Model.inp")
         self.test_inlet_model_path = str(_HERE / "data" / "Inlet_Drains_Model.inp")
         self.test_divider_model_path = str(_HERE / "data" / "Divider_Example.inp")
+        self.test_outlet_model_path = str(_HERE / "data" / "Outlet_Example.inp")
 
         self.test_base_model = Input(self.test_base_model_path)
         self.test_lid_model = Input(self.test_lid_model_path)
@@ -32,6 +33,7 @@ class InputTest(unittest.TestCase):
         self.test_street_model = Input(self.test_street_model_path)
         self.test_site_drainage_model = Input(self.test_drainage_model_path)
         self.test_divider_model = Input(self.test_divider_model_path)
+        self.test_outlet_model = Input(self.test_outlet_model_path)
 
         self.maxDiff = 1_000_000
 
@@ -683,8 +685,8 @@ class InputTest(unittest.TestCase):
                     COND4   JUNC4     JUNC5   732.48   0.019      0         0.0        0         0        
                     COND5   JUNC5     STOR1   64.72    0.019      0         8.74       0         0        
                     COND6   JUNC6     OUT1    37.72    0.015      0         0.0        0         0        
-                    COND7   JUNC6     OUT1    37.72    0.015      0         0.0        0         0        
-                    COND8   JUNC6     OUT1    37.72    0.015      0         0.0        0         0        
+                    COND7   JUNC5     STOR1   37.72    0.015      0         0.0        0         0        
+                    COND8   JUNC5     STOR1   37.72    0.015      0         0.0        0         0        
                 """
             ),
         )
@@ -765,7 +767,7 @@ class InputTest(unittest.TestCase):
                     COND5   FILLED_CIRCULAR  2.0                 1.0    0      0      1        0        
                     COND6   FORCE_MAIN       1.0                 130.0  0      0      1        0        
                     ;changed to single barrel
-                    COND7   CUSTOM           10.0   COND7_curve  0.0    0      0      1                 
+                    COND7   CUSTOM           10.0   COND7_curve         0      0      1                 
                     COND8   IRREGULAR               Transect                                            
                     WR1     RECT_OPEN        3.2                 3.0    0      0                        
                 """
@@ -1255,6 +1257,49 @@ class InputTest(unittest.TestCase):
                     KRO1004  584.0      C2       WEIR                0.2   5       3.33  100   0   0     0      
                     KRO1010  584.82     C1       CUTOFF              0.2                 11    0   0     0      
                     KRO4008  583.48     C4       OVERFLOW                                10    0   0     0      
+                """
+            ),
+        )
+
+    def test_outlet(self):
+        inp = self.test_outlet_model
+        self.assertEqual(inp.outlet.reset_index().shape, (4, 10))
+
+        inp.outlet.loc[8060, "Qcoeff"] = 100
+        inp.outlet.loc[8060, "desc"] = "bumped Qcoeff"
+
+        self.assertMultiLineEqual(
+            inp.outlet.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Name  FromNode  ToNode  Offset  Type              CurveName    Qcoeff  Qexpon  Gated  
+                    ;;----  --------  ------  ------  ----------------  -----------  ------  ------  -----  
+                    1030    10309     10208   0       TABULAR/HEAD      Outlet_head                  NO     
+                    1600    16109     16009   0       FUNCTIONAL/HEAD                10      0.5     NO     
+                    ;bumped Qcoeff
+                    8060    80608     82309   0       FUNCTIONAL/DEPTH               100     0.5     NO     
+                    8130    81309     15009   0       TABULAR/DEPTH     Outlet_head                  NO     
+                """
+            ),
+        )
+
+    def test_losses(self):
+        inp = self.test_base_model
+
+        self.assertEqual(inp.losses.reset_index().shape, (2, 7))
+
+        inp.losses.loc["COND2", "Kavg"] = 10_000
+        inp.losses.loc["COND2", "desc"] = "added outrageous losses"
+
+        self.assertMultiLineEqual(
+            inp.losses.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Link  Kentry  Kexit  Kavg   FlapGate  Seepage  
+                    ;;----  ------  -----  -----  --------  -------  
+                    COND1   1       2      3      NO        4        
+                    ;added outrageous losses
+                    COND2   0       0      10000  YES       0        
                 """
             ),
         )
