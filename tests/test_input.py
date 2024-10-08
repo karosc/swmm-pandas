@@ -31,7 +31,7 @@ class InputTest(unittest.TestCase):
         self.test_street_model = Input(self.test_street_model_path)
         self.test_site_drainage_model = Input(self.test_drainage_model_path)
 
-        self.maxDiff = 1000
+        self.maxDiff = 1_000_000
 
         # self.test_groundwater_model = Input(self.test_groundwater_model_path)
         # self.test_street_model = Input(self.test_street_model_path)
@@ -300,14 +300,14 @@ class InputTest(unittest.TestCase):
         )
 
         # test edits make it into swmm string
-        inp.adjustments.loc["EVAPORATION", "May":"Nov"] = pd.NA
+        inp.adjustments.loc["EVAPORATION", "May":"Nov"] = np.nan
         inp.adjustments.loc["EVAPORATION", "Jan":"Dec"] = (
             inp.adjustments.loc["EVAPORATION", "Jan":"Dec"].astype(float).interpolate()
         )
 
         self.assertEqual(
             inp.adjustments.to_swmm_string().split("\n")[3].strip(),
-            "EVAPORATION   1.0  2    -3   -4   -3.375  -2.75  -2.125  -1.5   -0.875  -0.25  0.375  1.0",
+            "EVAPORATION   1.0  2.0  -3.0  -4.0  -3.375  -2.75  -2.125  -1.5   -0.875  -0.25  0.375  1.0",
         )
 
     def test_subcatchments(self) -> None:
@@ -329,7 +329,7 @@ class InputTest(unittest.TestCase):
                 "desc",
             ],
         )
-        inp.subcatchment["Width"] = (inp.subcatchment.Area**0.6).round(3)
+        inp.subcatchment["Width"] = (inp.subcatchment.Area**0.6).astype(float).round(3)
         self.assertEqual(
             inp.subcatchment.to_swmm_string(),
             dedent(
@@ -759,7 +759,7 @@ class InputTest(unittest.TestCase):
                     COND3   FILLED_CIRCULAR  1.5            0.5    0      0      1        0        
                     COND4   FILLED_CIRCULAR  2.0            0.5    0      0      1        0        
                     COND5   FILLED_CIRCULAR  2.0            1      0      0      1        0        
-                    COND5   FILLED_CIRCULAR  2.0            1      0      0      1        0        
+                    COND6   FORCE_MAIN       1.0            130    0      0      1        0        
                     ;changed to single barrel
                     COND7   CUSTOM           10.0   Store1                       1                 
                     WR1     RECT_OPEN        3.2            3      0      0                        
@@ -898,19 +898,313 @@ class InputTest(unittest.TestCase):
                 """\
                     ;;Subcatchment  landuse        Percent  
                     ;;------------  -------------  -------  
-                    S1              Residential_1  100.0    
-                    S2              Residential_1  27.0     
-                    S2              Residential_2  73.0     
-                    S3              Residential_1  27.0     
-                    S3              Residential_2  32.0     
-                    S4              Residential_1  9.0      
-                    S4              Residential_2  30.0     
-                    S4              Commercial     26.0     
+                    S1              Residential_1  100      
+                    S2              Residential_1  27       
+                    S2              Residential_2  73       
+                    S3              Residential_1  27       
+                    S3              Residential_2  32       
+                    S4              Residential_1  9        
+                    S4              Residential_2  30       
+                    S4              Commercial     26       
                     ;reduced to 50%
-                    S5              Commercial     50.0     
-                    S6              Commercial     100.0    
+                    S5              Commercial     50       
+                    S6              Commercial     100      
                     ;added
-                    S5              Residential_2  50.0     
+                    S5              Residential_2  50       
                 """
             ),
         )
+
+    def test_loadings(self):
+        inp = self.test_base_model
+
+        self.assertEqual(inp.loading.reset_index().shape, (3, 4))
+
+        inp.loading.loc[("SUB1", "Ranfall"), "InitBuildup"] = 10
+        inp.loading.loc[("SUB1", "Ranfall"), "desc"] = "bumped initial conc"
+
+        self.assertMultiLineEqual(
+            inp.loading.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Subcatchment  Pollutant  InitBuildup  
+                    ;;------------  ---------  -----------  
+                    SUB1            Rainfall   1.0          
+                    SUB2            Rainfall   1.4          
+                    SUB3            Rainfall   1.1          
+                    ;bumped initial conc
+                    SUB1            Ranfall    10.0         
+                """
+            ),
+        )
+
+    def test_buildup(self):
+        inp = self.test_site_drainage_model
+
+        self.assertEqual(inp.buildup.reset_index().shape, (4, 8))
+
+        inp.buildup.loc[("Residential_1", "TSS"), "C1"] = 0.22
+        inp.buildup.loc[("Residential_1", "TSS"), "desc"] = "increased rate"
+        inp.buildup.add_element(
+            Landuse="Residential_3",
+            Pollutant="TSS",
+            FuncType="SAT",
+            C1=0.1,
+            C2=0,
+            C3=1,
+            PerUnit="AREA",
+        )
+        self.assertMultiLineEqual(
+            inp.buildup.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Landuse      Pollutant  FuncType  C1    C2   C3   PerUnit  
+                    ;;-----------  ---------  --------  ----  ---  ---  -------  
+                    ;increased rate
+                    Residential_1  TSS        EXP       0.22  0.5  0.0  CURB     
+                    Residential_2  TSS        EXP       0.13  0.5  0.0  CURB     
+                    Commercial     TSS        EXP       0.15  0.2  0.0  CURB     
+                    Undeveloped    TSS        NONE      0.0   0.0  0.0  AREA     
+                    Residential_3  TSS        SAT       0.1   0.0  1.0  AREA     
+                """
+            ),
+        )
+
+    def test_washoff(self):
+        inp = self.test_site_drainage_model
+
+        self.assertEqual(inp.washoff.reset_index().shape, (4, 8))
+
+        inp.washoff.loc[("Residential_1", "TSS"), "SweepRmvl"] = 0.6
+        inp.washoff.loc[("Residential_1", "TSS"), "desc"] = "set sweep removal eff"
+        inp.washoff.add_element(
+            Landuse="Residential_3", Pollutant="TSS", FuncType="EMC", C1=55
+        )
+        self.assertMultiLineEqual(
+            inp.washoff.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Landuse      Pollutant  FuncType  C1   C2   SweepRmvl  BmpRmvl  
+                    ;;-----------  ---------  --------  ---  ---  ---------  -------  
+                    ;set sweep removal eff
+                    Residential_1  TSS        EXP       2    1.8  0.6        0.0      
+                    Residential_2  TSS        EXP       4    2.2  0.0        0.0      
+                    Commercial     TSS        EXP       4    2.2  0.0        0.0      
+                    Undeveloped    TSS        RC        500  2.0  0.0        0.0      
+                    Residential_3  TSS        EMC       55                            
+                """
+            ),
+        )
+
+    def test_treatment(self):
+        inp = self.test_base_model
+
+        self.assertEqual(inp.treatment.reset_index().shape, (2, 4))
+
+        inp.treatment.loc[("STOR1", "Rainfall"), "Func"] = (
+            "C = Rainfall * exp(-0.1*HRT)"
+        )
+        inp.treatment.loc[("STOR1", "Rainfall"), "desc"] = "modded equation"
+        inp.treatment.add_element(
+            Node="STOR1",
+            Pollutant="Sewage",
+            Func="R = 0.1 * R_Rainfall",
+            desc="added treatment for sewage",
+        )
+
+        self.assertMultiLineEqual(
+            inp.treatment.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Node  Pollutant    Func                          
+                    ;;----  -----------  ----------------------------  
+                    ;modded equation
+                    STOR1   Rainfall     C = Rainfall * exp(-0.1*HRT)  
+                    ;groundwater removed with rainfall
+                    STOR1   Groundwater  R = 0.2 * R_Rainfall          
+                    ;added treatment for sewage
+                    STOR1   Sewage       R = 0.1 * R_Rainfall          
+                """
+            ),
+        )
+
+    def test_inflows(self):
+        inp = self.test_base_model
+
+        self.assertEqual(inp.inflow.reset_index().shape, (3, 9))
+        inp.inflow.loc[("JUNC3", "Sewage"), "Pattern"] = "HOURLY"
+        inp.inflow.loc[("JUNC3", "Sewage"), "desc"] = "added hourly poll pattern"
+        inp.inflow.add_element(
+            Node="JUNC4",
+            Constituent="FLOW",
+            Type="FLOW",
+            Baseline=10,
+            desc="new inflow!",
+        )
+
+        self.assertMultiLineEqual(
+            inp.inflow.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Node  Constituent  TimeSeries       Type    Mfactor  Sfactor  Baseline  Pattern  
+                    ;;----  -----------  ---------------  ------  -------  -------  --------  -------  
+                    JUNC1   FLOW         "inflow_series"  FLOW    1.0      1.0      0.25      HOURLY   
+                    JUNC2   FLOW         ""               FLOW    1.0      1.0      10.0               
+                    ;added hourly poll pattern
+                    JUNC3   Sewage       ""               CONCEN  1.0      1.0      100.0     HOURLY   
+                    ;new inflow!
+                    JUNC4   FLOW         ""               FLOW    1.0      1.0      10.0               
+                """
+            ),
+        )
+
+    def test_dwf(self):
+        inp = self.test_base_model
+
+        self.assertEqual(inp.inflow.reset_index().shape, (3, 9))
+        inp.dwf.loc[("JUNC2", "FLOW"), "Pat4"] = "HOURLY2"
+        inp.dwf.loc[("JUNC2", "FLOW"), "desc"] = "added second pattern"
+        inp.dwf.add_element(
+            Node="JUNC1",
+            Constituent="FLOW",
+            Baseline=1,
+            Pat3="HOURLY",
+            desc="testing a pattern addition",
+        )
+
+        self.assertMultiLineEqual(
+            inp.dwf.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Node  Constituent  Baseline  Pat1      Pat2  Pat3      Pat4       
+                    ;;----  -----------  --------  --------  ----  --------  ---------  
+                    ;added second pattern
+                    JUNC2   FLOW         0.2       "HOURLY"  ""    ""        "HOURLY2"  
+                    JUNC4   FLOW         0.7       "HOURLY"  ""    ""        ""         
+                    ;testing a pattern addition
+                    JUNC1   FLOW         1.0       ""        ""    "HOURLY"  ""         
+                """
+            ),
+        )
+
+    def test_rdii(self):
+        inp = self.test_base_model
+        self.assertEqual(inp.rdii.reset_index().shape, (3, 4))
+
+        inp.rdii.loc["JUNC2", "SewerArea"] = 1244.282478391
+        inp.rdii.loc["JUNC2", "desc"] = "bumped acreage"
+
+        self.assertMultiLineEqual(
+            inp.rdii.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Node  UHgroup  SewerArea       
+                    ;;----  -------  --------------  
+                    JUNC1   HydrC    10.0            
+                    ;bumped acreage
+                    JUNC2   HydrA    1244.282478391  
+                    ;this rdii has high precision
+                    JUNC3   HydrB    5.213837        
+                """
+            ),
+        )
+
+    def test_hydrographs(self):
+        inp = self.test_base_model
+        self.assertEqual(inp.hydrographs.reset_index().shape, (75, 10))
+
+        inp.hydrographs.loc["HydrB", "R"] *= 100
+        inp.hydrographs.rain_gauges["HydrB"] = "RainGauge_C"
+
+        self.assertMultiLineEqual(
+            inp.hydrographs.loc["HydrB":"HydrB"].to_swmm_string(),
+            dedent(
+                """\
+                    ;;Name  Month_RG     Response  R  T           K          IA_max  IA_rec  IA_ini  
+                    ;;----  -----------  --------  -  ----------  ---------  ------  ------  ------  
+                    HydrB   RainGauge_C                                                              
+                    HydrB   Jan          Short        0.575       0.825      0.0     0.0     0.0     
+                    HydrB   Jan          Medium       5.5         7.275      0.0     0.0     0.0     
+                    HydrB   Jan          Long         7.0         17.0       0.0     0.0     0.0     
+                    HydrB   Feb          Short        0.63125     0.9354165  0.0     0.0     0.0     
+                    HydrB   Feb          Medium       5.19833325  7.38125    0.0     0.0     0.0     
+                    HydrB   Feb          Long         7.08333325  21.166665  0.0     0.0     0.0     
+                    HydrB   Mar          Short        0.6875      1.045833   0.0     0.0     0.0     
+                    HydrB   Mar          Medium       4.8966665   7.4875     0.0     0.0     0.0     
+                    HydrB   Mar          Long         7.1666665   25.33333   0.0     0.0     0.0     
+                    HydrB   Apr          Short        0.74375     1.1562495  0.0     0.0     0.0     
+                    HydrB   Apr          Medium       4.59499975  7.59375    0.0     0.0     0.0     
+                    HydrB   Apr          Long         7.24999975  29.499995  0.0     0.0     0.0     
+                    HydrB   May          Short        0.8         1.266666   0.0     0.0     0.0     
+                    HydrB   May          Medium       4.293333    7.7        0.0     0.0     0.0     
+                    HydrB   May          Long         7.333333    33.66666   0.0     0.0     0.0     
+                    HydrB   Jun          Short        0.7         1.033333   0.0     0.0     0.0     
+                    HydrB   Jun          Medium       5.0         6.8        0.0     0.0     0.0     
+                    HydrB   Jun          Long         8.0         28.33333   0.0     0.0     0.0     
+                    HydrB   Jul          Short        0.7         1.033333   0.0     0.0     0.0     
+                    HydrB   Jul          Medium       5.0         6.8        0.0     0.0     0.0     
+                    HydrB   Jul          Long         8.0         28.33333   0.0     0.0     0.0     
+                    HydrB   Aug          Short        0.7         1.033333   0.0     0.0     0.0     
+                    HydrB   Aug          Medium       5.0         6.8        0.0     0.0     0.0     
+                    HydrB   Aug          Long         8.0         28.33333   0.0     0.0     0.0     
+                    HydrB   Sep          Short        0.5         1.2166665  0.0     0.0     0.0     
+                    HydrB   Sep          Medium       3.75        12.65      0.0     0.0     0.0     
+                    HydrB   Sep          Long         10.75       24.166665  0.0     0.0     0.0     
+                    HydrB   Oct          Short        0.3         1.4        0.0     0.0     0.0     
+                    HydrB   Oct          Medium       2.5         18.5       0.0     0.0     0.0     
+                    HydrB   Oct          Long         13.5        20.0       0.0     0.0     0.0     
+                    HydrB   Nov          Short        0.4375      1.1125     0.0     0.0     0.0     
+                    HydrB   Nov          Medium       4.0         12.8875    0.0     0.0     0.0     
+                    HydrB   Nov          Long         10.25       18.5       0.0     0.0     0.0     
+                    HydrB   Dec          Short        0.575       0.825      0.0     0.0     0.0     
+                    HydrB   Dec          Medium       5.5         7.275      0.0     0.0     0.0     
+                    HydrB   Dec          Long         7.0         17.0       0.0     0.0     0.0     
+                """
+            ),
+        )
+
+    def test_curves(self):
+        inp = self.test_base_model
+        self.assertEqual(inp.curves.reset_index().shape, (5, 5))
+
+        inp.curves.loc[("P1", 2), :] = [10, 10, "extended the curve"]
+
+        self.assertMultiLineEqual(
+            inp.curves.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Name  Type     X_Value  Y_Value  
+                    ;;----  -------  -------  -------  
+                    P1      PUMP5    0        0.0      
+                    P1               7        5.8      
+                    ;extended the curve
+                    P1               10       10.0     
+                    Store1  STORAGE  1        20.0     
+                    Store1           2        30.0     
+                    Store1           3        40.0     
+                """
+            ),
+        )
+
+    def test_timeseries(self):
+        inp = self.test_base_model
+        self.assertEqual(len(inp.timeseries), 6)
+        self.assertEqual(inp.timeseries["SCS_Type_III_3in"].shape, (96, 2))
+        inp.timeseries["file_series"].comment = "this is a updated comment"
+        inp.timeseries["SCS_Type_III_3in"]["value"] *= 10
+        inp.timeseries["SCS_Type_III_3in"].attrs[
+            "desc"
+        ] = "SCS_Type_III_3in design storm, total rainfall = 30 in, rain units = in."
+
+        idx = pd.date_range("1/1/1900", "2/1/1900", freq="1D", name="time")
+        vals = [100] * len(idx)
+        df = pd.DataFrame(
+            index=idx,
+            data=dict(value=vals),
+        )
+        df.attrs["desc"] = "a new timeseries"
+        inp.timeseries["new_ts"] = df
+
+        with open(_HERE / "data" / "timeseries_benchmark.dat") as bench_file:
+            bench_text = bench_file.read()
+            self.assertMultiLineEqual(inp.timeseries.to_swmm_string(), bench_text)

@@ -15,62 +15,63 @@ class Input:
     _section_re = re.compile(R"^\[[\s\S]*?(?=^\[)", re.MULTILINE)
     _section_keys = tuple(_sections.keys())
 
-    title: sc.Title = None
-    option: sc.Option = None
-    report: sc.Report = None
-    event: sc.Event = None
-    files = sc.Files = None
-    raingage: sc.Raingage = None
-    evap: sc.Evap = None
-    temperature: sc.Temperature = None
-    adjustments: sc.Adjustments = None
-    subcatchment: sc.Subcatchment = None
-    subarea: sc.Subarea = None
-    infil: sc.Infil = None
-    lid_control = sc.LID_Control = None
+    title: sc.Title
+    option: sc.Option
+    report: sc.Report
+    event: sc.Event
+    files = sc.Files
+    raingage: sc.Raingage
+    evap: sc.Evap
+    temperature: sc.Temperature
+    adjustments: sc.Adjustments
+    subcatchment: sc.Subcatchment
+    subarea: sc.Subarea
+    infil: sc.Infil
+    lid_control = sc.LID_Control
     lid_usage = sc.LID_Usage
-    aquifer: sc.Aquifer = None
-    groundwater: sc.Groundwater = None
-    gwf: sc.GWF = None
-    snowpack: sc.Snowpack = None
-    junc: sc.Junc = None
-    outfall: sc.Outfall = None
-    divider: sc.Divider = None
-    storage: sc.Storage = None
-    conduit: sc.Conduit = None
-    pump: sc.Pump = None
-    orifice: sc.Orifice = None
-    weir: sc.Weir = None
-    outlet: sc.Outlet = None
-    xsections: sc.Xsections = None
-    # transects: sc.Transects = None
-    street: sc.Street = None
-    inlet: sc.Inlet = None
-    inlet_usage = sc.Inlet_Usage = None
-    losses: sc.Losses = None
-    controls: sc.Controls = None
-    pollutants: sc.Pollutants = None
-    landuse: sc.LandUse = None
-    coverage: sc.Coverage = None
-    loading: sc.Loading = None
-    buildup: sc.Buildup = None
-    washoff: sc.Washoff = None
-    treatment: sc.Treatment = None
-    inflow: sc.Inflow = None
-    dwf: sc.DWF = None
-    rdii: sc.RDII = None
-    hydrographs: sc.Hydrographs = None
-    curves: sc.Curves = None
-    timeseries: sc.Timeseries = None
-    pattern: sc.Pattern = None
+    aquifer: sc.Aquifer
+    groundwater: sc.Groundwater
+    gwf: sc.GWF
+    snowpack: sc.Snowpack
+    junc: sc.Junc
+    outfall: sc.Outfall
+    divider: sc.Divider
+    storage: sc.Storage
+    conduit: sc.Conduit
+    pump: sc.Pump
+    orifice: sc.Orifice
+    weir: sc.Weir
+    outlet: sc.Outlet
+    xsections: sc.Xsections
+    # transects: sc.Transects
+    street: sc.Street
+    inlet: sc.Inlet
+    inlet_usage = sc.Inlet_Usage
+    losses: sc.Losses
+    controls: sc.Controls
+    pollutants: sc.Pollutants
+    landuse: sc.LandUse
+    coverage: sc.Coverage
+    loading: sc.Loading
+    buildup: sc.Buildup
+    """["Landuse", "Pollutant", "FuncType", "C1", "C2", "C3", "PerUnit"]"""
+    washoff: sc.Washoff
+    treatment: sc.Treatment
+    inflow: sc.Inflow
+    dwf: sc.DWF
+    rdii: sc.RDII
+    hydrographs: sc.Hydrographs
+    curves: sc.Curves
+    timeseries: sc.Timeseries
+    pattern: sc.Pattern
     map: sc.Map = (None,)
-    polygon: sc.Polygons = None
-    coordinate: sc.Coordinates = None
+    polygons: sc.Polygons
+    coordinates: sc.Coordinates
     vertices: sc.Vertices
-    labels: sc.Labels = None
-    symbol: sc.Symbols = None
-    backdrop: sc.Backdrop = None
-    profile: sc.Profile = None
+    labels: sc.Labels
+    symbols: sc.Symbols
+    backdrop: sc.Backdrop
+    profile: sc.Profile
 
     def __init__(self, inpfile: str):
         self.path: str = inpfile

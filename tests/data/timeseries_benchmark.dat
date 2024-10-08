@@ -1,0 +1,387 @@
+;;Name           Date       Time       Value     
+;;-------------- ---------- ---------- ----------
+;SCS_Type_III_1in design storm, total rainfall = 1 in, rain interval = 6 minutes, rain units = in.
+SCS_Type_III_1in            00:00 0.00100 
+SCS_Type_III_1in            00:06 0.00100 
+SCS_Type_III_1in            00:12 0.00100 
+SCS_Type_III_1in            00:18 0.00100 
+SCS_Type_III_1in            00:24 0.00100 
+SCS_Type_III_1in            00:30 0.00100 
+SCS_Type_III_1in            00:36 0.00100 
+SCS_Type_III_1in            00:42 0.00100 
+SCS_Type_III_1in            00:48 0.00100 
+SCS_Type_III_1in            00:54 0.00100 
+SCS_Type_III_1in            01:00 0.00100 
+SCS_Type_III_1in            01:06 0.00100 
+SCS_Type_III_1in            01:12 0.00100 
+SCS_Type_III_1in            01:18 0.00100 
+SCS_Type_III_1in            01:24 0.00100 
+SCS_Type_III_1in            01:30 0.00100 
+SCS_Type_III_1in            01:36 0.00100 
+SCS_Type_III_1in            01:42 0.00100 
+SCS_Type_III_1in            01:48 0.00100 
+SCS_Type_III_1in            01:54 0.00100 
+SCS_Type_III_1in 01/01/2014 02:00 0.00101 
+SCS_Type_III_1in            02:06 0.00102 
+SCS_Type_III_1in            02:12 0.00104 
+SCS_Type_III_1in            02:18 0.00105 
+SCS_Type_III_1in            02:24 0.00107 
+SCS_Type_III_1in            02:30 0.00108 
+SCS_Type_III_1in            02:36 0.00110 
+SCS_Type_III_1in            02:42 0.00111 
+SCS_Type_III_1in            02:48 0.00113 
+SCS_Type_III_1in            02:54 0.00114 
+SCS_Type_III_1in            03:00 0.00116 
+SCS_Type_III_1in            03:06 0.00117 
+SCS_Type_III_1in            03:12 0.00119 
+SCS_Type_III_1in            03:18 0.00120 
+SCS_Type_III_1in            03:24 0.00122 
+SCS_Type_III_1in            03:30 0.00123 
+SCS_Type_III_1in            03:36 0.00125 
+SCS_Type_III_1in            03:42 0.00126 
+SCS_Type_III_1in            03:48 0.00128 
+SCS_Type_III_1in            03:54 0.00129 
+SCS_Type_III_1in            04:00 0.00131 
+SCS_Type_III_1in            04:06 0.00132 
+SCS_Type_III_1in            04:12 0.00134 
+SCS_Type_III_1in            04:18 0.00135 
+SCS_Type_III_1in            04:24 0.00137 
+SCS_Type_III_1in            04:30 0.00138 
+SCS_Type_III_1in            04:36 0.00140 
+SCS_Type_III_1in            04:42 0.00141 
+SCS_Type_III_1in            04:48 0.00143 
+SCS_Type_III_1in            04:54 0.00144 
+SCS_Type_III_1in            05:00 0.00146 
+SCS_Type_III_1in            05:06 0.00147 
+SCS_Type_III_1in            05:12 0.00149 
+SCS_Type_III_1in            05:18 0.00150 
+SCS_Type_III_1in            05:24 0.00152 
+SCS_Type_III_1in            05:30 0.00153 
+SCS_Type_III_1in            05:36 0.00155 
+SCS_Type_III_1in            05:42 0.00156 
+SCS_Type_III_1in            05:48 0.00158 
+SCS_Type_III_1in            05:54 0.00159 
+SCS_Type_III_1in            06:00 0.00163 
+SCS_Type_III_1in            06:06 0.00167 
+SCS_Type_III_1in            06:12 0.00173 
+SCS_Type_III_1in            06:18 0.00177 
+SCS_Type_III_1in            06:24 0.00183 
+SCS_Type_III_1in            06:30 0.00187 
+SCS_Type_III_1in            06:36 0.00193 
+SCS_Type_III_1in            06:42 0.00197 
+SCS_Type_III_1in            06:48 0.00203 
+SCS_Type_III_1in            06:54 0.00207 
+SCS_Type_III_1in            07:00 0.00213 
+SCS_Type_III_1in            07:06 0.00217 
+SCS_Type_III_1in            07:12 0.00223 
+SCS_Type_III_1in            07:18 0.00227 
+SCS_Type_III_1in            07:24 0.00233 
+SCS_Type_III_1in            07:30 0.00237 
+SCS_Type_III_1in            07:36 0.00243 
+SCS_Type_III_1in            07:42 0.00247 
+SCS_Type_III_1in            07:48 0.00253 
+SCS_Type_III_1in            07:54 0.00257 
+SCS_Type_III_1in            08:00 0.00266 
+SCS_Type_III_1in            08:06 0.00277 
+SCS_Type_III_1in            08:12 0.00289 
+SCS_Type_III_1in            08:18 0.00300 
+SCS_Type_III_1in            08:24 0.00312 
+SCS_Type_III_1in            08:30 0.00323 
+SCS_Type_III_1in            08:36 0.00335 
+SCS_Type_III_1in            08:42 0.00346 
+SCS_Type_III_1in            08:48 0.00358 
+SCS_Type_III_1in            08:54 0.00369 
+SCS_Type_III_1in            09:00 0.00381 
+SCS_Type_III_1in            09:06 0.00392 
+SCS_Type_III_1in            09:12 0.00404 
+SCS_Type_III_1in            09:18 0.00415 
+SCS_Type_III_1in            09:24 0.00427 
+SCS_Type_III_1in            09:30 0.00438 
+SCS_Type_III_1in            09:36 0.00450 
+SCS_Type_III_1in            09:42 0.00461 
+SCS_Type_III_1in            09:48 0.00473 
+SCS_Type_III_1in            09:54 0.00484 
+SCS_Type_III_1in            10:00 0.00502 
+SCS_Type_III_1in            10:06 0.00526 
+SCS_Type_III_1in            10:12 0.00550 
+SCS_Type_III_1in            10:18 0.00574 
+SCS_Type_III_1in            10:24 0.00598 
+SCS_Type_III_1in            10:30 0.00622 
+SCS_Type_III_1in            10:36 0.00646 
+SCS_Type_III_1in            10:42 0.00670 
+SCS_Type_III_1in            10:48 0.00694 
+SCS_Type_III_1in            10:54 0.00718 
+SCS_Type_III_1in            11:00 0.00776 
+SCS_Type_III_1in            11:06 0.00868 
+SCS_Type_III_1in            11:12 0.00960 
+SCS_Type_III_1in            11:18 0.01052 
+SCS_Type_III_1in            11:24 0.01144 
+SCS_Type_III_1in            11:30 0.01630 
+SCS_Type_III_1in            11:36 0.02510 
+SCS_Type_III_1in            11:42 0.03390 
+SCS_Type_III_1in            11:48 0.04270 
+SCS_Type_III_1in            11:54 0.08400 
+SCS_Type_III_1in            12:00 0.08400 
+SCS_Type_III_1in            12:06 0.04270 
+SCS_Type_III_1in            12:12 0.03390 
+SCS_Type_III_1in            12:18 0.02510 
+SCS_Type_III_1in            12:24 0.01630 
+SCS_Type_III_1in            12:30 0.01144 
+SCS_Type_III_1in            12:36 0.01052 
+SCS_Type_III_1in            12:42 0.00960 
+SCS_Type_III_1in            12:48 0.00868 
+SCS_Type_III_1in            12:54 0.00776 
+SCS_Type_III_1in            13:00 0.00718 
+SCS_Type_III_1in            13:06 0.00694 
+SCS_Type_III_1in            13:12 0.00670 
+SCS_Type_III_1in            13:18 0.00646 
+SCS_Type_III_1in            13:24 0.00622 
+SCS_Type_III_1in            13:30 0.00598 
+SCS_Type_III_1in            13:36 0.00574 
+SCS_Type_III_1in            13:42 0.00550 
+SCS_Type_III_1in            13:48 0.00526 
+SCS_Type_III_1in            13:54 0.00502 
+SCS_Type_III_1in            14:00 0.00484 
+SCS_Type_III_1in            14:06 0.00473 
+SCS_Type_III_1in            14:12 0.00461 
+SCS_Type_III_1in            14:18 0.00450 
+SCS_Type_III_1in            14:24 0.00438 
+SCS_Type_III_1in            14:30 0.00427 
+SCS_Type_III_1in            14:36 0.00415 
+SCS_Type_III_1in            14:42 0.00404 
+SCS_Type_III_1in            14:48 0.00392 
+SCS_Type_III_1in            14:54 0.00381 
+SCS_Type_III_1in            15:00 0.00369 
+SCS_Type_III_1in            15:06 0.00358 
+SCS_Type_III_1in            15:12 0.00346 
+SCS_Type_III_1in            15:18 0.00335 
+SCS_Type_III_1in            15:24 0.00323 
+SCS_Type_III_1in            15:30 0.00312 
+SCS_Type_III_1in            15:36 0.00300 
+SCS_Type_III_1in            15:42 0.00289 
+SCS_Type_III_1in            15:48 0.00277 
+SCS_Type_III_1in            15:54 0.00266 
+SCS_Type_III_1in            16:00 0.00258 
+SCS_Type_III_1in            16:06 0.00252 
+SCS_Type_III_1in            16:12 0.00248 
+SCS_Type_III_1in            16:18 0.00242 
+SCS_Type_III_1in            16:24 0.00238 
+SCS_Type_III_1in            16:30 0.00232 
+SCS_Type_III_1in            16:36 0.00228 
+SCS_Type_III_1in            16:42 0.00222 
+SCS_Type_III_1in            16:48 0.00218 
+SCS_Type_III_1in            16:54 0.00212 
+SCS_Type_III_1in            17:00 0.00208 
+SCS_Type_III_1in            17:06 0.00202 
+SCS_Type_III_1in            17:12 0.00198 
+SCS_Type_III_1in            17:18 0.00192 
+SCS_Type_III_1in            17:24 0.00188 
+SCS_Type_III_1in            17:30 0.00182 
+SCS_Type_III_1in            17:36 0.00178 
+SCS_Type_III_1in            17:42 0.00172 
+SCS_Type_III_1in            17:48 0.00168 
+SCS_Type_III_1in            17:54 0.00162 
+SCS_Type_III_1in            18:00 0.00159 
+SCS_Type_III_1in            18:06 0.00158 
+SCS_Type_III_1in            18:12 0.00156 
+SCS_Type_III_1in            18:18 0.00155 
+SCS_Type_III_1in            18:24 0.00153 
+SCS_Type_III_1in            18:30 0.00152 
+SCS_Type_III_1in            18:36 0.00150 
+SCS_Type_III_1in            18:42 0.00149 
+SCS_Type_III_1in            18:48 0.00147 
+SCS_Type_III_1in            18:54 0.00146 
+SCS_Type_III_1in            19:00 0.00144 
+SCS_Type_III_1in            19:06 0.00143 
+SCS_Type_III_1in            19:12 0.00141 
+SCS_Type_III_1in            19:18 0.00140 
+SCS_Type_III_1in            19:24 0.00138 
+SCS_Type_III_1in            19:30 0.00137 
+SCS_Type_III_1in            19:36 0.00135 
+SCS_Type_III_1in            19:42 0.00134 
+SCS_Type_III_1in            19:48 0.00132 
+SCS_Type_III_1in            19:54 0.00131 
+SCS_Type_III_1in            20:00 0.00129 
+SCS_Type_III_1in            20:06 0.00129 
+SCS_Type_III_1in            20:12 0.00127 
+SCS_Type_III_1in            20:18 0.00126 
+SCS_Type_III_1in            20:24 0.00125 
+SCS_Type_III_1in            20:30 0.00124 
+SCS_Type_III_1in            20:36 0.00122 
+SCS_Type_III_1in            20:42 0.00122 
+SCS_Type_III_1in            20:48 0.00120 
+SCS_Type_III_1in            20:54 0.00120 
+SCS_Type_III_1in            21:00 0.00118 
+SCS_Type_III_1in            21:06 0.00117 
+SCS_Type_III_1in            21:12 0.00116 
+SCS_Type_III_1in            21:18 0.00115 
+SCS_Type_III_1in            21:24 0.00113 
+SCS_Type_III_1in            21:30 0.00113 
+SCS_Type_III_1in            21:36 0.00111 
+SCS_Type_III_1in            21:42 0.00111 
+SCS_Type_III_1in            21:48 0.00109 
+SCS_Type_III_1in            21:54 0.00108 
+SCS_Type_III_1in            22:00 0.00107 
+SCS_Type_III_1in            22:06 0.00106 
+SCS_Type_III_1in            22:12 0.00104 
+SCS_Type_III_1in            22:18 0.00104 
+SCS_Type_III_1in            22:24 0.00102 
+SCS_Type_III_1in            22:30 0.00102 
+SCS_Type_III_1in            22:36 0.00100 
+SCS_Type_III_1in            22:42 0.00099 
+SCS_Type_III_1in            22:48 0.00098 
+SCS_Type_III_1in            22:54 0.00097 
+SCS_Type_III_1in            23:00 0.00095 
+SCS_Type_III_1in            23:06 0.00095 
+SCS_Type_III_1in            23:12 0.00093 
+SCS_Type_III_1in            23:18 0.00093 
+SCS_Type_III_1in            23:24 0.00091 
+SCS_Type_III_1in            23:30 0.00090 
+SCS_Type_III_1in            23:36 0.00089 
+SCS_Type_III_1in            23:42 0.00088 
+SCS_Type_III_1in            23:48 0.00086 
+SCS_Type_III_1in            23:54 0.00086 
+
+;SCS_Type_III_3in design storm, total rainfall = 30 in, rain units = in.
+SCS_Type_III_3in 00:00 0.0750 
+SCS_Type_III_3in 00:15 0.0750 
+SCS_Type_III_3in 00:30 0.0750 
+SCS_Type_III_3in 00:45 0.0750 
+SCS_Type_III_3in 01:00 0.0750 
+SCS_Type_III_3in 01:15 0.0750 
+SCS_Type_III_3in 01:30 0.0750 
+SCS_Type_III_3in 01:45 0.0750 
+SCS_Type_III_3in 02:00 0.0863 
+SCS_Type_III_3in 02:15 0.0863 
+SCS_Type_III_3in 02:30 0.0863 
+SCS_Type_III_3in 02:45 0.0863 
+SCS_Type_III_3in 03:00 0.0863 
+SCS_Type_III_3in 03:15 0.0863 
+SCS_Type_III_3in 03:30 0.0863 
+SCS_Type_III_3in 03:45 0.0863 
+SCS_Type_III_3in 04:00 0.1090 
+SCS_Type_III_3in 04:15 0.1090 
+SCS_Type_III_3in 04:30 0.1090 
+SCS_Type_III_3in 04:45 0.1090 
+SCS_Type_III_3in 05:00 0.1090 
+SCS_Type_III_3in 05:15 0.1090 
+SCS_Type_III_3in 05:30 0.1090 
+SCS_Type_III_3in 05:45 0.1090 
+SCS_Type_III_3in 06:00 0.1270 
+SCS_Type_III_3in 06:15 0.1270 
+SCS_Type_III_3in 06:30 0.1270 
+SCS_Type_III_3in 06:45 0.1270 
+SCS_Type_III_3in 07:00 0.1950 
+SCS_Type_III_3in 07:15 0.1950 
+SCS_Type_III_3in 07:30 0.1950 
+SCS_Type_III_3in 07:45 0.1950 
+SCS_Type_III_3in 08:00 0.2250 
+SCS_Type_III_3in 08:15 0.2250 
+SCS_Type_III_3in 08:30 0.2700 
+SCS_Type_III_3in 08:45 0.2700 
+SCS_Type_III_3in 09:00 0.2850 
+SCS_Type_III_3in 09:15 0.2850 
+SCS_Type_III_3in 09:30 0.3300 
+SCS_Type_III_3in 09:45 0.3300 
+SCS_Type_III_3in 10:00 0.4050 
+SCS_Type_III_3in 10:15 0.4050 
+SCS_Type_III_3in 10:30 0.5100 
+SCS_Type_III_3in 10:45 0.5100 
+SCS_Type_III_3in 11:00 0.7200 
+SCS_Type_III_3in 11:15 0.7200 
+SCS_Type_III_3in 11:30 1.2300 
+SCS_Type_III_3in 11:45 4.8300 
+SCS_Type_III_3in 12:00 3.0300 
+SCS_Type_III_3in 12:15 3.0300 
+SCS_Type_III_3in 12:30 0.7350 
+SCS_Type_III_3in 12:45 0.7350 
+SCS_Type_III_3in 13:00 0.5100 
+SCS_Type_III_3in 13:15 0.5100 
+SCS_Type_III_3in 13:30 0.3900 
+SCS_Type_III_3in 13:45 0.3900 
+SCS_Type_III_3in 14:00 0.2810 
+SCS_Type_III_3in 14:15 0.2810 
+SCS_Type_III_3in 14:30 0.2810 
+SCS_Type_III_3in 14:45 0.2810 
+SCS_Type_III_3in 15:00 0.2810 
+SCS_Type_III_3in 15:15 0.2810 
+SCS_Type_III_3in 15:30 0.2810 
+SCS_Type_III_3in 15:45 0.2810 
+SCS_Type_III_3in 16:00 0.1330 
+SCS_Type_III_3in 16:15 0.1330 
+SCS_Type_III_3in 16:30 0.1330 
+SCS_Type_III_3in 16:45 0.1330 
+SCS_Type_III_3in 17:00 0.1330 
+SCS_Type_III_3in 17:15 0.1330 
+SCS_Type_III_3in 17:30 0.1330 
+SCS_Type_III_3in 17:45 0.1330 
+SCS_Type_III_3in 18:00 0.1330 
+SCS_Type_III_3in 18:15 0.1330 
+SCS_Type_III_3in 18:30 0.1330 
+SCS_Type_III_3in 18:45 0.1330 
+SCS_Type_III_3in 19:00 0.1330 
+SCS_Type_III_3in 19:15 0.1330 
+SCS_Type_III_3in 19:30 0.1330 
+SCS_Type_III_3in 19:45 0.1330 
+SCS_Type_III_3in 20:00 0.0806 
+SCS_Type_III_3in 20:15 0.0806 
+SCS_Type_III_3in 20:30 0.0806 
+SCS_Type_III_3in 20:45 0.0806 
+SCS_Type_III_3in 21:00 0.0806 
+SCS_Type_III_3in 21:15 0.0806 
+SCS_Type_III_3in 21:30 0.0806 
+SCS_Type_III_3in 21:45 0.0806 
+SCS_Type_III_3in 22:00 0.0806 
+SCS_Type_III_3in 22:15 0.0806 
+SCS_Type_III_3in 22:30 0.0806 
+SCS_Type_III_3in 22:45 0.0806 
+SCS_Type_III_3in 23:00 0.0806 
+SCS_Type_III_3in 23:15 0.0806 
+SCS_Type_III_3in 23:30 0.0806 
+SCS_Type_III_3in 23:45 0.0806 
+
+Temp 01/01/1900 00:00 70 
+Temp 01/01/2000 00:00 70 
+
+head_series 01/01/1900 00:00 70 
+head_series 01/01/2000 00:00 70 
+
+inflow_series 01/01/1900 00:00 100 
+inflow_series 01/01/2000 00:00 100 
+
+file_series  FILE  ./rain.dat
+
+;a new timeseries
+new_ts 01/01/1900 00:00 100 
+new_ts 01/02/1900 00:00 100 
+new_ts 01/03/1900 00:00 100 
+new_ts 01/04/1900 00:00 100 
+new_ts 01/05/1900 00:00 100 
+new_ts 01/06/1900 00:00 100 
+new_ts 01/07/1900 00:00 100 
+new_ts 01/08/1900 00:00 100 
+new_ts 01/09/1900 00:00 100 
+new_ts 01/10/1900 00:00 100 
+new_ts 01/11/1900 00:00 100 
+new_ts 01/12/1900 00:00 100 
+new_ts 01/13/1900 00:00 100 
+new_ts 01/14/1900 00:00 100 
+new_ts 01/15/1900 00:00 100 
+new_ts 01/16/1900 00:00 100 
+new_ts 01/17/1900 00:00 100 
+new_ts 01/18/1900 00:00 100 
+new_ts 01/19/1900 00:00 100 
+new_ts 01/20/1900 00:00 100 
+new_ts 01/21/1900 00:00 100 
+new_ts 01/22/1900 00:00 100 
+new_ts 01/23/1900 00:00 100 
+new_ts 01/24/1900 00:00 100 
+new_ts 01/25/1900 00:00 100 
+new_ts 01/26/1900 00:00 100 
+new_ts 01/27/1900 00:00 100 
+new_ts 01/28/1900 00:00 100 
+new_ts 01/29/1900 00:00 100 
+new_ts 01/30/1900 00:00 100 
+new_ts 01/31/1900 00:00 100 
+new_ts 02/01/1900 00:00 100 
+

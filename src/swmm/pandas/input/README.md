@@ -38,22 +38,22 @@
 | CONTROLS      | :x:                | :x:                | String                             |                                            |
 | POLLUTANTS    | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
 | LANDUSES      | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
-| COVERAGES     | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
-| LOADINGS      | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
-| BUILDUP       | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
-| WASHOFF       | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
-| TREATMENT     | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
-| INFLOWS       | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
-| DWF           | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
-| RDII          | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
-| HYDROGRAPHS   | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
-| CURVES        | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
-| TIMESERIES    | :heavy_check_mark: | :x:                | Hashmap of Dataframes and Objects  |                                            |
+| COVERAGES     | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          | Support parsing multiple coverages on a single line |
+| LOADINGS      | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          | Support parsing multiple loadings on a single line  |
+| BUILDUP       | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          | Does it make sense to index by landuse and pollutant? |
+| WASHOFF       | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
+| TREATMENT     | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
+| INFLOWS       | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
+| DWF           | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
+| RDII          | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
+| HYDROGRAPHS   | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
+| CURVES        | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                            |
+| TIMESERIES    | :heavy_check_mark: | :heavy_check_mark: | Hashmap of Dataframes and Objects  | Better output string formatting.           |
 | PATTERNS      | :x:                | :x:                | String                             |                                            |
 | MAP           | :x:                | :x:                | String                             | Build a better data structure for this.    |
-| POLYGONS      | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| POLYGONS      | :heavy_check_mark: | :x:                | Dataframe                          | Add coordinate index                       |
 | COORDINATES   | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
-| VERTICIES     | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
+| VERTICIES     | :heavy_check_mark: | :x:                | Dataframe                          | Add coordinate index                       |
 | LABELS        | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
 | SYMBOLS       | :heavy_check_mark: | :x:                | Dataframe                          |                                            |
 | BACKDROP      | :x:                | :x:                | String                             |                                            |

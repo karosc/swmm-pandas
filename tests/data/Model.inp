@@ -181,6 +181,23 @@ Sewage           MG/L   0          0          0          0          NO         *
 [LOADINGS]
 ;;Subcatchment   Pollutant        Buildup   
 ;;-------------- ---------------- ----------
+SUB1             Rainfall         1
+SUB2             Rainfall         1.4
+SUB3             Rainfall         1.1
+
+[TREATMENT]
+;;Node           Pollutant        Function   
+;;-------------- ---------------- ----------
+STOR1            Rainfall         C = Rainfall * exp(-0.05*HRT)
+;groundwater removed with rainfall
+STOR1            Groundwater      R = 0.2 * R_Rainfall
+
+[INFLOWS]
+;;Node          	Constituent     	Time Series     	Type    	Mfactor 	Sfactor 	Baseline	Pattern
+;;--------------	----------------	----------------	--------	--------	--------	--------	--------
+JUNC1           	FLOW            	inflow_series       FLOW    	1.0     	1.0     	0.25        HOURLY       
+JUNC2           	FLOW            	""                  FLOW    	1.0     	1.0     	10
+JUNC3               Sewage              ""                  CONCEN      1.0         1.0         100   
 
 [DWF]
 ;;Node           Constituent      Baseline   Patterns  
@@ -270,6 +287,13 @@ HydrC            All              Short    0.005    0.575    0.825    0        0
 HydrC            All              Medium   0.01     5.5      7.275    0        0        0       
 HydrC            All              Long     0.003125 7        17       0        0        0       
 
+[RDII]
+;;Node           Unit Hydrograph  Sewer Area
+;;-------------- ---------------- ----------
+JUNC1            HydrC            10
+JUNC2            HydrA            10.2
+;this rdii has high precision
+JUNC3            HydrB            5.213837
 
 [CURVES]
 ;;Name           Type       X-Value    Y-Value   
@@ -277,8 +301,7 @@ HydrC            All              Long     0.003125 7        17       0        0
 P1               Pump5      0          0         
 P1                          7          5.8       
 
-Store1           Storage    1          20        
-Store1                      2          30        
+Store1           Storage    1          20     2          30
 Store1                      3          40        
 
 [TIMESERIES]
@@ -527,11 +550,7 @@ SCS_Type_III_1in            23:48      0.00086
 SCS_Type_III_1in            23:54      0.00086   
 
 ;SCS_Type_III_3in design storm, total rainfall = 3 in, rain units = in.
-SCS_Type_III_3in            0:00       0.0075    
-SCS_Type_III_3in            0:15       0.0075    
-SCS_Type_III_3in            0:30       0.0075    
-SCS_Type_III_3in            0:45       0.0075    
-SCS_Type_III_3in            1:00       0.0075    
+SCS_Type_III_3in            0:00       0.0075  0:15  0.0075  0:30  0.0075  0:45  0.0075  1:00  0.0075
 SCS_Type_III_3in            1:15       0.0075    
 SCS_Type_III_3in            1:30       0.0075    
 SCS_Type_III_3in            1:45       0.0075    
@@ -630,7 +649,10 @@ Temp             1/1/2000   0:00       70
 head_series      1/1/1900   0:00       70        
 head_series      1/1/2000   0:00       70   
 
-file_series     FILE  "\\wsl\ckaros\src\swmm-pandas\tests\data\rain.dat"
+inflow_series      1/1/1900   0:00       100       
+inflow_series      1/1/2000   0:00       100   
+
+file_series     FILE  ./rain.dat
 
 [PATTERNS]
 ;;Name           Type       Multipliers

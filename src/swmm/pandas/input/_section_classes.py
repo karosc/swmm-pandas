@@ -233,7 +233,7 @@ class SectionDf(SectionBase, pd.DataFrame):
             line_comment = ""
 
         # instantiate DataFrame
-        df = cls(data=data, columns=cls.headings)
+        df = cls(data=data, columns=cls.headings, dtype=object)
         return df.set_index(cls._index_col) if cls._index_col else df
 
         # if cls._index_col is not None:
@@ -334,18 +334,18 @@ class SectionDf(SectionBase, pd.DataFrame):
             raise KeyError(
                 f"Missing index column {self._index_col!r} in provided values. Please provide a value for {self._index_col!r}"
             )
-        new_row = pd.Series(index=headings, name=idx)
+        new_row = pd.Series(index=headings, name=idx, dtype=object)
 
         # Update the new row with provided values
         for col, value in kwargs.items():
             if col in headings:
-                new_row[col] = value
+                new_row.loc[col] = value
             else:
                 print(
                     f"Warning: Column '{col}' not found in the DataFrame. Skipping this value."
                 )
         # Append the new row to the DataFrame
-        self.loc[idx] = new_row
+        self.loc[idx, :] = new_row
         return self
 
     @property
@@ -634,8 +634,9 @@ class Event(SectionDf):
 
     def to_swmm_string(self):
         df = self.copy()
-        df["Start"] = df["Start"].dt.strftime("%m/%d/%Y %H:%M")
-        df["End"] = df["End"].dt.strftime("%m/%d/%Y %H:%M")
+
+        df["Start"] = pd.to_datetime(df["Start"]).dt.strftime("%m/%d/%Y %H:%M")
+        df["End"] = pd.to_datetime(df["End"]).dt.strftime("%m/%d/%Y %H:%M")
         return super(Event, df).to_swmm_string()
 
 
@@ -1208,11 +1209,11 @@ class Timeseries(SectionBase):
     class TimeseriesFile:
         name: str
         Fname: str
-        comment: str = ""
+        desc: str = ""
 
         def to_swmm(self):
-            comment = comment_formatter(self.comment)
-            return f"{self.comment}{self.name}  FILE  {self.Fname}\n\n"
+            desc = comment_formatter(self.desc)
+            return f"{self.desc}{self.name}  FILE  {self.Fname}\n\n"
 
     @staticmethod
     def _timeseries_to_swmm_dat(df, name):
@@ -1221,7 +1222,7 @@ class Timeseries(SectionBase):
                 total_seconds = x.total_seconds()
                 hours = int(total_seconds // 3600)  # Get the total hours
                 minutes = int((total_seconds % 3600) // 60)  # Get the remaining minutes
-                return f"{hours}:{minutes:02}"
+                return f"{hours:02}:{minutes:02}"
             elif isinstance(x, pd.Timestamp):
                 return x.strftime("%m/%d/%Y %H:%M")
             elif isinstance(x, (float, int)):
@@ -1235,17 +1236,17 @@ class Timeseries(SectionBase):
 
         df["name"] = name
 
-        comment = df.attrs.get("comment")
-        if len(comment := df.attrs.get("comment", "")) > 0:
+        if len(comment := df.attrs.get("desc", "")) > 0:
             comment_line = df_comment_formatter(comment) + "\n"
         else:
             comment_line = ""
         return (
             comment_line
             + df.reset_index(names="time")
-            .reindex(["name", "time", "value", "comment"], axis=1)
+            .reindex(["name", "time", "value", "desc"], axis=1)
+            .fillna("")
             .to_string(
-                formatters=dict(time=df_time_formatter, comment=df_comment_formatter),
+                formatters=dict(time=df_time_formatter, desc=df_comment_formatter),
                 index=False,
                 header=False,
             )
@@ -1295,9 +1296,9 @@ class Timeseries(SectionBase):
 
                 if len(current_time_series_data) > 0:
                     df = pd.DataFrame(
-                        current_time_series_data, columns=["time", "value", "comment"]
+                        current_time_series_data, columns=["time", "value", "desc"]
                     ).set_index("time")
-                    df.attrs["comment"] = ts_comment
+                    df.attrs["desc"] = ts_comment
                     timeseries[current_time_series_name] = df
 
                 current_time_series_name = ts_name
@@ -1307,7 +1308,7 @@ class Timeseries(SectionBase):
 
                 if str(split_data[0]).upper() == "FILE" and len(split_data) == 2:
                     timeseries[ts_name] = cls.TimeseriesFile(
-                        name=ts_name, Fname=split_data[1], comment=line_comment
+                        name=ts_name, Fname=split_data[1], desc=line_comment
                     )
                     continue
             while len(split_data) > 0:
@@ -1390,7 +1391,7 @@ class Timeseries(SectionBase):
         reprstr = ""
         for name, value in self._timeseries.items():
             if isinstance(value, self.TimeseriesFile):
-                reprstr += f"{name:{width}}|  TimeseriesFile(Fname={value.Fname!r}, comment={value.comment!r})\n"
+                reprstr += f"{name:{width}}|  TimeseriesFile(Fname={value.Fname!r}, desc={value.desc!r})\n"
             elif isinstance(value, pd.DataFrame):
                 reprstr += f"{name:{width}}|  DataFrame(start={value.index[0]!r}, end={value.index[-1]!r},len={len(value)})\n"
         return reprstr
@@ -1490,6 +1491,11 @@ class LandUse(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol)
 
+    def to_swmm_string(self):
+        for col in self.columns:
+            self[col] = self[col].fillna(0.0)
+        return super().to_swmm_string()
+
 
 class Coverage(SectionDf):
     _ncol = 3
@@ -1532,6 +1538,10 @@ class Loading(SectionDf):
 
 
 class Buildup(SectionDf):
+    """
+    ["Landuse", "Pollutant", "FuncType", "C1", "C2", "C3", "PerUnit"]
+    """
+
     _ncol = 4
     _headings = ["Landuse", "Pollutant", "FuncType", "C1", "C2", "C3", "PerUnit"]
     _index_col = ["Landuse", "Pollutant"]
@@ -1560,6 +1570,13 @@ class Treatment(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol)
 
+    @classmethod
+    def _tabulate(cls, line: list[str | float]) -> list[str]:
+        node = line.pop(0)
+        poll = line.pop(0)
+        eqn = " ".join(str(v) for v in line)
+        return [node, poll, eqn]
+
 
 # TODO needs double quote handler for timeseries heading
 class Inflow(SectionDf):
@@ -1580,6 +1597,20 @@ class Inflow(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol)
 
+    @classmethod
+    def _tabulate(cls, line: list):
+        return [v.replace('"', "") if isinstance(v, str) else v for v in line]
+
+    def to_swmm_string(self):
+        df = self.copy(deep=True)
+        df["Mfactor"] = df["Mfactor"].fillna(1.0)
+        df["Sfactor"] = df["Sfactor"].fillna(1.0)
+
+        # strip out any existing double quotes
+        df["TimeSeries"] = df["TimeSeries"].fillna("").str.replace('"', "")
+        df["TimeSeries"] = '"' + df["TimeSeries"].astype(str) + '"'
+        return super(Inflow, df).to_swmm_string()
+
 
 class DWF(SectionDf):
     _ncol = 7
@@ -1597,6 +1628,21 @@ class DWF(SectionDf):
     @classmethod
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol)
+
+    @classmethod
+    def _tabulate(cls, line: list):
+        return [v.replace('"', "") if isinstance(v, str) else v for v in line]
+
+    def to_swmm_string(self):
+        df = self.copy(deep=True)
+        df["Baseline"] = df["Baseline"].fillna(0.0)
+
+        for ipat in range(1, 5):
+            col = f"Pat{ipat}"
+            df[col] = df[col].fillna("").str.replace('"', "")
+            df[col] = '"' + df[col].astype(str) + '"'
+
+        return super(DWF, df).to_swmm_string()
 
 
 class RDII(SectionDf):
@@ -1664,8 +1710,17 @@ class Hydrographs(SectionDf):
 
         # add rain gauge rows
         _temp = self.__class__._new_empty()
-        for name, rg in self.rain_gauges.items():
-            _temp.add_element(Name=name, Month_RG=rg, Response="")
+        for name in self.index.get_level_values("Name").unique():
+            try:
+                _temp.add_element(
+                    Name=name, Month_RG=self.rain_gauges[name], Response=""
+                )
+            except KeyError:
+                raise KeyError(
+                    f"Raingauge for hydrograph {name!r} not found in hydrographs.rain_gauges property. "
+                    f"Only found {self.rain_gauges!r}"
+                )
+
         df = pd.concat([self, _temp])
         # sort by name, month, and response after adding in raingauges
         df = df.sort_index(ascending=[True, True, False], key=index_mapper)
@@ -1751,8 +1806,10 @@ class Curves(SectionDf):
         type_values = type_idx.get_level_values(0).map(df.attrs).to_numpy()
         df.loc[:, "Type"] = ""
         df.loc[type_idx, "Type"] = type_values
-        df.index = df.index.droplevel("Curve_Index")
 
+        # sort by name and index then drop the curve index field since swmm doesn't use it
+        df = df.sort_index(ascending=[True, True])
+        df.index = df.index.droplevel("Curve_Index")
         return super(Curves, df).to_swmm_string()
 
 
