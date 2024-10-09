@@ -1,18 +1,16 @@
 from __future__ import annotations
 
-from ast import Index
 import logging
 from numbers import Number
 import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from multiprocessing import Value
-from typing import Iterable, List, Optional, Self, TypedDict, TypeVar, Iterator
+from typing import Iterable, List, Optional, Self, Iterator
 from calendar import month_abbr
 import re
 import textwrap
 
-from aenum import NamedTuple
+from pandas import Series
 import pandas as pd
 import numpy as np
 
@@ -114,7 +112,7 @@ def comment_formatter(line: str):
     return line
 
 
-class SectionSeries(pd.Series):
+class SectionSeries(Series):
     @property
     def _constructor(self):
         return SectionSeries
@@ -141,6 +139,7 @@ class SectionBase(ABC):
     def _new_empty(cls) -> Self: ...
 
     @classmethod
+    @abstractmethod
     def _newobj(cls, *args, **kwargs) -> Self: ...
 
     @abstractmethod
@@ -171,9 +170,9 @@ class SectionText(SectionBase, str):
 
 class SectionDf(SectionBase, pd.DataFrame):
     _metadata = ["_ncol", "_headings", "headings"]
-    _ncol = 0
-    _headings = []
-    _index_col = None
+    _ncol: int = 0
+    _headings: list[str] = []
+    _index_col: Optional[list[str] | str] = None
 
     @classproperty
     def headings(cls):
@@ -251,7 +250,7 @@ class SectionDf(SectionBase, pd.DataFrame):
         table_data: list[str | float] | list[list[str | float]],
         ncols: int,
         line_comment: str,
-    ) -> list[list[str | float]]:
+    ) -> list[list[str | float]] | list[list[float]] | list[list[str]]:
         if not cls._is_nested_list(table_data):
             table_data = [table_data]
 
@@ -269,7 +268,14 @@ class SectionDf(SectionBase, pd.DataFrame):
     @classmethod
     def _tabulate(
         cls, line: list[str | float]
-    ) -> list[str | float] | list[list[str | float]]:
+    ) -> (
+        list[str]
+        | list[float]
+        | list[str | float]
+        | list[list[str]]
+        | list[list[float]]
+        | list[list[float | str]]
+    ):
         """
         Function to convert tokenized data into a table row with an expected number of columns
 
@@ -1295,7 +1301,7 @@ class Timeseries(SectionBase):
         line_comment = ""
         ts_comment = ""
         current_time_series_name = None
-        current_time_series_data = []
+        current_time_series_data: list[str, float, pd.Timedelta] = []
         for row in rows:
             # check if row contains data
             if not _is_data(row):
@@ -1329,7 +1335,7 @@ class Timeseries(SectionBase):
 
                 if str(split_data[0]).upper() == "FILE" and len(split_data) == 2:
                     timeseries[ts_name] = cls.TimeseriesFile(
-                        name=ts_name, Fname=split_data[1], desc=line_comment
+                        name=ts_name, Fname=str(split_data[1]), desc=line_comment
                     )
                     continue
             while len(split_data) > 0:
@@ -1337,7 +1343,7 @@ class Timeseries(SectionBase):
                     time = pd.Timedelta(hours=split_data.pop(0))
                     value = split_data.pop(0)
                 elif is_valid_time_format(split_data[0]):
-                    hours, minutes = split_data.pop(0).split(":")
+                    hours, minutes = str(split_data.pop(0)).split(":")
                     time = pd.Timedelta(hours=int(hours), minutes=int(minutes))
                     value = split_data.pop(0)
                 elif is_valid_date(split_data[0]):
@@ -1346,7 +1352,7 @@ class Timeseries(SectionBase):
                         raise ValueError(
                             f"Error parsing timeseries {ts_name!r} time: {split_data[0]}"
                         )
-                    hours, minutes = split_data.pop(0).split(":")
+                    hours, minutes = str(split_data.pop(0)).split(":")
                     time = pd.Timedelta(hours=int(hours), minutes=int(minutes))
                     time = date + time
                     value = split_data.pop(0)
@@ -1385,7 +1391,7 @@ class Timeseries(SectionBase):
 
     def add_file_timeseries(self, name: str, Fname: str, comment: str = "") -> Self:
         self._timeseries[name] = self.TimeseriesFile(
-            name=name, Fname=Fname, comment=comment
+            name=name, Fname=Fname, desc=comment
         )
         return self
 
@@ -1451,14 +1457,14 @@ class Patterns(SectionDf):
         name = line.pop(0)
 
         if str(line[0]).upper() in cls._valid_types:
-            pattern_type = line.pop(0).upper()
+            pattern_type = str(line.pop(0)).upper()
         elif isinstance(line[0], Number):
             pattern_type = pd.NA
         else:
             raise ValueError(f"Error parsing pattern line {[name]+line!r}")
 
         for value in line:
-            row = [""] * cls._ncol
+            row: list[str | float] = [""] * cls._ncol
             float_val = float(value)
             row[0:3] = name, pattern_type, float_val
             out.append(row)
@@ -1667,7 +1673,7 @@ class Treatment(SectionDf):
         return super()._from_section_text(text, cls._ncol)
 
     @classmethod
-    def _tabulate(cls, line: list[str | float]) -> list[str]:
+    def _tabulate(cls, line: list[str | float]) -> list[str | float]:
         node = line.pop(0)
         poll = line.pop(0)
         eqn = " ".join(str(v) for v in line)
@@ -1850,14 +1856,14 @@ class Curves(SectionDf):
         name = line.pop(0)
 
         if str(line[0]).upper() in cls._valid_types:
-            curve_type = line.pop(0).upper()
+            curve_type = str(line.pop(0)).upper()
         elif isinstance(line[0], Number):
             curve_type = pd.NA
         else:
             raise ValueError(f"Error parsing curve line {[name]+line!r}")
 
         for chunk in range(0, len(line), 2):
-            row = [""] * cls._ncol
+            row: list[str | float] = [""] * cls._ncol
             x_value, y_value = line[chunk : chunk + 2]
             row[0:4] = name, curve_type, x_value, y_value
             out.append(row)
@@ -1999,7 +2005,7 @@ class LID_Control(SectionDf):
             name = line.pop(0)
             lid_type = line.pop(0)
             for chunk in range(0, len(line), 2):
-                row = [""] * cls._ncol
+                row: list[str | float] = [""] * cls._ncol
                 pollutant, removal = line[chunk : chunk + 2]
                 row[0:4] = name, lid_type, pollutant, removal
                 out.append(row)
@@ -2128,3 +2134,68 @@ class Map(SectionText): ...
 
 #     def __repr__(self) -> str:
 #         return f"Map(dimensions = {self.dimensions}, units = {self.units})"
+
+
+_sections = {
+    "TITLE": Title,
+    "OPTION": Option,
+    "REPORT": Report,
+    "EVENT": Event,
+    "FILE": Files,
+    "RAINGAGE": Raingage,
+    "EVAP": Evap,
+    "TEMPERATURE": Temperature,
+    "ADJUSTMENT": Adjustments,
+    "SUBCATCHMENT": Subcatchment,
+    "SUBAREA": Subarea,
+    "INFIL": Infil,
+    "LID_CONTROL": LID_Control,
+    "LID_USAGE": LID_Usage,
+    "AQUIFER": Aquifer,
+    "GROUNDWATER": Groundwater,
+    "GWF": GWF,
+    "SNOWPACK": Snowpack,
+    "JUNC": Junc,
+    "OUTFALL": Outfall,
+    "DIVIDER": Divider,
+    "STORAGE": Storage,
+    "CONDUIT": Conduit,
+    "PUMP": Pump,
+    "ORIFICE": Orifice,
+    "WEIR": Weir,
+    "OUTLET": Outlet,
+    "XSECT": Xsections,
+    # TODO build parser for this table
+    "TRANSECT": Transects,
+    "STREETS": Street,
+    "INLET_USAGE": Inlet_Usage,
+    "INLET": Inlet,
+    "LOSS": Losses,
+    # TODO build parser for this table
+    "CONTROL": Controls,
+    "POLLUT": Pollutants,
+    "LANDUSE": LandUse,
+    "COVERAGE": Coverage,
+    "LOADING": Loading,
+    "BUILDUP": Buildup,
+    "WASHOFF": Washoff,
+    "TREATMENT": Treatment,
+    # TODO build parser for this table
+    "INFLOW": Inflow,
+    "DWF": DWF,
+    "RDII": RDII,
+    "HYDROGRAPH": Hydrographs,
+    "CURVE": Curves,
+    "TIMESERIES": Timeseries,
+    # TODO build parser for this table
+    "PATTERN": Patterns,
+    "MAP": Map,
+    "POLYGON": Polygons,
+    "COORDINATE": Coordinates,
+    "VERTICES": Vertices,
+    "LABEL": Labels,
+    "SYMBOL": Symbols,
+    "BACKDROP": Backdrop,
+    "PROFILE": Profile,
+    "TAG": Tags,
+}

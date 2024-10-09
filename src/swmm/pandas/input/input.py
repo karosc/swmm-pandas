@@ -5,7 +5,7 @@
 from __future__ import annotations
 import profile
 
-from swmm.pandas.input.sections import _sections
+from swmm.pandas.input._section_classes import _sections
 import swmm.pandas.input._section_classes as sc
 from typing import Dict
 import re
@@ -81,7 +81,7 @@ class Input:
             # print(sect)
             self._set_section_prop(sect)
 
-    def _load_inp_file(self):
+    def _load_inp_file(self) -> None:
         with open(self.path, "r") as inp:
             self.text: str = inp.read()
 

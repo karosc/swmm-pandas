@@ -4,7 +4,7 @@ import os.path
 import warnings
 from datetime import datetime, timedelta
 from functools import wraps
-from typing import Callable, List, NoReturn, Optional, Sequence, Tuple, Union
+from typing import Callable, List, Optional, Sequence, Tuple, Union
 from itertools import product
 from io import SEEK_END
 import struct
@@ -147,7 +147,7 @@ class Output:
         # output objects opened in the same python session if they
         # have different pollutant names
 
-        self.node_attributes:shared_enum.NodeAttribute = Enum(
+        self.node_attributes: shared_enum.NodeAttribute = Enum(
             "node_attributes",
             list(shared_enum.NodeAttribute.__members__.keys())[:-1],
             start=0,
@@ -161,7 +161,7 @@ class Output:
         'total_inflow',
         'flooding_losses'
         """
-        self.link_attributes:shared_enum.LinkAttribute = Enum(
+        self.link_attributes: shared_enum.LinkAttribute = Enum(
             "link_attributes",
             list(shared_enum.LinkAttribute.__members__.keys())[:-1],
             start=0,
@@ -601,7 +601,7 @@ class Output:
         return self._project_size
 
     @output_open_handler
-    def _load_project_size(self) -> NoReturn:
+    def _load_project_size(self) -> None:
         """Load model size into self._project_size"""
         self._project_size = output.get_proj_size(self._handle)
 
@@ -776,7 +776,7 @@ class Output:
         return self._timeIndex
 
     @output_open_handler
-    def _load_timeIndex(self) -> NoReturn:
+    def _load_timeIndex(self) -> None:
         """Load model reporting times into self._times"""
         self._timeIndex = DatetimeIndex(
             [
@@ -832,7 +832,7 @@ class Output:
         return self._subcatchments
 
     @output_open_handler
-    def _load_subcatchments(self) -> NoReturn:
+    def _load_subcatchments(self) -> None:
         """Load model size into self._project_size"""
         total = self.project_size[0]
 
@@ -886,7 +886,7 @@ class Output:
         return self._nodes
 
     @output_open_handler
-    def _load_nodes(self) -> NoReturn:
+    def _load_nodes(self) -> None:
         """Load model nodes into self._nodes"""
         total = self.project_size[1]
 
@@ -939,7 +939,7 @@ class Output:
         return self._links
 
     @output_open_handler
-    def _load_links(self) -> NoReturn:
+    def _load_links(self) -> None:
         """Load model links into self._links"""
         total = self.project_size[2]
 
@@ -1079,6 +1079,8 @@ class Output:
                 ],
                 axis=0,
             )
+        else:
+            raise Exception("Columns must be None, 'attr', or 'elem'")
 
     def _model_series_index(
         self,
@@ -1191,8 +1193,8 @@ class Output:
             "runoff_rate",
             "gw_outflow_rate",
         ),
-        start: Union[str, int, datetime] = None,
-        end: Union[str, int, datetime] = None,
+        start: Union[str, int, datetime, None] = None,
+        end: Union[str, int, datetime, None] = None,
         columns: Optional[str] = "attr",
         asframe: bool = True,
     ) -> Union[DataFrame, ndarray]:
@@ -2581,12 +2583,12 @@ class Output:
     # in some cases, you can get a memory leak message from swig:
     # >>> exit()
     # swig/python detected a memory leak of type 'struct Handle *', no destructor found.
-    def __del__(self) -> NoReturn:
+    def __del__(self) -> None:
         """
          Destructor for outfile handle
 
         :return: Nothing
-        :rtype: NoReturn
+        :rtype: None
         """
         self._close()
 
@@ -2596,5 +2598,5 @@ class Output:
         return self
 
     # method used for context manager with statement
-    def __exit__(self, *arg) -> NoReturn:
+    def __exit__(self, *arg) -> None:
         self._close()
