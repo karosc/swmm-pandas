@@ -74,3 +74,5 @@ pretty = true
 warn_no_return = false
 ignore_missing_imports = true
 disallow_any_decorated = false
+explicit_package_bases = true
+mypy_path = "src"

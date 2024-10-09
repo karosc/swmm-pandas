@@ -10,7 +10,7 @@ from io import SEEK_END
 import struct
 
 import numpy as np
-from aenum import Enum, extend_enum
+from aenum import Enum, EnumMeta, extend_enum
 from numpy import asarray, atleast_1d, atleast_2d, concatenate, datetime64
 from numpy import integer as npint
 from numpy import ndarray, stack, tile, vstack
@@ -244,7 +244,7 @@ class Output:
     @staticmethod
     def _validateAttribute(
         attribute: Union[int, str, Sequence[Union[int, str]], None],
-        validAttributes: Enum,
+        validAttributes: EnumMeta,
     ) -> Tuple[list, list]:
         """
         Function to validate attribute arguments of element_series, element_attribute,
@@ -266,13 +266,15 @@ class Output:
         # this kind of logic was needed in the series and results functions.
         # not sure if this is the best way, but it felt a bit DRYer to
         # put it into a funciton
-
+        attributeArray: list[EnumMeta | str | int]
         if isinstance(attribute, (type(None), EnumMeta)):
-            attributeArray = _enum_keys(validAttributes)
+            attributeArray = list(_enum_keys(validAttributes))
         elif isinstance(attribute, arrayish):
-            attributeArray = attribute
-        else:
+            attributeArray = list(attribute)
+        elif isinstance(attribute, (int, str)):
             attributeArray = [attribute]
+        else:
+            raise ValueError(f"Error validating attribute {attribute!r}")
 
         # allow mixed input of attributes
         # accept string names, integers, or enums values in the same list
@@ -330,36 +332,36 @@ class Output:
         # this kind of logic was needed in the series and results functions
         # not sure if this is the best way, but it felt a bit DRYer to
         # put it into a funciton
-
+        elementArray: list[str | int]
         if element is None:
             elementArray = list(validElements)
         elif isinstance(element, arrayish):
-            elementArray = element
+            elementArray = list(element)
         else:
             # ignore typing since types of this output list
             # are reconciled in the next loop. mypy was complaining.
             elementArray = [element]  # type: ignore
 
         elementIndexArray = []
-
+        elemNameArray = []
         # allow mixed input of elements. string names can be mixed
         # with integer indicies in the same input list
         for i, elem in enumerate(elementArray):
             if isinstance(elem, (int, npint)):
                 # will raise index error if not in range
                 elemName = validElements[elem]
-                elementArray[i] = elemName
+                elemNameArray.append(elemName)
                 elementIndexArray.append(elem)
 
             elif isinstance(elem, str):
                 elementIndexArray.append(Output._elementIndex(elem, validElements, ""))
-
+                elemNameArray.append(elem)
             else:
                 raise TypeError(
                     f"Input type {type(elem)} not valid. Must be one of int, str"
                 )
 
-        return elementArray, elementIndexArray
+        return elemNameArray, elementIndexArray
 
     @staticmethod
     def _datetime_from_swmm(swmm_datetime):
@@ -950,25 +952,28 @@ class Output:
 
     ####### series getters #######
 
-    def _memory_series_getter(self, type: str) -> Callable:
-        if type == "sys":
+    def _memory_series_getter(self, elemType: str) -> Callable:
+        if elemType == "sys":
 
-            def getter(_handle, Attr: Enum, startIndex: int, endIndex: int) -> ndarray:
+            def getter(
+                _handle, Attr: EnumMeta, startIndex: int, endIndex: int
+            ) -> ndarray:
                 # col = f"{type};{type};{Attr.value}"
                 # return self.data[col][startIndex:endIndex]
                 return self.data.loc[
-                    startIndex : endIndex - 1, IndexSlice[type, type, Attr.value]
+                    startIndex : endIndex - 1,  # type: ignore
+                    IndexSlice[elemType, elemType, Attr.value],  # type: ignore
                 ].to_numpy()
 
         else:
 
             def getter(
-                _handle, elemIdx: int, Attr: Enum, startIndex: int, endIndex: int
+                _handle, elemIdx: int, Attr: EnumMeta, startIndex: int, endIndex: int
             ) -> ndarray:
                 # col = f"{type};{elemIdx};{Attr.value}"
                 # return self.data[col][startIndex:endIndex]
                 return self.data.loc[
-                    startIndex : endIndex - 1, IndexSlice[type, elemIdx, Attr.value]
+                    startIndex : endIndex - 1, IndexSlice[elemType, elemIdx, Attr.value]  # type: ignore
                 ].to_numpy()
 
         return getter
@@ -976,7 +981,7 @@ class Output:
     def _model_series(
         self,
         elementIndexArray: List[int],
-        attributeIndexArray: List[Enum],
+        attributeIndexArray: List[EnumMeta],
         startIndex: int,
         endIndex: int,
         columns: Optional[str],
@@ -2261,7 +2266,7 @@ class Output:
         elif isinstance(subcatchment, arrayish):
             label = "subcatchment"
             labels, indices = self._validateElement(subcatchment, self.subcatchments)
-            timeIndex = self._time2step([time])[0]
+            timeIndex = self._time2step([time])[0]  # type: ignore
 
             values = vstack(
                 [

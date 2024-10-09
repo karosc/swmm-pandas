@@ -340,14 +340,14 @@ SCS_Type_III_3in 23:15 0.0806
 SCS_Type_III_3in 23:30 0.0806 
 SCS_Type_III_3in 23:45 0.0806 
 
-Temp 01/01/1900 00:00 70 
-Temp 01/01/2000 00:00 70 
+Temp 01/01/1900 00:00 70.0 
+Temp 01/01/2000 00:00 70.0 
 
-head_series 01/01/1900 00:00 70 
-head_series 01/01/2000 00:00 70 
+head_series 01/01/1900 00:00 70.0 
+head_series 01/01/2000 00:00 70.0 
 
-inflow_series 01/01/1900 00:00 100 
-inflow_series 01/01/2000 00:00 100 
+inflow_series 01/01/1900 00:00 100.0 
+inflow_series 01/01/2000 00:00 100.0 
 
 file_series  FILE  ./rain_ts.dat
 

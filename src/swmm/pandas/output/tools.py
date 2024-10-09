@@ -28,4 +28,4 @@ def _enum_get(enum: Enum, name: str) -> Union[int, None]:
 
 
 def _enum_keys(enum: Enum) -> Tuple[str, ...]:
-    return tuple(map(lambda x: x.lower(), enum.__members__.keys()))
+    return list(map(lambda x: x.lower(), enum.__members__.keys()))

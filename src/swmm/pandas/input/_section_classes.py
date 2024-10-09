@@ -5,16 +5,18 @@ from numbers import Number
 import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Iterable, List, Optional, Self, Iterator
+from typing import Iterable, List, Optional, Self, Iterator, TypeGuard, reveal_type
 from calendar import month_abbr
 import re
 import textwrap
 
-from pandas import Series
 import pandas as pd
+from pandas._libs.missing import NAType
 import numpy as np
 
 _logger = logging.getLogger(__name__)
+
+TRow = list[str | float | int | pd.Timestamp | pd.Timedelta | NAType]
 
 
 class classproperty(object):
@@ -112,7 +114,7 @@ def comment_formatter(line: str):
     return line
 
 
-class SectionSeries(Series):
+class SectionSeries(pd.Series):
     @property
     def _constructor(self):
         return SectionSeries
@@ -203,7 +205,7 @@ class SectionDf(SectionBase, pd.DataFrame):
 
         """
         rows = text.split("\n")
-        data = []
+        data: list[TRow] = []
         line_comment = ""
         for row in rows:
             # check if row contains data
@@ -234,30 +236,40 @@ class SectionDf(SectionBase, pd.DataFrame):
 
         # instantiate DataFrame
         df = cls(data=data, columns=cls.headings, dtype=object)
-        return df.set_index(cls._index_col) if cls._index_col else df
+        return cls(df.set_index(cls._index_col)) if cls._index_col else df
 
         # if cls._index_col is not None:
         #     df.set_index(cls._index_col)
         # return df
 
     @staticmethod
-    def _is_nested_list(l: list) -> bool:
+    def _is_nested_list(l: TRow | list[TRow]) -> TypeGuard[list[TRow]]:
         return isinstance(l[0], list)
+
+    @staticmethod
+    def _is_not_nested_list(l: TRow | list[TRow]) -> TypeGuard[TRow]:
+        return not isinstance(l[0], list)
 
     @classmethod
     def _get_rows(
         cls,
-        table_data: list[str | float] | list[list[str | float]],
+        table_data: TRow | list[TRow],
         ncols: int,
         line_comment: str,
-    ) -> list[list[str | float]] | list[list[float]] | list[list[str]]:
-        if not cls._is_nested_list(table_data):
-            table_data = [table_data]
+    ) -> list[TRow]:
 
-        rows = []
-        for row in table_data:
+        _table_data: list[TRow]
+        if cls._is_nested_list(table_data):
+            _table_data = table_data
+        elif cls._is_not_nested_list(table_data):
+            _table_data = [table_data]
+        else:
+            raise Exception(f"Error parsing row {table_data}")
+
+        rows: list[TRow] = []
+        for row in _table_data:
             # create and empty row
-            row_data = [""] * (ncols + 1)
+            row_data: TRow = [""] * (ncols + 1)
             # assign data to row
             row_data[:ncols] = row
             # add comments to last column
@@ -266,16 +278,7 @@ class SectionDf(SectionBase, pd.DataFrame):
         return rows
 
     @classmethod
-    def _tabulate(
-        cls, line: list[str | float]
-    ) -> (
-        list[str]
-        | list[float]
-        | list[str | float]
-        | list[list[str]]
-        | list[list[float]]
-        | list[list[float | str]]
-    ):
+    def _tabulate(cls, line: list[str | float]) -> TRow | list[TRow]:
         """
         Function to convert tokenized data into a table row with an expected number of columns
 
@@ -287,7 +290,7 @@ class SectionDf(SectionBase, pd.DataFrame):
         blank. Various sections require custom implementations of thie method.
 
         """
-        out = [""] * cls._ncol
+        out: TRow = [""] * cls._ncol
         out[: len(line)] = line
         return out
 
@@ -477,7 +480,7 @@ class Report(SectionBase):
                 ),
             )
 
-        def remove(self, lid_name: str) -> None:
+        def delete(self, lid_name: str) -> None:
             for i, v in enumerate(self):
                 if v.Name == lid_name:
                     break
@@ -620,7 +623,7 @@ class Event(SectionDf):
 
     @classmethod
     def _tabulate(cls, line: list):
-        out = [""] * cls._ncol
+        out: TRow = [""] * cls._ncol
         if len(line) != 4:
             raise ValueError(f"Event lines must have 4 values but found {len(line)}")
 
@@ -829,10 +832,8 @@ class GWF(SectionDf):
         return super()._from_section_text(text, cls._ncol)
 
     @classmethod
-    def _tabulate(
-        cls, line: List[str | float]
-    ) -> List[str | float] | List[List[str | float]]:
-        out = [""] * cls._ncol
+    def _tabulate(cls, line: List[str | float]) -> TRow | list[TRow]:
+        out: TRow = [""] * cls._ncol
         out[0] = line.pop(0)
         out[1] = line.pop(0)
         out[2] = "".join([str(s).strip() for s in line])
@@ -1295,13 +1296,13 @@ class Timeseries(SectionBase):
 
             return bool(match)
 
-        timeseries = {}
+        timeseries: dict[str, pd.DataFrame | Timeseries.TimeseriesFile] = {}
 
         rows = text.split("\n")
         line_comment = ""
         ts_comment = ""
-        current_time_series_name = None
-        current_time_series_data: list[str, float, pd.Timedelta] = []
+        current_time_series_name = ""
+        current_time_series_data: list[TRow] = []
         for row in rows:
             # check if row contains data
             if not _is_data(row):
@@ -1318,7 +1319,7 @@ class Timeseries(SectionBase):
             # split row into tokens coercing numerics into floats
             split_data = [_coerce_numeric(val) for val in line.split()]
 
-            ts_name = split_data.pop(0)
+            ts_name = str(split_data.pop(0))
             if ts_name != current_time_series_name:
 
                 if len(current_time_series_data) > 0:
@@ -1338,14 +1339,15 @@ class Timeseries(SectionBase):
                         name=ts_name, Fname=str(split_data[1]), desc=line_comment
                     )
                     continue
+            time: pd.Timedelta | pd.Timestamp
             while len(split_data) > 0:
                 if isinstance(split_data[0], Number):
-                    time = pd.Timedelta(hours=split_data.pop(0))
-                    value = split_data.pop(0)
+                    time = pd.Timedelta(hours=float(split_data.pop(0)))
+                    value = float(split_data.pop(0))
                 elif is_valid_time_format(split_data[0]):
                     hours, minutes = str(split_data.pop(0)).split(":")
                     time = pd.Timedelta(hours=int(hours), minutes=int(minutes))
-                    value = split_data.pop(0)
+                    value = float(split_data.pop(0))
                 elif is_valid_date(split_data[0]):
                     date = pd.to_datetime(split_data.pop(0))
                     if not is_valid_time_format(split_data[0]):
@@ -1353,9 +1355,12 @@ class Timeseries(SectionBase):
                             f"Error parsing timeseries {ts_name!r} time: {split_data[0]}"
                         )
                     hours, minutes = str(split_data.pop(0)).split(":")
-                    time = pd.Timedelta(hours=int(hours), minutes=int(minutes))
-                    time = date + time
-                    value = split_data.pop(0)
+                    _time = pd.Timedelta(hours=int(hours), minutes=int(minutes))
+                    time = date + _time
+                    value = float(split_data.pop(0))
+                else:
+                    raise ValueError(f"Error parsing Timeseries row {split_data}")
+
                 current_time_series_data.append([time, value, line_comment])
 
             line_comment = ""
@@ -1450,12 +1455,11 @@ class Patterns(SectionDf):
     ]
 
     @classmethod
-    def _tabulate(
-        cls, line: list[str | float]
-    ) -> list[str | float] | list[list[str | float]]:
-        out = []
+    def _tabulate(cls, line: list[str | float]) -> TRow | list[TRow]:
+        out: list[TRow] = []
         name = line.pop(0)
 
+        pattern_type: str | NAType
         if str(line[0]).upper() in cls._valid_types:
             pattern_type = str(line.pop(0)).upper()
         elif isinstance(line[0], Number):
@@ -1464,7 +1468,7 @@ class Patterns(SectionDf):
             raise ValueError(f"Error parsing pattern line {[name]+line!r}")
 
         for value in line:
-            row: list[str | float] = [""] * cls._ncol
+            row: TRow = [""] * cls._ncol
             float_val = float(value)
             row[0:3] = name, pattern_type, float_val
             out.append(row)
@@ -1481,7 +1485,7 @@ class Patterns(SectionDf):
         if not all(
             bools := [pattern in cls._valid_types for pattern in unique_patterns.Type]
         ):
-            invalid_patterns = unique_patterns["Type"].iloc[~np.array(bools)].to_list()
+            invalid_patterns = unique_patterns["Type"].loc[~np.array(bools)].to_list()
             raise ValueError(f"Unknown curves {invalid_patterns!r}")
 
         return unique_patterns.set_index("Name")["Type"].to_dict()
@@ -1492,8 +1496,9 @@ class Patterns(SectionDf):
         pattern_types = cls._validate_pattern_types(df)
         df = df.reset_index().drop("Type", axis=1)
         df["Pattern_Index"] = df.groupby("Name").cumcount()
-        df.attrs = pattern_types
-        return df.set_index(["Name", "Pattern_Index"])
+        df = cls(df.set_index(["Name", "Pattern_Index"]))
+        df.attrs = pattern_types  # type: ignore
+        return df
 
     def to_swmm_string(self) -> str:
         df = self.copy()
@@ -1511,7 +1516,7 @@ class Patterns(SectionDf):
         df.loc[type_idx, "Type"] = type_values
 
         # sort by name and index then drop the curve index field since swmm doesn't use it
-        df = df.sort_index(ascending=[True, True])
+        df = Patterns(df.sort_index(ascending=[True, True]))
         df.index = df.index.droplevel("Pattern_Index")
         return super(Patterns, df).to_swmm_string()
 
@@ -1673,11 +1678,12 @@ class Treatment(SectionDf):
         return super()._from_section_text(text, cls._ncol)
 
     @classmethod
-    def _tabulate(cls, line: list[str | float]) -> list[str | float]:
-        node = line.pop(0)
-        poll = line.pop(0)
+    def _tabulate(cls, line: list[str | float]) -> TRow | list[TRow]:
+        node = str(line.pop(0))
+        poll = str(line.pop(0))
         eqn = " ".join(str(v) for v in line)
-        return [node, poll, eqn]
+        out: TRow = [node, poll, eqn]
+        return out
 
 
 # TODO needs double quote handler for timeseries heading
@@ -1779,11 +1785,11 @@ class Hydrographs(SectionDf):
         rg_rows = cls._find_rain_gauge_rows(df)
         df.attrs = df.loc[rg_rows].set_index("Name")["Month_RG"].to_dict()
         df.drop(rg_rows, inplace=True)
-        return df.set_index(cls._index_col)
+        return cls(df.set_index(cls._index_col))
 
     @property
     def rain_gauges(self) -> dict[str, str]:
-        return self.attrs
+        return self.attrs  # type: ignore
 
     @staticmethod
     def _find_rain_gauge_rows(df) -> pd.Index:
@@ -1825,7 +1831,7 @@ class Hydrographs(SectionDf):
 
         df = pd.concat([self, _temp])
         # sort by name, month, and response after adding in raingauges
-        df = df.sort_index(ascending=[True, True, False], key=index_mapper)
+        df = Hydrographs(df.sort_index(ascending=[True, True, False], key=index_mapper))
         return super(Hydrographs, df).to_swmm_string()
 
 
@@ -1849,12 +1855,11 @@ class Curves(SectionDf):
     ]
 
     @classmethod
-    def _tabulate(
-        cls, line: list[str | float]
-    ) -> list[str | float] | list[list[str | float]]:
+    def _tabulate(cls, line: list[str | float]) -> TRow | list[TRow]:
         out = []
         name = line.pop(0)
 
+        curve_type: str | NAType
         if str(line[0]).upper() in cls._valid_types:
             curve_type = str(line.pop(0)).upper()
         elif isinstance(line[0], Number):
@@ -1863,7 +1868,7 @@ class Curves(SectionDf):
             raise ValueError(f"Error parsing curve line {[name]+line!r}")
 
         for chunk in range(0, len(line), 2):
-            row: list[str | float] = [""] * cls._ncol
+            row: TRow = [""] * cls._ncol
             x_value, y_value = line[chunk : chunk + 2]
             row[0:4] = name, curve_type, x_value, y_value
             out.append(row)
@@ -1880,7 +1885,7 @@ class Curves(SectionDf):
         if not all(
             bools := [curve in cls._valid_types for curve in unique_curves.Type]
         ):
-            invalid_curves = unique_curves["Type"].iloc[~np.array(bools)].to_list()
+            invalid_curves = unique_curves["Type"].loc[~np.array(bools)].to_list()
             raise ValueError(f"Unknown curves {invalid_curves!r}")
 
         return unique_curves.set_index("Name")["Type"].to_dict()
@@ -1891,11 +1896,12 @@ class Curves(SectionDf):
         curve_types = cls._validate_curve_types(df)
         df = df.reset_index().drop("Type", axis=1)
         df["Curve_Index"] = df.groupby("Name").cumcount()
-        df.attrs = curve_types
-        return df.set_index(["Name", "Curve_Index"])
+        df = cls(df.set_index(["Name", "Curve_Index"]))
+        df.attrs = curve_types  # type: ignore
+        return df
 
     def to_swmm_string(self) -> str:
-        df = self.copy()
+        df = self.copy(deep=True)
 
         # add type back into frame in first row of curve
         type_idx = pd.MultiIndex.from_frame(
@@ -1910,7 +1916,7 @@ class Curves(SectionDf):
         df.loc[type_idx, "Type"] = type_values
 
         # sort by name and index then drop the curve index field since swmm doesn't use it
-        df = df.sort_index(ascending=[True, True])
+        df = Curves(df.sort_index(ascending=[True, True]))
         df.index = df.index.droplevel("Curve_Index")
         return super(Curves, df).to_swmm_string()
 
@@ -1996,16 +2002,14 @@ class LID_Control(SectionDf):
         return super()._from_section_text(text, cls._ncol)
 
     @classmethod
-    def _tabulate(
-        cls, line: list[str | float]
-    ) -> list[str | float] | list[list[str | float]]:
+    def _tabulate(cls, line: list[str | float]) -> TRow | list[TRow]:
         lid_type = line[1]
         if lid_type == "REMOVALS":
-            out = []
+            out: list[TRow] = []
             name = line.pop(0)
             lid_type = line.pop(0)
             for chunk in range(0, len(line), 2):
-                row: list[str | float] = [""] * cls._ncol
+                row: TRow = [""] * cls._ncol
                 pollutant, removal = line[chunk : chunk + 2]
                 row[0:4] = name, lid_type, pollutant, removal
                 out.append(row)

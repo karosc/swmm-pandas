@@ -187,7 +187,7 @@ class Report:
 
     @staticmethod
     def _parse_table(
-        header: Sequence[str], data: str, sep: str = R"\s{2,}|\s:\s", index_col: int = 0
+        header: list[str], data: str, sep: str = R"\s{2,}|\s:\s", index_col: int = 0
     ) -> DataFrame:
         r"""
         Function to parse data string produced from _split_section into pandas DataFrame
@@ -215,7 +215,7 @@ class Report:
 
         # by default read in data with minimum 2-spaces or semicolon flanked by spaces as delimiter
         df = read_csv(
-            StringIO(data),
+            filepath_or_buffer=StringIO(data),
             header=None,
             engine="python",
             sep=sep,
@@ -228,7 +228,9 @@ class Report:
             # convert time of max to timedelta
             df["Time_of_Max"] = to_timedelta(
                 df.pop("days").astype(int), unit="D"
-            ) + to_timedelta(df["Time_of_Max"] + ":00")
+            ) + to_timedelta(
+                df["Time_of_Max"] + ":00"
+            )  # type: ignore
         return df
 
     @property
