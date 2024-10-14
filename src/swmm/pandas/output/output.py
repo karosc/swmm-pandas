@@ -76,10 +76,6 @@ class Output:
         ----------
         binfile: str
             model binary file path
-
-        Returns
-        -------
-
         """
 
         self._period: int
@@ -530,9 +526,6 @@ class Output:
     def report(self) -> int:
         """Return the reporting timestep in seconds.
 
-        Parameters
-        ----------
-
         Returns
         -------
         int
@@ -545,9 +538,6 @@ class Output:
     @output_open_handler
     def start(self) -> datetime:
         """Return the reporting start datetime.
-
-        Parameters
-        ----------
 
         Returns
         -------
@@ -588,9 +578,6 @@ class Output:
 
         [subcatchment, node, link, system, pollutant]
 
-        Parameters
-        ----------
-
         Returns
         -------
         list
@@ -611,9 +598,6 @@ class Output:
     @property
     def pollutants(self) -> Tuple[str, ...]:
         """Return a tuple of pollutants available in SWMM binary output file.
-
-        Parameters
-        ----------
 
         Returns
         -------
@@ -638,9 +622,6 @@ class Output:
     def _unit(self) -> Tuple[int]:
         """Return SWMM binary output file unit type from `swmm.toolkit.shared_enum.UnitSystem`.
 
-        Parameters
-        ----------
-
         Returns
         -------
         Tuple[int]
@@ -652,9 +633,6 @@ class Output:
     @property
     def units(self) -> List[str]:
         """Return SWMM binary output file unit type from `swmm.toolkit.shared_enum.UnitSystem`.
-
-        Parameters
-        ----------
 
         Returns
         -------
@@ -676,9 +654,6 @@ class Output:
     @output_open_handler
     def _version(self) -> int:
         """Return SWMM version used to generate SWMM binary output file results.
-
-        Parameters
-        ----------
 
         Returns
         -------
@@ -763,9 +738,6 @@ class Output:
     def timeIndex(self) -> DatetimeIndex:
         """Returns DatetimeIndex of reporting timeseries in binary output file.
 
-        Parameters
-        ----------
-
         Returns
         -------
         pd.DatetimeIndex
@@ -821,9 +793,6 @@ class Output:
     def subcatchments(self) -> Tuple[str, ...]:
         """Return a tuple of subcatchments available in SWMM output binary file.
 
-        Parameters
-        ----------
-
         Returns
         -------
         Tuple[str]
@@ -875,9 +844,6 @@ class Output:
     def nodes(self) -> Tuple[str, ...]:
         """Return a tuple of nodes available in SWMM binary output file.
 
-        Parameters
-        ----------
-
         Returns
         -------
         Tuple[str]
@@ -927,9 +893,6 @@ class Output:
     @property
     def links(self) -> Tuple[str, ...]:
         """Return a tuple of links available in SWMM binary output file.
-
-        Parameters
-        ----------
 
         Returns
         -------

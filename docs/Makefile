@@ -21,3 +21,7 @@ help:
 
 livehtml:
 	sphinx-autobuild --host 0.0.0.0 --port 8080 -a --watch ../src "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+
+clean:
+	rm -rf $(BUILDDIR)/*
+	find . -type d -name 'api' -exec rm -rf {} +

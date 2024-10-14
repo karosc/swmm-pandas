@@ -25,7 +25,7 @@ hour_unit = np.timedelta64(1, "h")
 
 class Structure:
     """
-    A class that represents a particular system strucuture that may be represented by
+    A class that represents a particular system structure that may be represented by
     multiple model elements. The outputs from each element are combined into a single
     time series for analysis as if they are a single structure.
 

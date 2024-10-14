@@ -17,12 +17,15 @@ class Input:
     _section_keys = tuple(_sections.keys())
 
     title: sc.Title
+    "string type"
     option: sc.Option
     "['Option', 'Value', 'desc']"
     report: sc.Report
+    "Custom class"
     event: sc.Event
     "['Start', 'End', 'desc']"
     files: sc.Files
+    "string type"
     raingage: sc.Raingage
     "['Name', 'Format', 'Interval', 'SCF', 'Source_Type', 'Source', 'Station', 'Units', 'desc']"
     evap: sc.Evap
@@ -70,6 +73,7 @@ class Input:
     xsections: sc.Xsections
     "['Link', 'Shape', 'Geom1', 'Curve', 'Geom2', 'Geom3', 'Geom4', 'Barrels', 'Culvert', 'desc']"
     transects: sc.Transects
+    "string type"
     street: sc.Street
     "['Name', 'Tcrown', 'Hcurb', 'Sroad', 'nRoad', 'Hdep', 'Wdep', 'Sides', 'Wback', 'Sback', 'nBack', 'desc']"
     inlet_usage: sc.Inlet_Usage
@@ -104,9 +108,11 @@ class Input:
     curves: sc.Curves
     "['Name', 'Type', 'X_Value', 'Y_Value', 'desc']"
     timeseries: sc.Timeseries
+    "dict of timeseries dataframes or TimeseriesFile objects."
     patterns: sc.Patterns
     "['Name', 'Type', 'Multiplier', 'desc']"
     map: sc.Map
+    "string type"
     polygons: sc.Polygons
     "['Subcatch', 'X', 'Y', 'desc']"
     coordinates: sc.Coordinates
@@ -118,11 +124,45 @@ class Input:
     symbols: sc.Symbols
     "['Gage', 'X', 'Y', 'desc']"
     backdrop: sc.Backdrop
+    "string type"
     profile: sc.Profile
+    "string type"
     tags: sc.Tags
     "['Element', 'Name', 'Tag', 'desc']"
 
     def __init__(self, inpfile: str):
+        """Base class for a SWMM input file.
+
+        The input object provides an attribute for each section supported the SWMM inp file. The
+        section properties are created dynamically at runtime to keep source code dry and concise, but
+        typehints provide minimal docstrings for dataframe column names. Most sections are represented
+        by a pandas dataframe, with the exception of a few.
+
+        This class was written based on the `SWMM Users Manual`_, any parsing bugs might require bug reports to the
+        USEPA repo for updates to the users manual.
+
+        .. _SWMM Users Manual: https://www.epa.gov/system/files/documents/2022-04/swmm-users-manual-version-5.2.pdf
+
+        .. code-block:: python
+
+            # Using a the _close method
+            >>> from swmm.pandas import Output
+            >>> out = Output('tests/Model.out')
+            >>> print(out.project_size)
+            [3, 9, 8, 1, 3]
+            >>> out._close() # can also use `del out`
+            >>>
+            # Using a context manager
+            >>> with Output('tests/Model.out') as out:
+            ...     print(out.pollutants)
+            ('groundwater', 'pol_rainfall', 'sewage')
+
+        Parameters
+        ----------
+        inpfile: str
+            model inp file path
+        """
+
         self.path: str = inpfile
 
         self._load_inp_file()
