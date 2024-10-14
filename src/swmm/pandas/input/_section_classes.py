@@ -1195,7 +1195,10 @@ class Xsections(SectionDf):
         mask = df["Shape"].isin(self._shapes)
         geom_cols = [f"Geom{i}" for i in range(1, 5)]
         df.loc[mask, geom_cols] = (
-            df.loc[mask, geom_cols].fillna(0).infer_objects(copy=False)
+            df.loc[mask, geom_cols]
+            .infer_objects(copy=False)
+            .fillna(0)
+            .infer_objects(copy=False)
         )
         df.loc[mask, geom_cols] = (
             df.loc[mask, geom_cols]
@@ -2194,14 +2197,12 @@ _sections = {
     "BUILDUP": Buildup,
     "WASHOFF": Washoff,
     "TREATMENT": Treatment,
-    # TODO build parser for this table
     "INFLOW": Inflow,
     "DWF": DWF,
     "RDII": RDII,
     "HYDROGRAPH": Hydrographs,
     "CURVE": Curves,
     "TIMESERIES": Timeseries,
-    # TODO build parser for this table
     "PATTERN": Patterns,
     "MAP": Map,
     "POLYGON": Polygons,

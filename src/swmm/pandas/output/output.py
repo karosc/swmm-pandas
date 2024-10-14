@@ -2569,3 +2569,11 @@ class Output:
     # method used for context manager with statement
     def __exit__(self, *arg) -> None:
         self._close()
+
+    def open(self):
+        "open the output file"
+        self._open()
+
+    def close(self):
+        "close the output file"
+        self._close()

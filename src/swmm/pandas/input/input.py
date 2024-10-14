@@ -3,13 +3,12 @@
 #   - high level api for loading, inspecting, changing, and
 #     altering a SWMM input file using pandas dataframes
 from __future__ import annotations
-import profile
 
 from swmm.pandas.input._section_classes import SectionBase, _sections
 import swmm.pandas.input._section_classes as sc
-from typing import Dict
 import pathlib
 import re
+import warnings
 
 
 class Input:
@@ -141,21 +140,47 @@ class Input:
         This class was written based on the `SWMM Users Manual`_, any parsing bugs might require bug reports to the
         USEPA repo for updates to the users manual.
 
+        .. DANGER::
+            This class provides **minimal to no error checking** on your input file when loading it or writing it.
+
+            When creating new model elements or updating the properties of existing ones, swmm.pandas expects
+            that the user knows what they are doing.
+
+            Just because swmm.pandas allows you to do something, does not mean SWMM will accept it.
+
         .. _SWMM Users Manual: https://www.epa.gov/system/files/documents/2022-04/swmm-users-manual-version-5.2.pdf
 
         .. code-block:: python
 
             # Using a the _close method
-            >>> from swmm.pandas import Output
-            >>> out = Output('tests/Model.out')
-            >>> print(out.project_size)
-            [3, 9, 8, 1, 3]
-            >>> out._close() # can also use `del out`
-            >>>
-            # Using a context manager
-            >>> with Output('tests/Model.out') as out:
-            ...     print(out.pollutants)
-            ('groundwater', 'pol_rainfall', 'sewage')
+            >>> from swmm.pandas import Input
+            >>> inp = Input('tests/data/bench_inp.inp')
+            >>> print(inp.option.head())
+                               Value desc
+            Option
+            FLOW_UNITS           CFS
+            INFILTRATION  GREEN_AMPT
+            FLOW_ROUTING     DYNWAVE
+            LINK_OFFSETS       DEPTH
+            MIN_SLOPE              0
+            >>> print(inp.junc.head())
+                  Elevation MaxDepth InitDepth SurDepth Aponded desc
+            Name
+            JUNC1       1.5    10.25         0        0    5000
+            JUNC2     -1.04      6.2         0        0    5000
+            JUNC3     -3.47     11.5         0        0    5000
+            JUNC4     -5.25     13.8         0        0    5000
+            JUNC6         0        9         0      200       0
+            >>> inp.junc['Elevation']+=100
+            >>> inp.junc['Elevation']
+            Name
+            JUNC1    101.5
+            JUNC2    98.96
+            JUNC3    96.53
+            JUNC4    94.75
+            JUNC6      100
+            Name: Elevation, dtype: object
+            >>> inp.to_file('new_inp_file.inp')
 
         Parameters
         ----------
@@ -220,15 +245,17 @@ class Input:
         setattr(cls, public_property_name, property(getter, setter))
 
     def to_string(self):
-        out_str = ""
-        for sect in _sections.keys():
-            section_class = _sections[sect]
-            public_property_name = section_class.__name__.lower()
-            # private_property_name = f"_{public_property_name}"
-            if len(sect_obj := getattr(self, public_property_name)) > 0:
-                sect_string = sect_obj.to_swmm_string()
-                out_str += f"[{sect.upper()}]\n{sect_string}\n\n"
-        return out_str
+        with warnings.catch_warnings():
+            warnings.simplefilter(action="ignore", category=FutureWarning)
+            out_str = ""
+            for sect in _sections.keys():
+                section_class = _sections[sect]
+                public_property_name = section_class.__name__.lower()
+                # private_property_name = f"_{public_property_name}"
+                if len(sect_obj := getattr(self, public_property_name)) > 0:
+                    sect_string = sect_obj.to_swmm_string()
+                    out_str += f"[{sect.upper()}]\n{sect_string}\n\n"
+            return out_str
 
     def to_file(self, path: str | pathlib.Path):
         with open(path, "w") as f:
