@@ -320,13 +320,10 @@ class SectionDf(SectionBase, pd.DataFrame):
             )
             # self.reindex(self.headings,inplace=True)
 
-    # def add_element(self, obj):
-    #     other = self.__class__.__newobj__(obj, index=[0])
-    #     return pd.concat([self, other])
-
     def add_element(self, **kwargs) -> Self:
         # Create a new row with NaN values for all columns
         headings = self.headings.copy()
+        idx_name: str | tuple[str, ...]
         try:
             if isinstance(self._index_col, str):
                 idx_name = self._index_col
