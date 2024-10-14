@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from aenum import EnumMeta
 import os.path
 import warnings
@@ -9,11 +10,11 @@ from itertools import product
 from io import SEEK_END
 import struct
 
-import numpy as np
 from aenum import Enum, EnumMeta, extend_enum
 from numpy import asarray, atleast_1d, atleast_2d, concatenate, datetime64
 from numpy import integer as npint
 from numpy import ndarray, stack, tile, vstack
+import numpy.core.records
 from pandas.core.api import (
     DataFrame,
     DatetimeIndex,
@@ -487,7 +488,7 @@ class Output:
 
             with open(self._binfile, "rb") as fil:
                 fil.seek(self._output_position, 0)
-                dat = np.core.rec.fromfile(fil, formats=fmts)
+                dat = numpy.core.records.fromfile(fil, formats=fmts)
             self.data = DataFrame(dat)
             self.data.columns = idx
 
@@ -955,7 +956,7 @@ class Output:
     def _memory_series_getter(self, elemType: str) -> Callable:
         if elemType == "sys":
 
-            def getter(
+            def getter(  # type: ignore
                 _handle, Attr: EnumMeta, startIndex: int, endIndex: int
             ) -> ndarray:
                 # col = f"{type};{type};{Attr.value}"
@@ -967,7 +968,7 @@ class Output:
 
         else:
 
-            def getter(
+            def getter(  # type: ignore
                 _handle, elemIdx: int, Attr: EnumMeta, startIndex: int, endIndex: int
             ) -> ndarray:
                 # col = f"{type};{elemIdx};{Attr.value}"

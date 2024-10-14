@@ -8,6 +8,7 @@ import profile
 from swmm.pandas.input._section_classes import _sections
 import swmm.pandas.input._section_classes as sc
 from typing import Dict
+import pathlib
 import re
 
 
@@ -17,61 +18,109 @@ class Input:
 
     title: sc.Title
     option: sc.Option
+    "['Option', 'Value', 'desc']"
     report: sc.Report
     event: sc.Event
-    files = sc.Files
+    "['Start', 'End', 'desc']"
+    files: sc.Files
     raingage: sc.Raingage
+    "['Name', 'Format', 'Interval', 'SCF', 'Source_Type', 'Source', 'Station', 'Units', 'desc']"
     evap: sc.Evap
+    "['Type', 'param1', 'param2', 'param3', 'param4', 'param5', 'param6', 'param7', 'param8', 'param9', 'param10', 'param11', 'param12', 'desc']"
     temperature: sc.Temperature
+    "['Option', 'param1', 'param2', 'param3', 'param4', 'param5', 'param6', 'param7', 'param8', 'param9', 'param10', 'param11', 'param12', 'param13', 'desc']"
     adjustments: sc.Adjustments
+    "['Parameter', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'desc']"
     subcatchment: sc.Subcatchment
+    "['Name', 'RainGage', 'Outlet', 'Area', 'PctImp', 'Width', 'Slope', 'CurbLeng', 'SnowPack', 'desc']"
     subarea: sc.Subarea
+    "['Subcatchment', 'Nimp', 'Nperv', 'Simp', 'Sperv', 'PctZero', 'RouteTo', 'PctRouted', 'desc']"
     infil: sc.Infil
-    lid_control = sc.LID_Control
-    lid_usage = sc.LID_Usage
+    "['Subcatchment', 'param1', 'param2', 'param3', 'param4', 'param5', 'Method', 'desc']"
+    lid_control: sc.LID_Control
+    "['Name', 'Type', 'param1', 'param2', 'param3', 'param4', 'param5', 'param6', 'param7', 'desc']"
+    lid_usage: sc.LID_Usage
+    "['Subcatchment', 'LIDProcess', 'Number', 'Area', 'Width', 'InitSat', 'FromImp', 'ToPerv', 'RptFile', 'DrainTo', 'FromPerv', 'desc']"
     aquifer: sc.Aquifer
+    "['Name', 'Por', 'WP', 'FC', 'Ksat', 'Kslope', 'Tslope', 'ETu', 'ETs', 'Seep', 'Ebot', 'Egw', 'Umc', 'ETupat', 'desc']"
     groundwater: sc.Groundwater
+    "['Subcatchment', 'Aquifer', 'Node', 'Esurf', 'A1', 'B1', 'A2', 'B2', 'A3', 'Dsw', 'Egwt', 'Ebot', 'Wgr', 'Umc', 'desc']"
     gwf: sc.GWF
+    "['Subcatch', 'Type', 'Expr', 'desc']"
     snowpack: sc.Snowpack
+    "['Name', 'Surface', 'param1', 'param2', 'param3', 'param4', 'param5', 'param6', 'param7', 'desc']"
     junc: sc.Junc
+    "['Name', 'Elevation', 'MaxDepth', 'InitDepth', 'SurDepth', 'Aponded', 'desc']"
     outfall: sc.Outfall
+    "['Name', 'Elevation', 'Type', 'StageData', 'Gated', 'RouteTo', 'desc']"
     divider: sc.Divider
+    "['Name', 'Elevation', 'DivLink', 'DivType', 'DivCurve', 'Qmin', 'Height', 'Cd', 'Ymax', 'Y0', 'Ysur', 'Apond', 'desc']"
     storage: sc.Storage
+    "['Name', 'Elev', 'MaxDepth', 'InitDepth', 'Shape', 'CurveName', 'A1_L', 'A2_W', 'A0_Z', 'SurDepth', 'Fevap', 'Psi', 'Ksat', 'IMD', 'desc']"
     conduit: sc.Conduit
+    "['Name', 'FromNode', 'ToNode', 'Length', 'Roughness', 'InOffset', 'OutOffset', 'InitFlow', 'MaxFlow', 'desc']"
     pump: sc.Pump
+    "['Name', 'FromNode', 'ToNode', 'PumpCurve', 'Status', 'Startup', 'Shutoff', 'desc']"
     orifice: sc.Orifice
+    "['Name', 'FromNode', 'ToNode', 'Type', 'Offset', 'Qcoeff', 'Gated', 'CloseTime', 'desc']"
     weir: sc.Weir
+    "['Name', 'FromNode', 'ToNode', 'Type', 'CrestHt', 'Qcoeff', 'Gated', 'EndCon', 'EndCoeff', 'Surcharge', 'RoadWidth', 'RoadSurf', 'CoeffCurve', 'desc']"
     outlet: sc.Outlet
+    "['Name', 'FromNode', 'ToNode', 'Offset', 'Type', 'CurveName', 'Qcoeff', 'Qexpon', 'Gated', 'desc']"
     xsections: sc.Xsections
-    # transects: sc.Transects
+    "['Link', 'Shape', 'Geom1', 'Curve', 'Geom2', 'Geom3', 'Geom4', 'Barrels', 'Culvert', 'desc']"
+    transects: sc.Transects
     street: sc.Street
+    "['Name', 'Tcrown', 'Hcurb', 'Sroad', 'nRoad', 'Hdep', 'Wdep', 'Sides', 'Wback', 'Sback', 'nBack', 'desc']"
+    inlet_usage: sc.Inlet_Usage
+    "['Conduit', 'Inlet', 'Node', 'Number', '%Clogged', 'MaxFlow', 'hDStore', 'wDStore', 'Placement', 'desc']"
     inlet: sc.Inlet
-    inlet_usage = sc.Inlet_Usage
+    "['Name', 'Type', 'param1', 'param2', 'param3', 'param4', 'param5', 'desc']"
     losses: sc.Losses
+    "['Link', 'Kentry', 'Kexit', 'Kavg', 'FlapGate', 'Seepage', 'desc']"
     controls: sc.Controls
     pollutants: sc.Pollutants
+    "['Name', 'Units', 'Crain', 'Cgw', 'Crdii', 'Kdecay', 'SnowOnly', 'CoPollutant', 'CoFrac', 'Cdwf', 'Cinit', 'desc']"
     landuse: sc.LandUse
+    "['Name', 'SweepInterval', 'Availability', 'LastSweep', 'desc']"
     coverage: sc.Coverage
+    "['Subcatchment', 'landuse', 'Percent', 'desc']"
     loading: sc.Loading
+    "['Subcatchment', 'Pollutant', 'InitBuildup', 'desc']"
     buildup: sc.Buildup
-    """["Landuse", "Pollutant", "FuncType", "C1", "C2", "C3", "PerUnit"]"""
+    "['Landuse', 'Pollutant', 'FuncType', 'C1', 'C2', 'C3', 'PerUnit', 'desc']"
     washoff: sc.Washoff
+    "['Landuse', 'Pollutant', 'FuncType', 'C1', 'C2', 'SweepRmvl', 'BmpRmvl', 'desc']"
     treatment: sc.Treatment
+    "['Node', 'Pollutant', 'Func', 'desc']"
     inflow: sc.Inflow
+    "['Node', 'Constituent', 'TimeSeries', 'Type', 'Mfactor', 'Sfactor', 'Baseline', 'Pattern', 'desc']"
     dwf: sc.DWF
+    "['Node', 'Constituent', 'Baseline', 'Pat1', 'Pat2', 'Pat3', 'Pat4', 'desc']"
     rdii: sc.RDII
+    "['Node', 'UHgroup', 'SewerArea', 'desc']"
     hydrographs: sc.Hydrographs
+    "['Name', 'Month_RG', 'Response', 'R', 'T', 'K', 'IA_max', 'IA_rec', 'IA_ini', 'desc']"
     curves: sc.Curves
+    "['Name', 'Type', 'X_Value', 'Y_Value', 'desc']"
     timeseries: sc.Timeseries
-    pattern: sc.Pattern
-    map: sc.Map = (None,)
+    patterns: sc.Patterns
+    "['Name', 'Type', 'Multiplier', 'desc']"
+    map: sc.Map
     polygons: sc.Polygons
+    "['Subcatch', 'X', 'Y', 'desc']"
     coordinates: sc.Coordinates
+    "['Node', 'X', 'Y', 'desc']"
     vertices: sc.Vertices
+    "['Link', 'X', 'Y', 'desc']"
     labels: sc.Labels
+    "['Xcoord', 'Ycoord', 'Label', 'Anchor', 'Font', 'Size', 'Bold', 'Italic', 'desc']"
     symbols: sc.Symbols
+    "['Gage', 'X', 'Y', 'desc']"
     backdrop: sc.Backdrop
     profile: sc.Profile
+    tags: sc.Tags
+    "['Element', 'Name', 'Tag', 'desc']"
 
     def __init__(self, inpfile: str):
         self.path: str = inpfile
@@ -162,6 +211,10 @@ class Input:
                 sect_string = sect_obj.to_swmm_string()
                 out_str += f"[{sect.upper()}]\n{sect_string}\n\n"
         return out_str
+
+    def to_file(self, path: str | pathlib.Path):
+        with open(path, "w") as f:
+            f.write(self.to_string())
 
     ############ OPTIONS ###########
 
@@ -444,18 +497,34 @@ class Input:
     # def outfalls(self, obj) -> None:
     #     self._outfalls_df = sc.Outfall._newobj(obj)
 
-    # ############ STORAGE #############
+    ############ STORAGE #############
 
-    # @property
-    # def storage(self) -> sc.Storage:
-    #     if not hasattr(self, "_storage_df"):
-    #         self._storage_df = self._get_section("STORAGE")
+    @property
+    def storage(self) -> sc.Storage:
+        """
+        ["Name",
+        "Elev",
+        "MaxDepth",
+        "InitDepth",
+        "Shape",
+        "CurveName",
+        "A1_L",
+        "A2_W",
+        "A0_Z",
+        "SurDepth",
+        "Fevap",
+        "Psi",
+        "Ksat",
+        "IMD",]
+        """
+        if not hasattr(self, "_storage_df"):
+            self._storage_df = self._get_section("STORAGE")
 
-    #     return self._storage_df
+        return self._storage_df
 
-    # @storage.setter
-    # def storage(self, obj) -> None:
-    #     self._storage_df = sc.Storage._newobj(obj)
+    @storage.setter
+    def storage(self, obj) -> None:
+        self._storage_df = sc.Storage._newobj(obj)
 
     # ############ DIVIDER #############
 

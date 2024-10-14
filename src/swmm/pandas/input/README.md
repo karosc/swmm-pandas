@@ -30,7 +30,7 @@
 | WEIRS         | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                                       |
 | OUTLETS       | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                                       |
 | XSECTIONS     | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                                       |
-| TRANSECTS     | :x:                | :heavy_check_mark: | String                             |                                                       |
+| TRANSECTS     | :x:                | :x:                | String                             |                                                       |
 | STREETS       | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                                       |
 | INLETS        | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                                       |
 | INLET_USAGE   | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                                       |
@@ -51,11 +51,11 @@
 | TIMESERIES    | :heavy_check_mark: | :heavy_check_mark: | Hashmap of Dataframes and Objects  | Better output string formatting.                      |
 | PATTERNS      | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                                       |
 | MAP           | :x:                | :x:                | String                             | Build a better data structure for this.               |
-| POLYGONS      | :heavy_check_mark: | :x:                | Dataframe                          | Add coordinate index                                  |
-| COORDINATES   | :heavy_check_mark: | :x:                | Dataframe                          |                                                       |
-| VERTICIES     | :heavy_check_mark: | :x:                | Dataframe                          | Add coordinate index                                  |
+| POLYGONS      | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          | Add coordinate index                                  |
+| COORDINATES   | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                                       |
+| VERTICIES     | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          | Add coordinate index                                  |
 | LABELS        | :heavy_check_mark: | :x:                | Dataframe                          |                                                       |
 | SYMBOLS       | :heavy_check_mark: | :x:                | Dataframe                          |                                                       |
 | BACKDROP      | :x:                | :x:                | String                             |                                                       |
 | PROFILE       | :x:                | :x:                | String                             |                                                       |
-| TAGS          | :heavy_check_mark: | :x:                | Dataframe                          |                                                       |
+| TAGS          | :heavy_check_mark: | :heavy_check_mark: | Dataframe                          |                                                       |

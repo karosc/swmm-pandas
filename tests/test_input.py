@@ -9,14 +9,16 @@ import numpy.testing as nptest
 import numpy as np
 import pandas as pd
 import swmm.pandas.input._section_classes as sc
-from swmm.pandas import Input
+from swmm.pandas import Input, Report
+from swmm.toolkit import solver
 
+pd.set_option("future.no_silent_downcasting", True)
 _HERE = pathlib.Path(__file__).parent
 
 
 class InputTest(unittest.TestCase):
     def setUp(self):
-        self.test_base_model_path = str(_HERE / "data" / "Model.inp")
+        self.test_base_model_path = str(_HERE / "data" / "bench_inp.inp")
         self.test_groundwater_model_path = str(_HERE / "data" / "Groundwater_Model.inp")
         self.test_street_model_path = str(_HERE / "data" / "Inlet_Drains_Model.inp")
         self.test_pump_model_path = str(_HERE / "data" / "Pump_Control_Model.inp")
@@ -1315,3 +1317,107 @@ class InputTest(unittest.TestCase):
         with open(_HERE / "data" / "pattern_benchmark.dat") as bench_file:
             bench_text = bench_file.read()
             self.assertMultiLineEqual(inp.patterns.to_swmm_string(), bench_text)
+
+    def test_polygons(self):
+        inp = self.test_base_model
+
+        self.assertEqual(inp.polygons.reset_index().shape, (63, 4))
+
+        inp.polygons.iloc[0, 0] = 10_000
+        inp.polygons.iloc[0, 2] = "crazy X value"
+
+        swmm_text = inp.polygons.to_swmm_string()
+
+        self.assertIn("crazy X value", swmm_text)
+        self.assertIn("10000", swmm_text)
+
+    def test_coord(self):
+        inp = self.test_base_model
+
+        self.assertEqual(inp.coordinates.reset_index().shape, (10, 4))
+
+        inp.coordinates.iloc[0, 0] = 10_000
+        inp.coordinates.iloc[0, 2] = "crazy X value"
+
+        swmm_text = inp.coordinates.to_swmm_string()
+
+        self.assertIn("crazy X value", swmm_text)
+        self.assertIn("10000", swmm_text)
+
+    def test_vert(self):
+        inp = self.test_det_pond_model
+
+        self.assertEqual(inp.vertices.reset_index().shape, (25, 4))
+
+        inp.vertices.iloc[0, 0] = 10_000
+        inp.vertices.iloc[0, 2] = "crazy X value"
+
+        swmm_text = inp.vertices.to_swmm_string()
+
+        self.assertIn("crazy X value", swmm_text)
+        self.assertIn("10000", swmm_text)
+
+    def test_tags(self):
+        inp = self.test_det_pond_model
+
+        self.assertEqual(inp.tags.reset_index().shape, (11, 4))
+
+        inp.tags.loc[("Link", "C5"), "Tag"] = "a_new_kind_of_GI"
+        inp.tags.loc[("Link", "C5"), "desc"] = "this is a new test GI"
+
+        self.assertMultiLineEqual(
+            inp.tags.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Element  Name  Tag               
+                    ;;-------  ----  ----------------  
+                    Link       C1    Swale             
+                    Link       C2    Gutter            
+                    Link       C3    Culvert           
+                    Link       C4    Swale             
+                    ;this is a new test GI
+                    Link       C5    a_new_kind_of_GI  
+                    Link       C6    Swale             
+                    Link       C7    Culvert           
+                    Link       C8    Swale             
+                    Link       C9    Swale             
+                    Link       C10   Swale             
+                    Link       C11   Culvert           
+                """
+            ),
+        )
+
+    def test_rerun(self):
+        bench_inp = self.test_base_model_path
+        bench_rpt = bench_inp.replace("inp", "rpt")
+        bench_out = bench_inp.replace("inp", "out")
+
+        test_inp = str(
+            pathlib.Path(self.test_base_model_path).parent / "test_model.inp"
+        )
+        test_rpt = test_inp.replace("inp", "rpt")
+        test_out = test_inp.replace("inp", "out")
+
+        solver.swmm_run(
+            bench_inp,
+            bench_rpt,
+            bench_out,
+        )
+
+        inp = Input(bench_inp)
+        inp.to_file(test_inp)
+
+        solver.swmm_run(
+            test_inp,
+            test_rpt,
+            test_out,
+        )
+
+        rptb = Report(bench_rpt)
+        rptt = Report(test_rpt)
+
+        for attr in dir(rptb):
+            if not attr.startswith(("_", "analysis")):
+                bench = getattr(rptb, attr)
+                test = getattr(rptt, attr)
+                pd.testing.assert_frame_equal(bench, test)

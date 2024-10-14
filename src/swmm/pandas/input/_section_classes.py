@@ -5,7 +5,7 @@ from numbers import Number
 import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Iterable, List, Optional, Self, Iterator, TypeGuard, reveal_type
+from typing import TYPE_CHECKING, override
 from calendar import month_abbr
 import re
 import textwrap
@@ -14,9 +14,12 @@ import pandas as pd
 from pandas._libs.missing import NAType
 import numpy as np
 
-_logger = logging.getLogger(__name__)
+if TYPE_CHECKING:
+    from typing import Iterable, List, Optional, Self, Iterator, TypeGuard, overload
 
 TRow = list[str | float | int | pd.Timestamp | pd.Timedelta | NAType]
+
+_logger = logging.getLogger(__name__)
 
 
 class classproperty(object):
@@ -123,9 +126,9 @@ class SectionSeries(pd.Series):
     def _constructor_expanddim(self):
         return SectionDf
 
-    def _constructor_from_mgr(self, mgr, axes):
-        # required override for pandas
-        return self.__class__._from_mgr(mgr, axes)
+    # def _constructor_from_mgr(self, mgr, axes) -> Self:
+    #     # required override for pandas
+    #     return self.__class__._from_mgr(mgr, axes)
 
 
 class SectionBase(ABC):
@@ -177,7 +180,7 @@ class SectionDf(SectionBase, pd.DataFrame):
     _index_col: Optional[list[str] | str] = None
 
     @classproperty
-    def headings(cls):
+    def headings(cls) -> list[str]:
         return (
             cls._headings
             + [f"param{i+1}" for i in range(cls._ncol - len(cls._headings))]
@@ -189,7 +192,7 @@ class SectionDf(SectionBase, pd.DataFrame):
         # self._validate_headings()
 
     @classmethod
-    def from_section_text(cls, text: str):
+    def from_section_text(cls, text: str) -> Self:
         """Construct an instance of the class from the section inp text"""
         raise NotImplementedError
 
@@ -278,7 +281,7 @@ class SectionDf(SectionBase, pd.DataFrame):
         return rows
 
     @classmethod
-    def _tabulate(cls, line: list[str | float]) -> TRow | list[TRow]:
+    def _tabulate(cls, line: list[str | float | int]) -> TRow | list[TRow]:
         """
         Function to convert tokenized data into a table row with an expected number of columns
 
@@ -295,17 +298,17 @@ class SectionDf(SectionBase, pd.DataFrame):
         return out
 
     @classmethod
-    def _new_empty(cls):
+    def _new_empty(cls) -> Self:
         """Construct and empty instance"""
         df = cls(data=[], columns=cls.headings)
         return df.set_index(cls._index_col) if cls._index_col else df
 
     @classmethod
-    def _newobj(cls, *args, **kwargs):
+    def _newobj(cls, *args, **kwargs) -> Self:
         df = cls(*args, **kwargs)
         return df
 
-    def _validate_headings(self):
+    def _validate_headings(self) -> None:
         missing = []
         for heading in self.headings:
             if heading not in self.reset_index().columns:
@@ -321,7 +324,7 @@ class SectionDf(SectionBase, pd.DataFrame):
     #     other = self.__class__.__newobj__(obj, index=[0])
     #     return pd.concat([self, other])
 
-    def add_element(self, **kwargs):
+    def add_element(self, **kwargs) -> Self:
         # Create a new row with NaN values for all columns
         headings = self.headings.copy()
         try:
@@ -370,15 +373,15 @@ class SectionDf(SectionBase, pd.DataFrame):
         # https://pandas.pydata.org/docs/development/extending.html#override-constructor-properties
         return SectionSeries
 
-    def _constructor_from_mgr(self, mgr, axes):
+    def _constructor_from_mgr(self, mgr, axes) -> Self:
         # required override for pandas
         return self.__class__._from_mgr(mgr, axes)
 
-    def _constructor_sliced_from_mgr(self, mgr, axes):
+    def _constructor_sliced_from_mgr(self, mgr, axes) -> SectionSeries:
         # required override for pandas
         return SectionSeries._from_mgr(mgr, axes)
 
-    def to_swmm_string(self):
+    def to_swmm_string(self) -> str:
         """Create a string representation of section"""
         self._validate_headings()
         # reset index
@@ -622,13 +625,13 @@ class Event(SectionDf):
     _headings = ["Start", "End"]
 
     @classmethod
-    def _tabulate(cls, line: list):
+    def _tabulate(cls, line: list[str | float | int]) -> TRow | list[TRow]:
         out: TRow = [""] * cls._ncol
         if len(line) != 4:
             raise ValueError(f"Event lines must have 4 values but found {len(line)}")
 
-        start_time = " ".join(line[:2])
-        end_time = " ".join(line[2:])
+        start_time = " ".join(line[:2])  # type: ignore
+        end_time = " ".join(line[2:])  # type: ignore
 
         try:
             out[0] = pd.to_datetime(start_time)
@@ -642,7 +645,7 @@ class Event(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol)
 
-    def to_swmm_string(self):
+    def to_swmm_string(self) -> str:
         df = self.copy()
 
         df["Start"] = pd.to_datetime(df["Start"]).dt.strftime("%m/%d/%Y %H:%M")
@@ -753,8 +756,8 @@ class Infil(SectionDf):
         return super()._from_section_text(text, cls._ncol)
 
     @classmethod
-    def _tabulate(cls, line: list):
-        out = [""] * cls._ncol
+    def _tabulate(cls, line: list[str | float | int]) -> TRow | list[TRow]:
+        out: TRow = [""] * cls._ncol
 
         # pop first entry in the line (subcatch name)
         out[0] = line.pop(0)
@@ -873,13 +876,13 @@ class Outfall(SectionDf):
     _index_col = "Name"
 
     @classmethod
-    def _tabulate(cls, line: list):
-        out = [""] * cls._ncol
+    def _tabulate(cls, line: list[str | float | int]) -> TRow | list[TRow]:
+        out: TRow = [""] * cls._ncol
 
         # pop first three entries in the line
         # (required entries for every outfall type)
         out[:3] = line[:3]
-        outfall_type = out[2].lower()
+        outfall_type = str(out[2]).lower()
         del line[:3]
         try:
             if outfall_type in ("free", "normal"):
@@ -918,11 +921,11 @@ class Storage(SectionDf):
     _index_col = "Name"
 
     @classmethod
-    def _tabulate(cls, line: list):
-        out = [""] * cls._ncol
+    def _tabulate(cls, line: list[str | float | int]) -> TRow | list[TRow]:
+        out: TRow = [""] * cls._ncol
         out[: cls._headings.index("CurveName")] = line[:5]
         line = line[5:]
-        shape = out[cls._headings.index("Shape")].lower()
+        shape = str(out[cls._headings.index("Shape")]).lower()
         if shape in ("functional", "cylindrical", "conical", "paraboloid", "pyramidal"):
             out[6 : 6 + len(line)] = line
             return out
@@ -960,13 +963,13 @@ class Divider(SectionDf):
     _index_col = "Name"
 
     @classmethod
-    def _tabulate(cls, line: list):
-        out = [""] * cls._ncol
+    def _tabulate(cls, line: list[str | float | int]) -> TRow | list[TRow]:
+        out: TRow = [""] * cls._ncol
 
         # pop first four entries in the line
         # (required entries for every Divider type)
         out[:4] = line[:4]
-        div_type = out[3].lower()
+        div_type = str(out[3]).lower()
         del line[:4]
         try:
             if div_type == "overflow":
@@ -1090,15 +1093,15 @@ class Outlet(SectionDf):
     _index_col = "Name"
 
     @classmethod
-    def _tabulate(cls, line: list):
-        out = [""] * cls._ncol
+    def _tabulate(cls, line: list[str | float | int]) -> TRow | list[TRow]:
+        out: TRow = [""] * cls._ncol
         out[: cls._headings.index("CurveName")] = line[:5]
         line = line[5:]
 
-        if "functional" in out[cls._headings.index("Type")].lower():
+        if "functional" in str(out[cls._headings.index("Type")]).lower():
             out[6 : 6 + len(line)] = line
             return out
-        elif "tabular" in out[cls._headings.index("Type")].lower():
+        elif "tabular" in str(out[cls._headings.index("Type")]).lower():
             out[cls._headings.index("CurveName")] = line[0]
             if len(line) > 1:
                 out[cls._headings.index("Gated")] = line[1]
@@ -1154,12 +1157,12 @@ class Xsections(SectionDf):
     _index_col = "Link"
 
     @classmethod
-    def _tabulate(cls, line: list):
-        out = [""] * cls._ncol
+    def _tabulate(cls, line: list[str | float | int]) -> TRow | list[TRow]:
+        out: TRow = [""] * cls._ncol
         out[:2] = line[:2]
         line = line[2:]
 
-        if out[1].lower() == "custom" and len(line) >= 2:
+        if str(out[1]).lower() == "custom" and len(line) >= 2:
             out[cls._headings.index("Curve")], out[cls._headings.index("Geom1")] = (
                 line[1],
                 line[0],
@@ -1172,10 +1175,10 @@ class Xsections(SectionDf):
                 - 2
             ] = line[2:]
             return out
-        elif out[1].lower() == "irregular":
+        elif str(out[1]).lower() == "irregular":
             out[cls._headings.index("Curve")] = line[0]
             return out
-        elif out[1].upper() in cls._shapes:
+        elif str(out[1]).upper() in cls._shapes:
             out[cls._headings.index("Geom1")] = line.pop(0)
             out[
                 cls._headings.index("Geom2") : cls._headings.index("Geom2") + len(line)
@@ -1188,14 +1191,21 @@ class Xsections(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol)
 
-    def to_swmm_string(self):
+    def to_swmm_string(self) -> str:
         df = self.copy(deep=True)
 
         # fill geoms
         mask = df["Shape"].isin(self._shapes)
         geom_cols = [f"Geom{i}" for i in range(1, 5)]
-        df.loc[mask, geom_cols] = df.loc[mask, geom_cols].fillna(0)
-        df.loc[mask, geom_cols] = df.loc[mask, geom_cols].replace("", 0)
+        df.loc[mask, geom_cols] = (
+            df.loc[mask, geom_cols].fillna(0).infer_objects(copy=False)
+        )
+        df.loc[mask, geom_cols] = (
+            df.loc[mask, geom_cols]
+            .infer_objects(copy=False)
+            .replace("", 0)
+            .infer_objects(copy=False)
+        )
 
         # fix custom shapes, Geom2 needs to be empty since the curve goes there
         mask = df["Shape"].astype(str).str.upper() == "CUSTOM"
@@ -1501,7 +1511,7 @@ class Patterns(SectionDf):
         return df
 
     def to_swmm_string(self) -> str:
-        df = self.copy()
+        df = self.copy(deep=True)
 
         # add type back into frame in first row of curve
         type_idx = pd.MultiIndex.from_frame(
@@ -1516,7 +1526,7 @@ class Patterns(SectionDf):
         df.loc[type_idx, "Type"] = type_values
 
         # sort by name and index then drop the curve index field since swmm doesn't use it
-        df = Patterns(df.sort_index(ascending=[True, True]))
+        df = df.sort_index(ascending=[True, True])
         df.index = df.index.droplevel("Pattern_Index")
         return super(Patterns, df).to_swmm_string()
 
@@ -1598,9 +1608,9 @@ class LandUse(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol)
 
-    def to_swmm_string(self):
+    def to_swmm_string(self) -> str:
         for col in self.columns:
-            self[col] = self[col].fillna(0.0)
+            self[col] = self[col].infer_objects(copy=False).fillna(0.0)
         return super().to_swmm_string()
 
 
@@ -1610,7 +1620,7 @@ class Coverage(SectionDf):
     _index_col = ["Subcatchment", "landuse"]
 
     @classmethod
-    def _tabulate(cls, line: list):
+    def _tabulate(cls, line: list[str | float | int]) -> TRow | list[TRow]:
         if len(line) > 3:
             raise Exception(
                 "swmm.pandas doesn't yet support having multiple land "
@@ -1630,7 +1640,7 @@ class Loading(SectionDf):
     _index_col = ["Subcatchment", "Pollutant"]
 
     @classmethod
-    def _tabulate(cls, line: list):
+    def _tabulate(cls, line: list[str | float | int]) -> TRow | list[TRow]:
         if len(line) > 3:
             raise Exception(
                 "swmm.pandas doesn't yet support having multiple pollutants "
@@ -1706,13 +1716,13 @@ class Inflow(SectionDf):
         return super()._from_section_text(text, cls._ncol)
 
     @classmethod
-    def _tabulate(cls, line: list):
+    def _tabulate(cls, line: list[str | float | int]) -> TRow | list[TRow]:
         return [v.replace('"', "") if isinstance(v, str) else v for v in line]
 
-    def to_swmm_string(self):
+    def to_swmm_string(self) -> str:
         df = self.copy(deep=True)
-        df["Mfactor"] = df["Mfactor"].fillna(1.0)
-        df["Sfactor"] = df["Sfactor"].fillna(1.0)
+        df["Mfactor"] = df["Mfactor"].infer_objects(copy=False).fillna(1.0)
+        df["Sfactor"] = df["Sfactor"].infer_objects(copy=False).fillna(1.0)
 
         # strip out any existing double quotes
         df["TimeSeries"] = df["TimeSeries"].fillna("").str.replace('"', "")
@@ -1738,12 +1748,12 @@ class DWF(SectionDf):
         return super()._from_section_text(text, cls._ncol)
 
     @classmethod
-    def _tabulate(cls, line: list):
+    def _tabulate(cls, line: list[str | float | int]) -> TRow | list[TRow]:
         return [v.replace('"', "") if isinstance(v, str) else v for v in line]
 
-    def to_swmm_string(self):
+    def to_swmm_string(self) -> str:
         df = self.copy(deep=True)
-        df["Baseline"] = df["Baseline"].fillna(0.0)
+        df["Baseline"] = df["Baseline"].infer_objects(copy=False).fillna(0.0)
 
         for ipat in range(1, 5):
             col = f"Pat{ipat}"
@@ -1783,9 +1793,11 @@ class Hydrographs(SectionDf):
 
         df = super()._from_section_text(text, cls._ncol).reset_index()
         rg_rows = cls._find_rain_gauge_rows(df)
-        df.attrs = df.loc[rg_rows].set_index("Name")["Month_RG"].to_dict()
+        rgs = df.loc[rg_rows].set_index("Name")["Month_RG"].to_dict()
         df.drop(rg_rows, inplace=True)
-        return cls(df.set_index(cls._index_col))
+        df = cls(df.set_index(cls._index_col).sort_index())
+        df.attrs = rgs
+        return df
 
     @property
     def rain_gauges(self) -> dict[str, str]:
@@ -1900,6 +1912,7 @@ class Curves(SectionDf):
         df.attrs = curve_types  # type: ignore
         return df
 
+    @override
     def to_swmm_string(self) -> str:
         df = self.copy(deep=True)
 
@@ -1982,7 +1995,7 @@ class Labels(SectionDf):
 class Tags(SectionDf):
     _ncol = 3
     _headings = ["Element", "Name", "Tag"]
-    _index_col = "Element"
+    _index_col = ["Element", "Name"]
 
     @classmethod
     def from_section_text(cls, text: str):

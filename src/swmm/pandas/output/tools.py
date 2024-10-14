@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import numpy as np
-from aenum import Enum
-from typing import Dict, Tuple, List, Union
+from aenum import EnumMeta
+from typing import Dict, List
 
 arrayishNone = (list, tuple, set, np.ndarray, type(None))
 arrayish = (list, tuple, set, np.ndarray)
@@ -20,12 +22,12 @@ def elements(path: str) -> Dict[str, List[str]]:
     return elements
 
 
-def _enum_get(enum: Enum, name: str) -> Union[int, None]:
+def _enum_get(enum: EnumMeta, name: str) -> int | None:
     try:
         return enum.__getitem__(name.upper())
     except KeyError:
         return None
 
 
-def _enum_keys(enum: Enum) -> Tuple[str, ...]:
+def _enum_keys(enum: EnumMeta) -> list[str]:
     return list(map(lambda x: x.lower(), enum.__members__.keys()))

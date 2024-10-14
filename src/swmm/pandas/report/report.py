@@ -422,6 +422,8 @@ class Report:
             header, data = self._split_section(
                 self._sections["Highest Flow Instability Indexes"]
             )
+            if "All links are stable" in data:
+                data = ""
             df = self._parse_table(
                 ["object_type", "name", "index"], data, sep=R"\s+", index_col=1
             )
