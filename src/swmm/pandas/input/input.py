@@ -196,7 +196,7 @@ class Input:
             self._set_section_prop(sect)
 
     def _load_inp_file(self) -> None:
-        with open(self.path, "r") as inp:
+        with open(self.path) as inp:
             self.text: str = inp.read()
 
         self._sections: dict[str, SectionBase] = {}
@@ -209,7 +209,7 @@ class Input:
 
             try:
                 section_idx = list(
-                    (name.lower().startswith(x.lower()) for x in _sections)
+                    name.lower().startswith(x.lower()) for x in _sections
                 ).index(True)
                 section_key = self._section_keys[section_idx]
                 self._section_texts[section_key] = data

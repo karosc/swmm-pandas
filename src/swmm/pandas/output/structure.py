@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import numpy as np
 from pandas.core.api import DataFrame
@@ -46,8 +46,8 @@ class Structure:
     def __init__(
         self,
         outfile,
-        link: Union[str, Sequence[str]],
-        node: Union[str, Sequence[str]],
+        link: str | Sequence[str],
+        node: str | Sequence[str],
     ):
         self.out = outfile
         """The Output object from which this structure is derived"""
@@ -99,8 +99,8 @@ class Structure:
     def _aggSeries(
         self,
         df: DataFrame,
-        useNegative: Union[bool, Sequence[bool]] = False,
-        reverse: Union[bool, int, Sequence[Union[bool, int]]] = False,
+        useNegative: bool | Sequence[bool] = False,
+        reverse: bool | int | Sequence[bool | int] = False,
         aggFunc: str = "sum",
     ):
         """
@@ -172,8 +172,8 @@ class Structure:
         self,
         inter_event_period: float = 6,
         thresholdFlow: float = 0.01,
-        useNegativeFlow: Union[bool, Sequence[bool]] = False,
-        reverseFlow: Union[bool, Sequence[bool]] = False,
+        useNegativeFlow: bool | Sequence[bool] = False,
+        reverseFlow: bool | Sequence[bool] = False,
     ):
         """
         Bin flow data into discrete events based on an inter-event period and threshold flow rate.

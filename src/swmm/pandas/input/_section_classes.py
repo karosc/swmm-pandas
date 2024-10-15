@@ -5,7 +5,7 @@ from numbers import Number
 import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING
 from calendar import month_abbr
 import re
 import textwrap
@@ -15,14 +15,15 @@ from pandas._libs.missing import NAType
 import numpy as np
 
 if TYPE_CHECKING:
-    from typing import Iterable, List, Optional, Self, Iterator, TypeGuard, overload
+    from typing import Self, TypeGuard
+    from collections.abc import Iterable, Iterator
 
 TRow = list[str | float | int | pd.Timestamp | pd.Timedelta | NAType]
 
 _logger = logging.getLogger(__name__)
 
 
-class classproperty(object):
+class classproperty:
     def __init__(self, f):
         self.f = f
 
@@ -177,7 +178,7 @@ class SectionDf(SectionBase, pd.DataFrame):
     _metadata = ["_ncol", "_headings", "headings"]
     _ncol: int = 0
     _headings: list[str] = []
-    _index_col: Optional[list[str] | str] = None
+    _index_col: list[str] | str | None = None
 
     @classproperty
     def headings(cls) -> list[str]:
@@ -494,12 +495,12 @@ class Report(SectionBase):
 
     def __init__(
         self,
-        disabled: Optional[str] = None,
-        input: Optional[str] = None,
-        continuity: Optional[str] = None,
-        flowstats: Optional[str] = None,
-        controls: Optional[str] = None,
-        averages: Optional[str] = None,
+        disabled: str | None = None,
+        input: str | None = None,
+        continuity: str | None = None,
+        flowstats: str | None = None,
+        controls: str | None = None,
+        averages: str | None = None,
         subcatchments: list[str] = [],
         nodes: list[str] = [],
         links: list[str] = [],
@@ -832,7 +833,7 @@ class GWF(SectionDf):
         return super()._from_section_text(text, cls._ncol)
 
     @classmethod
-    def _tabulate(cls, line: List[str | float]) -> TRow | list[TRow]:
+    def _tabulate(cls, line: list[str | float]) -> TRow | list[TRow]:
         out: TRow = [""] * cls._ncol
         out[0] = line.pop(0)
         out[1] = line.pop(0)
@@ -1912,7 +1913,6 @@ class Curves(SectionDf):
         df.attrs = curve_types  # type: ignore
         return df
 
-    @override
     def to_swmm_string(self) -> str:
         df = self.copy(deep=True)
 

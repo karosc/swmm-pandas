@@ -2,15 +2,14 @@ from __future__ import annotations
 
 import numpy as np
 from aenum import EnumMeta
-from typing import Dict, List
 
 arrayishNone = (list, tuple, set, np.ndarray, type(None))
 arrayish = (list, tuple, set, np.ndarray)
 
 
-def elements(path: str) -> Dict[str, List[str]]:
-    with open(path, "r") as fil:
-        elements: Dict[str, List[str]] = {}
+def elements(path: str) -> dict[str, list[str]]:
+    with open(path) as fil:
+        elements: dict[str, list[str]] = {}
         for lin in fil:
             line = lin.replace("\n", "")
             if "[" in line:

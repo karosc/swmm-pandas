@@ -5,7 +5,8 @@ import os.path
 import warnings
 from datetime import datetime, timedelta
 from functools import wraps
-from typing import Callable, List, Optional, Sequence, Tuple, Union
+from typing import Callable
+from collections.abc import Sequence
 from itertools import product
 from io import SEEK_END
 import struct
@@ -93,16 +94,16 @@ class Output:
         self._timeIndex: DatetimeIndex
         """DatetimeIndex to use for output timeseries"""
 
-        self._project_size: List[int]
+        self._project_size: list[int]
         """Array of element count values [nSubcatchments, nNodes, nLinks, nSystems(1), nPollutants]"""
 
-        self._subcatchments: Tuple[str, ...]
+        self._subcatchments: tuple[str, ...]
         """Tuple of subcatchment names in output file"""
 
-        self._links: Tuple[str, ...]
+        self._links: tuple[str, ...]
         """Tuple of link names in output file"""
 
-        self._pollutants: Tuple[str, ...]
+        self._pollutants: tuple[str, ...]
         """Tuple of pollutant names in output file"""
 
         self._handle = None
@@ -196,7 +197,7 @@ class Output:
 
     @staticmethod
     def _elementIndex(
-        elementID: Union[str, int, None], indexSquence: Sequence[str], elementType: str
+        elementID: str | int | None, indexSquence: Sequence[str], elementType: str
     ) -> int:
         """Validate the index of a model element passed to Output methods. Used to
         convert model element names to their index in the out file.
@@ -240,9 +241,9 @@ class Output:
 
     @staticmethod
     def _validateAttribute(
-        attribute: Union[int, str, Sequence[Union[int, str]], None],
+        attribute: int | str | Sequence[int | str] | None,
         validAttributes: EnumMeta,
-    ) -> Tuple[list, list]:
+    ) -> tuple[list, list]:
         """
         Function to validate attribute arguments of element_series, element_attribute,
         and element_result functions.
@@ -305,9 +306,9 @@ class Output:
 
     @staticmethod
     def _validateElement(
-        element: Union[int, str, Sequence[Union[int, str]], None],
+        element: int | str | Sequence[int | str] | None,
         validElements: Sequence[str],
-    ) -> Tuple[List[str], List[int]]:
+    ) -> tuple[list[str], list[int]]:
         """
         Function to validate element arguments of element_series, element_attribute,
         and element_result functions.
@@ -572,7 +573,7 @@ class Output:
         return self._period
 
     @property  # type: ignore
-    def project_size(self) -> List[int]:
+    def project_size(self) -> list[int]:
         """Returns the number of each model element type available in out binary output file
         in the following order:
 
@@ -596,7 +597,7 @@ class Output:
         self._project_size = output.get_proj_size(self._handle)
 
     @property
-    def pollutants(self) -> Tuple[str, ...]:
+    def pollutants(self) -> tuple[str, ...]:
         """Return a tuple of pollutants available in SWMM binary output file.
 
         Returns
@@ -619,7 +620,7 @@ class Output:
 
     @property  # type: ignore
     @output_open_handler
-    def _unit(self) -> Tuple[int]:
+    def _unit(self) -> tuple[int]:
         """Return SWMM binary output file unit type from `swmm.toolkit.shared_enum.UnitSystem`.
 
         Returns
@@ -631,7 +632,7 @@ class Output:
         return tuple(output.get_units(self._handle))  # type: ignore
 
     @property
-    def units(self) -> List[str]:
+    def units(self) -> list[str]:
         """Return SWMM binary output file unit type from `swmm.toolkit.shared_enum.UnitSystem`.
 
         Returns
@@ -685,18 +686,18 @@ class Output:
     ##### timestep setters and getters #####
     def _time2step(
         self,
-        dateTime: Union[
-            None,
-            str,
-            int,
-            datetime,
-            Timestamp,
-            datetime64,
-            Sequence[Union[str, int, datetime, Timestamp, datetime64]],
-        ],
+        dateTime: (
+            None |
+            str |
+            int |
+            datetime |
+            Timestamp |
+            datetime64 |
+            Sequence[str | int | datetime | Timestamp | datetime64]
+        ),
         ifNone: int = 0,
         method: str = "nearest",
-    ) -> List[int]:
+    ) -> list[int]:
         """Convert datetime value to SWMM timestep index. By deafult, this returns the nearest timestep to
         to the requested date, so it will always return a time index available in the binary output file.
 
@@ -762,8 +763,8 @@ class Output:
 
     ##### model element setters and getters #####
     def _subcatchmentIndex(
-        self, subcatchment: Union[str, int, Sequence[Union[str, int]], None]
-    ) -> Union[List[int], int]:
+        self, subcatchment: str | int | Sequence[str | int] | None
+    ) -> list[int] | int:
         """Get the swmm index for subcatchment.
 
         Parameters
@@ -790,7 +791,7 @@ class Output:
             raise TypeError("Invalid type for _subcatchmentIndex argument")
 
     @property
-    def subcatchments(self) -> Tuple[str, ...]:
+    def subcatchments(self) -> tuple[str, ...]:
         """Return a tuple of subcatchments available in SWMM output binary file.
 
         Returns
@@ -814,8 +815,8 @@ class Output:
         )
 
     def _nodeIndex(
-        self, node: Union[str, int, Sequence[Union[str, int]], None]
-    ) -> Union[List[int], int]:
+        self, node: str | int | Sequence[str | int] | None
+    ) -> list[int] | int:
         """Get the swmm index for node.
 
         Parameters
@@ -841,7 +842,7 @@ class Output:
             raise TypeError("Invalid type for self._nodeIndex argument")
 
     @property
-    def nodes(self) -> Tuple[str, ...]:
+    def nodes(self) -> tuple[str, ...]:
         """Return a tuple of nodes available in SWMM binary output file.
 
         Returns
@@ -865,8 +866,8 @@ class Output:
         )
 
     def _linkIndex(
-        self, link: Union[str, int, Sequence[Union[str, int]], None]
-    ) -> Union[List[int], int]:
+        self, link: str | int | Sequence[str | int] | None
+    ) -> list[int] | int:
         """Get the swmm index for link.
 
         Parameters
@@ -891,7 +892,7 @@ class Output:
             raise TypeError("Invalid type for self._linkIndex argument")
 
     @property
-    def links(self) -> Tuple[str, ...]:
+    def links(self) -> tuple[str, ...]:
         """Return a tuple of links available in SWMM binary output file.
 
         Returns
@@ -944,11 +945,11 @@ class Output:
 
     def _model_series(
         self,
-        elementIndexArray: List[int],
-        attributeIndexArray: List[EnumMeta],
+        elementIndexArray: list[int],
+        attributeIndexArray: list[EnumMeta],
         startIndex: int,
         endIndex: int,
-        columns: Optional[str],
+        columns: str | None,
         getterFunc: Callable,
     ) -> ndarray:
         """
@@ -1053,11 +1054,11 @@ class Output:
 
     def _model_series_index(
         self,
-        elementArray: List[str],
-        attributeArray: List[str],
+        elementArray: list[str],
+        attributeArray: list[str],
         startIndex: int,
         endIndex: int,
-        columns: Optional[str],
+        columns: str | None,
     ) -> tuple:
         """
         Base dataframe index getter for model timeseries. The function consilidates the logic
@@ -1156,17 +1157,17 @@ class Output:
 
     def subcatch_series(
         self,
-        subcatchment: Union[int, str, Sequence[Union[int, str]], None],
-        attribute: Union[int, str, Enum, Sequence[Union[int, str, Enum]], None] = (
+        subcatchment: int | str | Sequence[int | str] | None,
+        attribute: int | str | Enum | Sequence[int | str | Enum] | None = (
             "rainfall",
             "runoff_rate",
             "gw_outflow_rate",
         ),
-        start: Union[str, int, datetime, None] = None,
-        end: Union[str, int, datetime, None] = None,
-        columns: Optional[str] = "attr",
+        start: str | int | datetime | None = None,
+        end: str | int | datetime | None = None,
+        columns: str | None = "attr",
         asframe: bool = True,
-    ) -> Union[DataFrame, ndarray]:
+    ) -> DataFrame | ndarray:
         """Get one or more time series for one or more subcatchment attributes.
         Specify series start index and end index to get desired time range.
 
@@ -1354,17 +1355,17 @@ class Output:
     @output_open_handler
     def node_series(
         self,
-        node: Union[int, str, Sequence[Union[int, str]], None],
-        attribute: Union[int, str, Enum, Sequence[Union[int, str, Enum]], None] = (
+        node: int | str | Sequence[int | str] | None,
+        attribute: int | str | Enum | Sequence[int | str | Enum] | None = (
             "invert_depth",
             "flooding_losses",
             "total_inflow",
         ),
-        start: Union[str, int, datetime, None] = None,
-        end: Union[str, int, datetime, None] = None,
-        columns: Optional[str] = "attr",
+        start: str | int | datetime | None = None,
+        end: str | int | datetime | None = None,
+        columns: str | None = "attr",
         asframe: bool = True,
-    ) -> Union[DataFrame, ndarray]:
+    ) -> DataFrame | ndarray:
         """Get one or more time series for one or more node attributes.
         Specify series start index and end index to get desired time range.
 
@@ -1549,17 +1550,17 @@ class Output:
     @output_open_handler
     def link_series(
         self,
-        link: Union[int, str, Sequence[Union[int, str]], None],
-        attribute: Union[int, str, Enum, Sequence[Union[int, str, Enum]], None] = (
+        link: int | str | Sequence[int | str] | None,
+        attribute: int | str | Enum | Sequence[int | str | Enum] | None = (
             "flow_rate",
             "flow_velocity",
             "flow_depth",
         ),
-        start: Union[int, str, datetime, None] = None,
-        end: Union[int, str, datetime, None] = None,
-        columns: Optional[str] = "attr",
+        start: int | str | datetime | None = None,
+        end: int | str | datetime | None = None,
+        columns: str | None = "attr",
         asframe: bool = True,
-    ) -> Union[DataFrame, ndarray]:
+    ) -> DataFrame | ndarray:
         """Get one or more time series for one or more link attributes.
         Specify series start index and end index to get desired time range.
 
@@ -1746,11 +1747,11 @@ class Output:
     @output_open_handler
     def system_series(
         self,
-        attribute: Union[int, str, Enum, Sequence[Union[int, str, Enum]], None] = None,
-        start: Union[str, int, datetime, None] = None,
-        end: Union[str, int, datetime, None] = None,
+        attribute: int | str | Enum | Sequence[int | str | Enum] | None = None,
+        start: str | int | datetime | None = None,
+        end: str | int | datetime | None = None,
         asframe: bool = True,
-    ) -> Union[DataFrame, ndarray]:
+    ) -> DataFrame | ndarray:
         """Get one or more a time series for one or more system attributes.
         Specify series start index and end index to get desired time range.
 
@@ -1847,14 +1848,14 @@ class Output:
     @output_open_handler
     def subcatch_attribute(
         self,
-        time: Union[str, int, datetime],
-        attribute: Union[int, str, Enum, Sequence[Union[int, str, Enum]], None] = (
+        time: str | int | datetime,
+        attribute: int | str | Enum | Sequence[int | str | Enum] | None = (
             "rainfall",
             "runoff_rate",
             "gw_outflow_rate",
         ),
         asframe: bool = True,
-    ) -> Union[DataFrame, ndarray]:
+    ) -> DataFrame | ndarray:
         """For all subcatchments at a given time, get a one or more attributes.
 
         Parameters
@@ -1923,14 +1924,14 @@ class Output:
     @output_open_handler
     def node_attribute(
         self,
-        time: Union[str, int, datetime],
-        attribute: Union[int, str, Enum, Sequence[Union[int, str, Enum]], None] = (
+        time: str | int | datetime,
+        attribute: int | str | Enum | Sequence[int | str | Enum] | None = (
             "invert_depth",
             "flooding_losses",
             "total_inflow",
         ),
         asframe: bool = True,
-    ) -> Union[DataFrame, ndarray]:
+    ) -> DataFrame | ndarray:
         """For all nodes at a given time, get one or more attributes.
 
         Parameters
@@ -2005,14 +2006,14 @@ class Output:
     @output_open_handler
     def link_attribute(
         self,
-        time: Union[str, int, datetime],
-        attribute: Union[int, str, Enum, Sequence[Union[int, str, Enum]], None] = (
+        time: str | int | datetime,
+        attribute: int | str | Enum | Sequence[int | str | Enum] | None = (
             "flow_rate",
             "flow_velocity",
             "flow_depth",
         ),
         asframe: bool = True,
-    ) -> Union[DataFrame, ndarray]:
+    ) -> DataFrame | ndarray:
         """For all links at a given time, get one or more attributes.
 
         Parameters
@@ -2085,10 +2086,10 @@ class Output:
     @output_open_handler
     def system_attribute(
         self,
-        time: Union[str, int, datetime],
-        attribute: Union[int, str, Enum, Sequence[Union[int, str, Enum]], None] = None,
+        time: str | int | datetime,
+        attribute: int | str | Enum | Sequence[int | str | Enum] | None = None,
         asframe=True,
-    ) -> Union[DataFrame, ndarray]:
+    ) -> DataFrame | ndarray:
         """For all nodes at given time, get a one or more attributes.
 
         Parameters
@@ -2172,10 +2173,10 @@ class Output:
     @output_open_handler
     def subcatch_result(
         self,
-        subcatchment: Union[int, str, Sequence[Union[int, str]], None],
-        time: Union[int, str, Sequence[Union[int, str]], None],
+        subcatchment: int | str | Sequence[int | str] | None,
+        time: int | str | Sequence[int | str] | None,
         asframe: bool = True,
-    ) -> Union[DataFrame, ndarray]:
+    ) -> DataFrame | ndarray:
         """For a subcatchment at one or more given times, get all attributes.
 
         Only one of `subcatchment` or `time` can be multiple (eg. a list), not both.
@@ -2270,10 +2271,10 @@ class Output:
     @output_open_handler
     def node_result(
         self,
-        node: Union[int, str, Sequence[Union[int, str]], None],
-        time: Union[int, str, Sequence[Union[int, str]], None],
+        node: int | str | Sequence[int | str] | None,
+        time: int | str | Sequence[int | str] | None,
         asframe: bool = True,
-    ) -> Union[DataFrame, ndarray]:
+    ) -> DataFrame | ndarray:
         """For one or more nodes at one or more given times, get all attributes.
 
         Only one of `node` or `time` can be multiple (eg. a list), not both.
@@ -2371,10 +2372,10 @@ class Output:
     @output_open_handler
     def link_result(
         self,
-        link: Union[int, str, Sequence[Union[int, str]], None],
-        time: Union[int, str, Sequence[Union[int, str]], None],
+        link: int | str | Sequence[int | str] | None,
+        time: int | str | Sequence[int | str] | None,
         asframe: bool = True,
-    ) -> Union[DataFrame, ndarray]:
+    ) -> DataFrame | ndarray:
         """For a link at one or more given times, get all attributes.
 
         Only one of link or time can be multiple.
@@ -2471,9 +2472,9 @@ class Output:
     @output_open_handler
     def system_result(
         self,
-        time: Union[str, int, datetime],
+        time: str | int | datetime,
         asframe=True,
-    ) -> Union[DataFrame, ndarray]:
+    ) -> DataFrame | ndarray:
         """For a given time, get all system attributes.
 
         Parameters

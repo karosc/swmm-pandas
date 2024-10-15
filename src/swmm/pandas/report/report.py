@@ -1,7 +1,6 @@
 from __future__ import annotations
 import re
 from io import StringIO
-from typing import Dict, List, Sequence, Tuple
 
 from pandas.core.api import DataFrame, Timestamp, to_datetime, to_timedelta, Series
 from pandas.io.parsers import read_csv, read_fwf
@@ -14,7 +13,7 @@ class Report:
     _rpt_text: str
     """text string of rpt file contents"""
 
-    _sections: Dict[str, str]
+    _sections: dict[str, str]
     """dictionary of SWMM report sections as {section name: section text}"""
 
     def __init__(self, rptfile: str):
@@ -32,7 +31,7 @@ class Report:
 
         self._rptfile = rptfile
 
-        with open(rptfile, "r") as file:
+        with open(rptfile) as file:
             self._rpt_text = file.read()
 
         self._sections = {
@@ -41,7 +40,7 @@ class Report:
         }
 
     @staticmethod
-    def _find_sections(rpt_text: str) -> List[str]:
+    def _find_sections(rpt_text: str) -> list[str]:
         r"""
         Function to split the report file text into separate sections using a regex
         pattern match:
@@ -106,7 +105,7 @@ class Report:
             raise Exception(f"Error finding title for section\n{section}")
 
     @staticmethod
-    def _split_section(section: str) -> Tuple[str, str]:
+    def _split_section(section: str) -> tuple[str, str]:
         """
         Function to split a report section into header and data elements. Relies on regex
         matching lines with consecutive dashes indicating header lines.
@@ -150,7 +149,7 @@ class Report:
         return header, data
 
     @staticmethod
-    def _parse_header(header: str) -> List[str]:
+    def _parse_header(header: str) -> list[str]:
         """
         Parse header line produced from _split_section into list of column headers. Uses pandas
         read_fwf to automatically parse multi line headers present in report file.
