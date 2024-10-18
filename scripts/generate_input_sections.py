@@ -9,8 +9,39 @@ out_str = """\
 
 print(len(sections))
 for section, obj in sections.items():
-    sectstring = f"{obj.__name__.lower()}: sc.{obj.__name__}\n"
+    # # Type hints only
+    # sectstring = f"{obj.__name__.lower()}: sc.{obj.__name__}\n"
+    # if hasattr(obj, "headings"):
+    #     sectstring += f'"{obj.headings}"\n'
+    # out_str += sectstring
+    docstring = ""
     if hasattr(obj, "headings"):
-        sectstring += f'"{obj.headings}"\n'
+        docstring += f'"{obj.headings}"\n'
+    sectstring = f"""\
+@propery
+def {obj.__name__.lower()}(self) -> sc.{obj.__name__}:
+    {docstring if len(docstring)>0 else ''}
+    if not hasattr(self, "_{obj.__name__.lower()}"):
+        self._{obj.__name__.lower()} = self._get_section("{section}")
+
+    return self._{obj.__name__.lower()}
+
+@{obj.__name__.lower()}.setter
+def {obj.__name__.lower()}(self, obj) -> None:
+    self._{obj.__name__.lower()} = sc.{obj.__name__}._newobj(obj)
+
+"""
     out_str += sectstring
 print(out_str)
+
+
+# @property
+# def pumps(self) -> sc.Pump:
+#     if not hasattr(self, "_pumps_df"):
+#         self._pumps_df = self._get_section("PUMP")
+
+#     return self._pumps_df
+
+# @pumps.setter
+# def pumps(self, obj) -> None:
+#     self._pumps_df = sc.Pump._newobj(obj)

@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from calendar import month_abbr
 import re
 import textwrap
-
+import copy
 import pandas as pd
 from pandas._libs.missing import NAType
 import numpy as np
@@ -133,6 +133,9 @@ class SectionSeries(pd.Series):
 
 
 class SectionBase(ABC):
+
+    _section_name: str
+
     @classmethod
     @abstractmethod
     def from_section_text(cls, text: str, *args, **kwargs) -> Self: ...
@@ -179,6 +182,18 @@ class SectionDf(SectionBase, pd.DataFrame):
     _ncol: int = 0
     _headings: list[str] = []
     _index_col: list[str] | str | None = None
+
+    @classmethod
+    def _data_cols(cls, desc: bool = True) -> list[str]:
+        if isinstance(cls._index_col, str):
+            idx = [copy.deepcopy(cls._index_col)]
+        else:
+            idx = copy.deepcopy(cls._index_col)
+
+        if not desc:
+            idx.append("desc")
+
+        return [col for col in cls.headings if col not in idx]
 
     @classproperty
     def headings(cls) -> list[str]:
@@ -435,7 +450,8 @@ class SectionDf(SectionBase, pd.DataFrame):
         return header + header_divider + outstr
 
 
-class Title(SectionText): ...
+class Title(SectionText):
+    _section_name = "TITLE"
 
 
 class Option(SectionDf):
@@ -444,6 +460,7 @@ class Option(SectionDf):
     Columns: Value
     """
 
+    _section_name = "OPTIONS"
     _ncol = 2
     _headings = ["Option", "Value"]
     _index_col = "Option"
@@ -457,6 +474,8 @@ class Option(SectionDf):
 
 
 class Report(SectionBase):
+    _section_name = "REPORT"
+
     @dataclass
     class LIDReportEntry:
         Name: str
@@ -615,10 +634,12 @@ class Report(SectionBase):
         return length
 
 
-class Files(SectionText): ...
+class Files(SectionText):
+    _section_name = "FILES"
 
 
 class Event(SectionDf):
+    _section_name = "EVENT"
     _ncol = 2
     _headings = ["Start", "End"]
 
@@ -652,6 +673,7 @@ class Event(SectionDf):
 
 
 class Raingage(SectionDf):
+    _section_name = "RAINGAGES"
     _ncol = 8
     _headings = [
         "Name",
@@ -671,6 +693,7 @@ class Raingage(SectionDf):
 
 
 class Evap(SectionDf):
+    _section_name = "EVAPORATION"
     _ncol = 13
     _headings = ["Type"]
     _index_col = "Type"
@@ -681,6 +704,7 @@ class Evap(SectionDf):
 
 
 class Temperature(SectionDf):
+    _section_name = "TEMPERATURE"
     _ncol = 14
     _headings = ["Option"]
     _index_col = "Option"
@@ -691,6 +715,7 @@ class Temperature(SectionDf):
 
 
 class Subcatchment(SectionDf):
+    _section_name = "SUBCATCHMENTS"
     _ncol = 9
     _headings = [
         "Name",
@@ -711,6 +736,7 @@ class Subcatchment(SectionDf):
 
 
 class Subarea(SectionDf):
+    _section_name = "SUBAREAS"
     _ncol = 8
     _headings = [
         "Subcatchment",
@@ -730,6 +756,7 @@ class Subarea(SectionDf):
 
 
 class Infil(SectionDf):
+    _section_name = "INFILTRATION"
     _ncol = 7
     _headings = [
         "Subcatchment",
@@ -770,6 +797,7 @@ class Infil(SectionDf):
 
 
 class Aquifer(SectionDf):
+    _section_name = "AQUIFERS"
     _ncol = 14
     _headings = [
         "Name",
@@ -795,6 +823,7 @@ class Aquifer(SectionDf):
 
 
 class Groundwater(SectionDf):
+    _section_name = "GROUNDWATER"
     _ncol = 14
     _headings = [
         "Subcatchment",
@@ -820,6 +849,7 @@ class Groundwater(SectionDf):
 
 
 class GWF(SectionDf):
+    _section_name = "GWF"
     _ncol = 3
     _headings = [
         "Subcatch",
@@ -842,6 +872,7 @@ class GWF(SectionDf):
 
 
 class Snowpack(SectionDf):
+    _section_name = "SNOWPACKS"
     _ncol = 9
     _headings = ["Name", "Surface"]
     _index_col = ["Name", "Surface"]
@@ -852,6 +883,7 @@ class Snowpack(SectionDf):
 
 
 class Junc(SectionDf):
+    _section_name = "JUNCTIONS"
     _ncol = 6
     _headings = [
         "Name",
@@ -869,6 +901,7 @@ class Junc(SectionDf):
 
 
 class Outfall(SectionDf):
+    _section_name = "OUTFALLS"
     _ncol = 6
     _headings = ["Name", "Elevation", "Type", "StageData", "Gated", "RouteTo"]
     _index_col = "Name"
@@ -899,6 +932,7 @@ class Outfall(SectionDf):
 
 
 class Storage(SectionDf):
+    _section_name = "STORAGE"
     _ncol = 14
     _headings = [
         "Name",
@@ -943,6 +977,7 @@ class Storage(SectionDf):
 
 
 class Divider(SectionDf):
+    _section_name = "DIVIDERS"
     _ncol = 12
     _headings = [
         "Name",
@@ -995,6 +1030,7 @@ class Divider(SectionDf):
 
 
 class Conduit(SectionDf):
+    _section_name = "CONDUITS"
     _ncol = 9
     _headings = [
         "Name",
@@ -1015,6 +1051,7 @@ class Conduit(SectionDf):
 
 
 class Pump(SectionDf):
+    _section_name = "PUMPS"
     _ncol = 7
     _headings = [
         "Name",
@@ -1033,6 +1070,7 @@ class Pump(SectionDf):
 
 
 class Orifice(SectionDf):
+    _section_name = "ORIFICES"
     _ncol = 8
     _headings = [
         "Name",
@@ -1052,6 +1090,7 @@ class Orifice(SectionDf):
 
 
 class Weir(SectionDf):
+    _section_name = "WEIRS"
     _ncol = 13
     _headings = [
         "Name",
@@ -1076,6 +1115,7 @@ class Weir(SectionDf):
 
 
 class Outlet(SectionDf):
+    _section_name = "OUTLETS"
     _ncol = 9
     _headings = [
         "Name",
@@ -1113,6 +1153,7 @@ class Outlet(SectionDf):
 
 
 class Xsections(SectionDf):
+    _section_name = "XSECTIONS"
     _shapes = (
         "CIRCULAR",
         "FORCE_MAIN",
@@ -1216,6 +1257,7 @@ class Xsections(SectionDf):
 
 
 class Street(SectionDf):
+    _section_name = "STREETS"
     _ncol = 11
     _headings = [
         "Name",
@@ -1237,10 +1279,13 @@ class Street(SectionDf):
         return super()._from_section_text(text, cls._ncol)
 
 
-class Transects(SectionText): ...
+class Transects(SectionText):
+    _section_name = "TRANSECTS"
 
 
 class Timeseries(SectionBase):
+    _section_name = "TIMESERIES"
+
     def __init__(self, ts: dict):
         self._timeseries = ts
 
@@ -1455,6 +1500,7 @@ class Timeseries(SectionBase):
 
 
 class Patterns(SectionDf):
+    _section_name = "PATTERNS"
     _ncol = 3
     _headings = ["Name", "Type", "Multiplier"]
     _index_col = ["Name"]
@@ -1533,6 +1579,7 @@ class Patterns(SectionDf):
 
 
 class Inlet(SectionDf):
+    _section_name = "INLETS"
     _ncol = 7
     _headings = [
         "Name",
@@ -1546,6 +1593,7 @@ class Inlet(SectionDf):
 
 
 class Inlet_Usage(SectionDf):
+    _section_name = "INLET_USAGE"
     _ncol = 9
     _headings = [
         "Conduit",
@@ -1566,6 +1614,7 @@ class Inlet_Usage(SectionDf):
 
 
 class Losses(SectionDf):
+    _section_name = "LOSSES"
     _ncol = 6
     _headings = ["Link", "Kentry", "Kexit", "Kavg", "FlapGate", "Seepage"]
     _index_col = "Link"
@@ -1574,11 +1623,24 @@ class Losses(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol)
 
+    def to_swmm_string(self) -> str:
+        df = self.copy(deep=True)
 
-class Controls(SectionText): ...
+        for col in self._data_cols(desc=False):
+            if col != "FlapGate":
+                df[col] = df[col].infer_objects(copy=False).fillna(0.0)
+            else:
+                df[col] = df[col].infer_objects(copy=False).fillna("NO")
+
+        return super(Losses, df).to_swmm_string()
+
+
+class Controls(SectionText):
+    _section_name = "CONTROLS"
 
 
 class Pollutants(SectionDf):
+    _section_name = "POLLUTANTS"
     _ncol = 11
     _headings = [
         "Name",
@@ -1601,6 +1663,7 @@ class Pollutants(SectionDf):
 
 
 class LandUse(SectionDf):
+    _section_name = "LANDUSES"
     _ncol = 4
     _headings = ["Name", "SweepInterval", "Availability", "LastSweep"]
     _index_col = "Name"
@@ -1616,6 +1679,7 @@ class LandUse(SectionDf):
 
 
 class Coverage(SectionDf):
+    _section_name = "COVERAGES"
     _ncol = 3
     _headings = ["Subcatchment", "landuse", "Percent"]
     _index_col = ["Subcatchment", "landuse"]
@@ -1636,6 +1700,7 @@ class Coverage(SectionDf):
 
 
 class Loading(SectionDf):
+    _section_name = "LOADINGS"
     _ncol = 3
     _headings = ["Subcatchment", "Pollutant", "InitBuildup"]
     _index_col = ["Subcatchment", "Pollutant"]
@@ -1656,10 +1721,7 @@ class Loading(SectionDf):
 
 
 class Buildup(SectionDf):
-    """
-    ["Landuse", "Pollutant", "FuncType", "C1", "C2", "C3", "PerUnit"]
-    """
-
+    _section_name = "BUILDUP"
     _ncol = 4
     _headings = ["Landuse", "Pollutant", "FuncType", "C1", "C2", "C3", "PerUnit"]
     _index_col = ["Landuse", "Pollutant"]
@@ -1670,6 +1732,7 @@ class Buildup(SectionDf):
 
 
 class Washoff(SectionDf):
+    _section_name = "WASHOFF"
     _ncol = 4
     _headings = ["Landuse", "Pollutant", "FuncType", "C1", "C2", "SweepRmvl", "BmpRmvl"]
     _index_col = ["Landuse", "Pollutant"]
@@ -1680,6 +1743,7 @@ class Washoff(SectionDf):
 
 
 class Treatment(SectionDf):
+    _section_name = "TREATMENT"
     _ncol = 3
     _headings = ["Node", "Pollutant", "Func"]
     _index_col = ["Node", "Pollutant"]
@@ -1697,14 +1761,14 @@ class Treatment(SectionDf):
         return out
 
 
-# TODO needs double quote handler for timeseries heading
 class Inflow(SectionDf):
+    _section_name = "INFLOWS"
     _ncol = 8
     _headings = [
         "Node",
         "Constituent",
         "TimeSeries",
-        "Type",
+        "InflowType",
         "Mfactor",
         "Sfactor",
         "Baseline",
@@ -1732,11 +1796,12 @@ class Inflow(SectionDf):
 
 
 class DWF(SectionDf):
+    _section_name = "DWF"
     _ncol = 7
     _headings = [
         "Node",
         "Constituent",
-        "Baseline",
+        "AvgValue",
         "Pat1",
         "Pat2",
         "Pat3",
@@ -1754,7 +1819,7 @@ class DWF(SectionDf):
 
     def to_swmm_string(self) -> str:
         df = self.copy(deep=True)
-        df["Baseline"] = df["Baseline"].infer_objects(copy=False).fillna(0.0)
+        df["AvgValue"] = df["AvgValue"].infer_objects(copy=False).fillna(0.0)
 
         for ipat in range(1, 5):
             col = f"Pat{ipat}"
@@ -1765,6 +1830,7 @@ class DWF(SectionDf):
 
 
 class RDII(SectionDf):
+    _section_name = "RDII"
     _ncol = 3
     _headings = ["Node", "UHgroup", "SewerArea"]
     _index_col = "Node"
@@ -1775,6 +1841,7 @@ class RDII(SectionDf):
 
 
 class Hydrographs(SectionDf):
+    _section_name = "HYDROGRAPHS"
     _ncol = 9
     _headings = [
         "Name",
@@ -1849,6 +1916,7 @@ class Hydrographs(SectionDf):
 
 
 class Curves(SectionDf):
+    _section_name = "CURVES"
     _ncol = 4
     _headings = ["Name", "Type", "X_Value", "Y_Value"]
     _index_col = ["Name"]
@@ -1935,6 +2003,7 @@ class Curves(SectionDf):
 
 
 class Coordinates(SectionDf):
+    _section_name = "COORDINATES"
     _ncol = 3
     _headings = ["Node", "X", "Y"]
     _index_col = "Node"
@@ -1945,6 +2014,7 @@ class Coordinates(SectionDf):
 
 
 class Vertices(SectionDf):
+    _section_name = "VERTICIES"
     _ncol = 3
     _headings = ["Link", "X", "Y"]
     _index_col = "Link"
@@ -1955,6 +2025,7 @@ class Vertices(SectionDf):
 
 
 class Polygons(SectionDf):
+    _section_name = "POLYGONS"
     _ncol = 3
     _headings = ["Subcatch", "X", "Y"]
     _index_col = "Subcatch"
@@ -1965,6 +2036,7 @@ class Polygons(SectionDf):
 
 
 class Symbols(SectionDf):
+    _section_name = "SYMBOLS"
     _ncol = 3
     _headings = ["Gage", "X", "Y"]
     _index_col = "Gage"
@@ -1975,6 +2047,7 @@ class Symbols(SectionDf):
 
 
 class Labels(SectionDf):
+    _section_name = "LABELS"
     _ncol = 8
     _headings = [
         "Xcoord",
@@ -1993,6 +2066,7 @@ class Labels(SectionDf):
 
 
 class Tags(SectionDf):
+    _section_name = "TAGS"
     _ncol = 3
     _headings = ["Element", "Name", "Tag"]
     _index_col = ["Element", "Name"]
@@ -2002,10 +2076,12 @@ class Tags(SectionDf):
         return super()._from_section_text(text, cls._ncol)
 
 
-class Profile(SectionText): ...
+class Profile(SectionText):
+    _section_name = "PROFILE"
 
 
 class LID_Control(SectionDf):
+    _section_name = "LID_CONTROLS"
     _ncol = 9
     _headings = ["Name", "Type"]
     _index_col = "Name"
@@ -2032,6 +2108,7 @@ class LID_Control(SectionDf):
 
 
 class LID_Usage(SectionDf):
+    _section_name = "LID_USAGE"
     _ncol = 11
     _headings = [
         "Subcatchment",
@@ -2055,9 +2132,12 @@ class LID_Usage(SectionDf):
 
 
 class Adjustments(SectionDf):
-    _ncol = 13
+    _section_name = "ADJUSTMENTS"
+    _ncol = 15
     _headings = [
         "Parameter",
+        "Subcatchment",
+        "Pattern",
         "Jan",
         "Feb",
         "Mar",
@@ -2077,8 +2157,20 @@ class Adjustments(SectionDf):
     def from_section_text(cls, text: str):
         return super()._from_section_text(text, cls._ncol)
 
+    @classmethod
+    def _tabulate(cls, line: list[str | float | int]) -> TRow | list[TRow]:
+        out: TRow = [""] * cls._ncol
+        out[0] = line.pop(0)
+        if str(out[0]).lower() in ["n-perv", "dstore"]:
+            out[1 : 1 + len(line)] = line
+        else:
+            start = cls._headings.index("Jan")
+            out[start : start + len(line)] = line
+        return out
 
-class Backdrop(SectionText): ...
+
+class Backdrop(SectionText):
+    _section_name = "BACKDROP"
 
 
 # TODO: write custom to_string class
@@ -2115,7 +2207,8 @@ class Backdrop(SectionText): ...
 #         return f"Backdrop(dimensions = {self.dimensions}, file = {self.file})"
 
 
-class Map(SectionText): ...
+class Map(SectionText):
+    _section_name = "MAP"
 
 
 # TODO: write custom to_string class
@@ -2153,7 +2246,7 @@ class Map(SectionText): ...
 #         return f"Map(dimensions = {self.dimensions}, units = {self.units})"
 
 
-_sections = {
+_sections: dict[str, type[SectionBase]] = {
     "TITLE": Title,
     "OPTION": Option,
     "REPORT": Report,

@@ -9,7 +9,7 @@ import numpy.testing as nptest
 import numpy as np
 import pandas as pd
 import swmm.pandas.input._section_classes as sc
-from swmm.pandas import Input, Report
+from swmm.pandas import InputFile, Report
 from swmm.toolkit import solver
 
 pd.set_option("future.no_silent_downcasting", True)
@@ -29,20 +29,20 @@ class InputTest(unittest.TestCase):
         self.test_divider_model_path = str(_HERE / "data" / "Divider_Example.inp")
         self.test_outlet_model_path = str(_HERE / "data" / "Outlet_Example.inp")
 
-        self.test_base_model = Input(self.test_base_model_path)
-        self.test_lid_model = Input(self.test_lid_model_path)
-        self.test_det_pond_model = Input(self.test_det_pond_model_path)
-        self.test_street_model = Input(self.test_street_model_path)
-        self.test_site_drainage_model = Input(self.test_drainage_model_path)
-        self.test_divider_model = Input(self.test_divider_model_path)
-        self.test_outlet_model = Input(self.test_outlet_model_path)
+        self.test_base_model = InputFile(self.test_base_model_path)
+        self.test_lid_model = InputFile(self.test_lid_model_path)
+        self.test_det_pond_model = InputFile(self.test_det_pond_model_path)
+        self.test_street_model = InputFile(self.test_street_model_path)
+        self.test_site_drainage_model = InputFile(self.test_drainage_model_path)
+        self.test_divider_model = InputFile(self.test_divider_model_path)
+        self.test_outlet_model = InputFile(self.test_outlet_model_path)
 
         self.maxDiff = 1_000_000
 
-        # self.test_groundwater_model = Input(self.test_groundwater_model_path)
-        # self.test_street_model = Input(self.test_street_model_path)
-        # self.test_pump_model = Input(self.test_pump_model_path)
-        # self.test_drainage_model = Input(self.test_drainage_model_path)
+        # self.test_groundwater_model = InputFile(self.test_groundwater_model_path)
+        # self.test_street_model = InputFile(self.test_street_model_path)
+        # self.test_pump_model = InputFile(self.test_pump_model_path)
+        # self.test_drainage_model = InputFile(self.test_drainage_model_path)
 
     def test_title(self):
         inp = self.test_base_model
@@ -289,6 +289,8 @@ class InputTest(unittest.TestCase):
         nptest.assert_equal(
             inp.adjustments.columns.values,
             [
+                "Subcatchment",
+                "Pattern",
                 "Jan",
                 "Feb",
                 "Mar",
@@ -312,8 +314,19 @@ class InputTest(unittest.TestCase):
         )
 
         self.assertEqual(
-            inp.adjustments.to_swmm_string().split("\n")[3].strip(),
-            "EVAPORATION   1.0  2.0  -3.0  -4.0  -3.375  -2.75  -2.125  -1.5   -0.875  -0.25  0.375  1.0",
+            inp.adjustments.to_swmm_string(),
+            dedent(
+                """\
+                    ;;Parameter   Subcatchment  Pattern  Jan  Feb  Mar   Apr   May     Jun    Jul     Aug   Sep     Oct    Nov    Dec  
+                    ;;----------  ------------  -------  ---  ---  ----  ----  ------  -----  ------  ----  ------  -----  -----  ---  
+                    TEMPERATURE                          1    2    -3    -4    3       5      0.875   -10   9       1      -0.5   1    
+                    EVAPORATION                          1.0  2.0  -3.0  -4.0  -3.375  -2.75  -2.125  -1.5  -0.875  -0.25  0.375  1.0  
+                    RAINFALL                             1.0  2    -3    -4    3       5      0.875   -10   9       1.0    -0.5   1.0  
+                    CONDUCTIVITY                         1.0  2    -3    -4    3       5      0.875   -10   9       1.0    -0.5   1.0  
+                    N-PERV        SUB3          Monthly                                                                                
+                    DSTORE        SUB3          Monthly                                                                                
+                """,
+            ),
         )
 
     def test_subcatchments(self) -> None:
@@ -1076,7 +1089,7 @@ class InputTest(unittest.TestCase):
         inp.dwf.add_element(
             Node="JUNC1",
             Constituent="FLOW",
-            Baseline=1,
+            AvgValue=1,
             Pat3="HOURLY",
             desc="testing a pattern addition",
         )
@@ -1085,7 +1098,7 @@ class InputTest(unittest.TestCase):
             inp.dwf.to_swmm_string(),
             dedent(
                 """\
-                    ;;Node  Constituent  Baseline  Pat1      Pat2  Pat3      Pat4       
+                    ;;Node  Constituent  AvgValue  Pat1      Pat2  Pat3      Pat4       
                     ;;----  -----------  --------  --------  ----  --------  ---------  
                     ;added second pattern
                     JUNC2   FLOW         0.2       "HOURLY"  ""    ""        "HOURLY2"  
@@ -1404,7 +1417,7 @@ class InputTest(unittest.TestCase):
             bench_out,
         )
 
-        inp = Input(bench_inp)
+        inp = InputFile(bench_inp)
         inp.to_file(test_inp)
 
         solver.swmm_run(

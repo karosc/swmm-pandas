@@ -710,6 +710,8 @@ TEMPERATURE                     1      2      -3     -4     3      5      0.875 
 EVAPORATION                     1      2      -3     -4     3      5      0.875  -10    9      1      -0.5   1     
 RAINFALL                        1.0    2      -3     -4     3      5      0.875  -10    9      1.0    -0.5   1.0   
 CONDUCTIVITY                    1.0    2      -3     -4     3      5      0.875  -10    9      1.0    -0.5   1.0   
+N-PERV         SUB3             Monthly
+DSTORE         SUB3             Monthly
 
 [EVENTS]
 ;;Start Date         End Date

@@ -687,13 +687,13 @@ class Output:
     def _time2step(
         self,
         dateTime: (
-            None |
-            str |
-            int |
-            datetime |
-            Timestamp |
-            datetime64 |
-            Sequence[str | int | datetime | Timestamp | datetime64]
+            None
+            | str
+            | int
+            | datetime
+            | Timestamp
+            | datetime64
+            | Sequence[str | int | datetime | Timestamp | datetime64]
         ),
         ifNone: int = 0,
         method: str = "nearest",
@@ -1158,7 +1158,7 @@ class Output:
     def subcatch_series(
         self,
         subcatchment: int | str | Sequence[int | str] | None,
-        attribute: int | str | Enum | Sequence[int | str | Enum] | None = (
+        attribute: int | str | EnumMeta | Sequence[int | str | EnumMeta] | None = (
             "rainfall",
             "runoff_rate",
             "gw_outflow_rate",
@@ -1176,7 +1176,7 @@ class Output:
         subcatchment: Union[int, str, Sequence[Union[int, str]], None]
             The subcatchment index or name.
 
-        attribute: Union[int, str, Enum, Sequence[Union[int, str, Enum]], None],
+        attribute: int | str | EnumMeta | Sequence[int | str | EnumMeta] | None,
             The attribute index or name.
 
             On of:
@@ -1356,7 +1356,7 @@ class Output:
     def node_series(
         self,
         node: int | str | Sequence[int | str] | None,
-        attribute: int | str | Enum | Sequence[int | str | Enum] | None = (
+        attribute: int | str | EnumMeta | Sequence[int | str | EnumMeta] | None = (
             "invert_depth",
             "flooding_losses",
             "total_inflow",
@@ -1374,7 +1374,7 @@ class Output:
         node: Union[int, str, Sequence[Union[int, str]], None]
             The node index or name.
 
-        attribute: Union[int, str, Enum, Sequence[Union[int, str, Enum]], None],
+        attribute: int | str | EnumMeta | Sequence[int | str | EnumMeta] | None,
             The attribute index or name.
 
             On of:
@@ -1551,7 +1551,7 @@ class Output:
     def link_series(
         self,
         link: int | str | Sequence[int | str] | None,
-        attribute: int | str | Enum | Sequence[int | str | Enum] | None = (
+        attribute: int | str | EnumMeta | Sequence[int | str | EnumMeta] | None = (
             "flow_rate",
             "flow_velocity",
             "flow_depth",
@@ -1569,7 +1569,7 @@ class Output:
         link: Union[int, str, Sequence[Union[int, str]], None]
             The link index or name.
 
-        attribute: Union[int, str, Enum, Sequence[Union[int, str, Enum]], None]
+        attribute: int | str | EnumMeta | Sequence[int | str | EnumMeta] | None
             The attribute index or name.
 
             On of:
@@ -1747,7 +1747,7 @@ class Output:
     @output_open_handler
     def system_series(
         self,
-        attribute: int | str | Enum | Sequence[int | str | Enum] | None = None,
+        attribute: int | str | EnumMeta | Sequence[int | str | EnumMeta] | None = None,
         start: str | int | datetime | None = None,
         end: str | int | datetime | None = None,
         asframe: bool = True,
@@ -1757,7 +1757,7 @@ class Output:
 
         Parameters
         ----------
-        attribute: Union[int, str, Enum, Sequence[Union[int, str, Enum]], None]
+        attribute: int | str | EnumMeta | Sequence[int | str | EnumMeta] | None
             The attribute index or name.
 
             On of:
@@ -1849,7 +1849,7 @@ class Output:
     def subcatch_attribute(
         self,
         time: str | int | datetime,
-        attribute: int | str | Enum | Sequence[int | str | Enum] | None = (
+        attribute: int | str | EnumMeta | Sequence[int | str | EnumMeta] | None = (
             "rainfall",
             "runoff_rate",
             "gw_outflow_rate",
@@ -1863,7 +1863,7 @@ class Output:
         time: Union[str, int, datetime]
             The datetime or simulation index for which to pull data, defaults to None.
 
-        attribute: Union[int, str, Enum, Sequence[Union[int, str, Enum]], None],
+        attribute: int | str | EnumMeta | Sequence[int | str | EnumMeta] | None,
             The attribute index or name.
 
             On of:
@@ -1925,7 +1925,7 @@ class Output:
     def node_attribute(
         self,
         time: str | int | datetime,
-        attribute: int | str | Enum | Sequence[int | str | Enum] | None = (
+        attribute: int | str | EnumMeta | Sequence[int | str | EnumMeta] | None = (
             "invert_depth",
             "flooding_losses",
             "total_inflow",
@@ -1939,7 +1939,7 @@ class Output:
         time: Union[str, int, datetime]
             The datetime or simulation index for which to pull data, defaults to None
 
-        attribute: Union[int, str, Enum, Sequence[Union[int, str, Enum]], None],
+        attribute: int | str | EnumMeta | Sequence[int | str | EnumMeta] | None,
             The attribute index or name.
 
             On of:
@@ -2007,7 +2007,7 @@ class Output:
     def link_attribute(
         self,
         time: str | int | datetime,
-        attribute: int | str | Enum | Sequence[int | str | Enum] | None = (
+        attribute: int | str | EnumMeta | Sequence[int | str | EnumMeta] | None = (
             "flow_rate",
             "flow_velocity",
             "flow_depth",
@@ -2021,7 +2021,7 @@ class Output:
         time: Union[str, int, datetime]
             The datetime or simulation index for which to pull data, defaults to None.
 
-        attribute: Union[int, str, Sequence[Union[int, str]], None]
+        attribute: int | str | EnumMeta | Sequence[int | str | EnumMeta] | None
             The attribute index or name.
 
             On of:
@@ -2087,7 +2087,7 @@ class Output:
     def system_attribute(
         self,
         time: str | int | datetime,
-        attribute: int | str | Enum | Sequence[int | str | Enum] | None = None,
+        attribute: int | str | EnumMeta | Sequence[int | str | EnumMeta] | None = None,
         asframe=True,
     ) -> DataFrame | ndarray:
         """For all nodes at given time, get a one or more attributes.
