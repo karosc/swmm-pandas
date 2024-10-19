@@ -61,7 +61,7 @@ def no_setter_property(func: Callable[[Any], T]) -> property:
 
 class Input:
 
-    def __init__(self, inpfile: Optional[str | Input] = None):
+    def __init__(self, inpfile: Optional[str | InputFile] = None):
         if isinstance(inpfile, InputFile):
             self.inp = inpfile
         elif isinstance(inpfile, str | pathlib.Path):
@@ -94,33 +94,23 @@ class Input:
 
     # destructors
     def _general_destructor(
-        self, inp_frame: pd.DataFrame, output_frames: list[SectionDf]
+        self, inp_frames: list[pd.DataFrame], output_frame: SectionDf
     ) -> None:
-        for output_frame in output_frames:
-            output_frame_name = output_frame.__class__.__name__.lower()
-            cols = output_frame._data_cols(desc=False)
+
+        inp_dfs = []
+        output_frame_name = output_frame.__class__.__name__.lower()
+        cols = output_frame._data_cols(desc=False)
+        for inp_frame in inp_frames:
             inp_df = inp_frame.loc[:, cols]
-            out_df = copy.deepcopy(output_frame)
+            inp_dfs.append(out_df)
 
-            out_df = out_df.reindex(
-                out_df.index.union(inp_df.index).rename(out_df.index.name)
-            )
-            out_df.loc[inp_df.index, cols] = inp_df[list(cols)]
-            out_df = out_df.dropna(how="all")
-            setattr(self.inp, output_frame_name, out_df)
+        out_df = copy.deepcopy(output_frame)
+        inp_df = pd.concat([inp_dfs], axis=0)
 
-    def _destruct_tags(
-        self,
-        input_frame: pd.DataFrame,
-        element_type: str,
-    ) -> None:
-        tag_df = self._extract_table_and_restore_multi_index(
-            input_frame=input_frame,
-            input_index_name="Name",
-            output_frame=self.inp.tags,
-            prepend=[("Element", element_type)],
-        )
-        self.inp.tags = tag_df
+        out_df = out_df.reindex(inp_df.index.rename(out_df.index.name))
+        out_df.loc[inp_df.index, cols] = inp_df[cols]
+        out_df = out_df.dropna(how="all")
+        setattr(self.inp, output_frame_name, out_df)
 
     def _extract_table_and_restore_multi_index(
         self,
@@ -160,6 +150,67 @@ class Input:
 
     # endregion General df constructors and destructors ######
 
+    # %% ##########################################################
+    # region DESTRUCTORS ##########################################
+    # Methods to keep the input file class in sync with this class
+    ###############################################################
+    def _destruct_tags(self) -> None:
+        tagged_dfs = [
+            (self.junc, "Node"),
+            (self.outfall, "Node"),
+            (self.storage, "Node"),
+            (self.divider, "Node"),
+            (self.conduit, "Link"),
+            (self.pump, "Link"),
+            (self.weir, "Link"),
+            (self.orifice, "Link"),
+            (self.outlet, "Link"),
+            # (self.subcatchment,'Subcatch')
+        ]
+        tag_dfs = [
+            self._extract_table_and_restore_multi_index(
+                input_frame=inp_df,
+                input_index_name="Name",
+                output_frame=self.inp.tags,
+                prepend=[("Element", elem_type)],
+            )
+            for inp_df, elem_type in tagged_dfs
+        ]
+
+        tag_df = pd.concat(tag_dfs, axis=0)
+        self.inp.tags = tag_df
+
+    def _destruct_nodes(self) -> None:
+        node_dfs = [self.junc, self.outfall, self.storage, self.divider]
+
+        out_dfs = [self.inp.rdii, self.inp.coordinates]
+        inflo_dfs = [self.inp.dwf, self.inp.inflow]
+
+        for df in out_dfs:
+            self._general_destructor(inp_frames=node_dfs, output_frame=df)
+        # for df in inflo_dfs:
+        #     inp_dfs = [
+        #         self._extract_table_and_restore_multi_index(
+        #         input_frame=inp_df,
+        #         input_index_name="Node",
+        #         output_frame=df,
+        #         prepend=[("Element", elem_type)],
+        #     ) for inp_df,elem_type in tagged_dfs
+        # ]
+
+    def _destruct_xsect(self) -> None:
+        if (
+            hasattr(self, "_conduit_full")
+            or hasattr(self, "_weir_full")
+            or hasattr(self, "_orifice_full")
+        ):
+            self._general_destructor(
+                inp_frames=[self.conduit, self.weir, self.orifice],
+                output_frame=self.inp.xsection,
+            )
+
+    # endregion DESTRUCTORS ######
+
     # %% ###########################
     # region Generalized NODES #####
     ################################
@@ -182,31 +233,31 @@ class Input:
             ]
         )
 
-    def _node_destructor(self, inp_df: pd.DataFrame, out_df: SectionDf) -> None:
-        self._general_destructor(
-            inp_df,
-            [
-                out_df,
-                self.inp.rdii,
-                self.inp.coordinates,
-            ],
-        )
+    # def _node_destructor(self, inp_df: pd.DataFrame, out_df: SectionDf) -> None:
+    #     self._general_destructor(
+    #         inp_df,
+    #         [
+    #             out_df,
+    #             self.inp.rdii,
+    #             self.inp.coordinates,
+    #         ],
+    #     )
 
-        self._destruct_tags(inp_df, "Node")
+    #     self._destruct_tags(inp_df, "Node")
 
-        self.inp.dwf = self._extract_table_and_restore_multi_index(
-            input_frame=inp_df,
-            input_index_name="Node",
-            output_frame=self.inp.dwf,
-            append=[("Constituent", "FLOW")],
-        )
+    #     self.inp.dwf = self._extract_table_and_restore_multi_index(
+    #         input_frame=inp_df,
+    #         input_index_name="Node",
+    #         output_frame=self.inp.dwf,
+    #         append=[("Constituent", "FLOW")],
+    #     )
 
-        self.inp.inflow = self._extract_table_and_restore_multi_index(
-            input_frame=inp_df,
-            input_index_name="Node",
-            output_frame=self.inp.inflow,
-            append=[("Constituent", "FLOW")],
-        )
+    #     self.inp.inflow = self._extract_table_and_restore_multi_index(
+    #         input_frame=inp_df,
+    #         input_index_name="Node",
+    #         output_frame=self.inp.inflow,
+    #         append=[("Constituent", "FLOW")],
+    #     )
 
     # endregion NODES and LINKS ######
 
@@ -224,7 +275,7 @@ class Input:
 
     def _junction_destructor(self) -> None:
         if hasattr(self, "_junc_full"):
-            self._node_destructor(self.junc, self.inp.junc)
+            self._general_destructor([self.junc], self.inp.junc)
 
     ######## OUTFALLS #########
     @no_setter_property
@@ -236,7 +287,7 @@ class Input:
 
     def _outfall_destructor(self) -> None:
         if hasattr(self, "_outfall_full"):
-            self._node_destructor(self.outfall, self.inp.outfall)
+            self._general_destructor([self.outfall], self.inp.outfall)
 
     ######## STORAGE #########
     @no_setter_property
@@ -248,19 +299,19 @@ class Input:
 
     def _storage_destructor(self) -> None:
         if hasattr(self, "_storage_full"):
-            self._node_destructor(self.storage, self.inp.storage)
+            self._general_destructor([self.storage], self.inp.storage)
 
     ######## DIVIDER #########
     @no_setter_property
     def divider(self):
         if not hasattr(self, "_divider_full"):
-            self._divider_full = self._node_constructor(self.inp.divider)
+            self._divider_full = self._general_destructor(self.inp.divider)
 
         return self._storage_full
 
     def _storage_destructor(self) -> None:
         if hasattr(self, "_divider_full"):
-            self._node_destructor(self.divider, self.inp.divider)
+            self._general_destructor([self.divider], self.inp.divider)
 
     ######### CONDUITS #########
     @no_setter_property
@@ -304,13 +355,7 @@ class Input:
 
     def _pump_destructor(self) -> None:
         if hasattr(self, "_pump_full"):
-            self._general_destructor(
-                self.pump,
-                [
-                    self.inp.pump,
-                ],
-            )
-            self._destruct_tags(self.pump, "Link")
+            self._general_destructor([self.pump], self.inp.pump)
 
     ######## WEIRS #########
     @no_setter_property
@@ -319,6 +364,7 @@ class Input:
             self._weir_full = self._general_constructor(
                 [
                     self.inp.weir,
+                    self.inp.xsections,
                     self.inp.tags.loc[slice("Link", "Link"), slice(None)].droplevel(0),
                 ]
             )

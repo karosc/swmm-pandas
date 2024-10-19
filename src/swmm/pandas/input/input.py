@@ -9,10 +9,11 @@ import swmm.pandas.input._section_classes as sc
 import pathlib
 import re
 import warnings
-from typing import TYPE_CHECKING, Optional, Self
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from swmm.pandas.input.model import Model
+    from swmm.pandas.input.model import Input
+    from typing import Optional, Self
 
 
 class InputFile:

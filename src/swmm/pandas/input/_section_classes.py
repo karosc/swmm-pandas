@@ -1635,8 +1635,79 @@ class Losses(SectionDf):
         return super(Losses, df).to_swmm_string()
 
 
-class Controls(SectionText):
+class Controls(SectionBase):
     _section_name = "CONTROLS"
+
+    @dataclass
+    class Control:
+        name: str
+        control_text: str
+        desc: str
+
+    def __init__(self, controls: dict[str:Control]):
+        self.controls = controls
+
+    @classmethod
+    def from_section_text(cls, text: str, *args, **kwargs) -> Self:
+        # The regex pattern:
+        # (?m)      - Enable multiline mode to make ^ match start of each line
+        # ^         - Match start of line
+        # \s*       - Match any whitespace at start of line
+        # RULE\s+   - Match "RULE" followed by whitespace
+        # \S+       - Match the rule name (non-whitespace characters)
+        rule_line_pattern = R"(?m)^\s*RULE\s+\S+"
+        rules: dict[str : Controls.Control] = {}
+        rule_start_pattern = R"(?m)(?:^;+.*\n)*^RULE.*"
+        matches = list(re.finditer(rule_start_pattern, text))
+        start_char = 0
+        end_char = 0
+        for imatch in range(len(matches)):
+            if imatch == len(matches) - 1:
+                end_char = -1
+            else:
+                end_char = matches[imatch + 1].start()
+
+            rule_block = text[start_char:end_char]
+            mat = re.search(rule_line_pattern, rule_block)
+            if mat is None:
+                raise Exception(f"Error parsing rule\n{rule_block}")
+            else:
+                desc, rule = re.split(rule_line_pattern, rule_block)
+                rule = f"{mat.group()}{rule}"
+                rule_name = mat.group().split()[1]
+                rules[rule_name] = Controls.Control(
+                    name=rule_name, control_text=rule, desc=desc
+                )
+
+            start_char = end_char
+
+        return cls(rules)
+
+    def __len__(self):
+        return len(self.controls)
+    
+    @classmethod
+    def _from_section_text(cls, text: str, *args, **kwargs) -> Self: ...
+
+    @classmethod
+    def _new_empty(cls) -> Self:
+        return cls({})
+
+    @classmethod
+    def _newobj(cls, *args, **kwargs) -> Self:
+        return cls(*args, **kwargs)
+
+    def to_swmm_string(self) -> str:
+        out_text = ""
+        for control in self.controls.values():
+            if len(control.desc) > 0:
+
+                out_text += control.desc.strip("\n") + "\n"
+            out_text += control.control_text.strip("\n") + "\n\n"
+        return out_text
+
+    def add_control(self, name: str, control_text: str, desc: str):
+        self.controls[name] = Controls.Control(name, control_text, desc)
 
 
 class Pollutants(SectionDf):
@@ -2000,6 +2071,35 @@ class Curves(SectionDf):
         df = Curves(df.sort_index(ascending=[True, True]))
         df.index = df.index.droplevel("Curve_Index")
         return super(Curves, df).to_swmm_string()
+
+    def add_curve(
+        self, name: str, curve_type: str, x_values: list[float], y_values: list[float]
+    ) -> None:
+        if curve_type.upper() not in self._valid_types:
+            raise ValueError(f"{curve_type!r} is not a value swmm curve type.")
+        if name in self.index.get_level_values("Name").unique():
+            raise ValueError(
+                f"Curve {name!r} already exists in section. Drop it first before adding."
+            )
+        if len(x_values) != len(y_values):
+            raise ValueError(f"x_values and y_value are different shapes.")
+        idx = pd.MultiIndex.from_product(
+            [
+                [name],
+                range(len(x_values)),
+            ],
+            names=["Name", "Curve_Index"],
+        )
+        df = pd.DataFrame(
+            {"X_Value": x_values, "Y_Value": y_values, "desc": [""] * len(x_values)},
+            index=idx,
+        )
+
+        df = pd.concat([self, df], axis=0)
+        attrs = self.attrs
+        attrs[name] = curve_type
+        self.__init__(df)
+        self.attrs = attrs
 
 
 class Coordinates(SectionDf):

@@ -1,4 +1,4 @@
-"""Tests for `swmm-pandas` input class."""
+"""Tests for `swmm-pandas` InputFile class."""
 
 import datetime
 import pathlib
@@ -16,7 +16,7 @@ pd.set_option("future.no_silent_downcasting", True)
 _HERE = pathlib.Path(__file__).parent
 
 
-class InputTest(unittest.TestCase):
+class InputFileTest(unittest.TestCase):
     def setUp(self):
         self.test_base_model_path = str(_HERE / "data" / "bench_inp.inp")
         self.test_groundwater_model_path = str(_HERE / "data" / "Groundwater_Model.inp")
@@ -1059,7 +1059,7 @@ class InputTest(unittest.TestCase):
         inp.inflow.add_element(
             Node="JUNC4",
             Constituent="FLOW",
-            Type="FLOW",
+            InflowType="FLOW",
             Baseline=10,
             desc="new inflow!",
         )
@@ -1068,14 +1068,14 @@ class InputTest(unittest.TestCase):
             inp.inflow.to_swmm_string(),
             dedent(
                 """\
-                    ;;Node  Constituent  TimeSeries       Type    Mfactor  Sfactor  Baseline  Pattern  
-                    ;;----  -----------  ---------------  ------  -------  -------  --------  -------  
-                    JUNC1   FLOW         "inflow_series"  FLOW    1.0      1.0      0.25      HOURLY   
-                    JUNC2   FLOW         ""               FLOW    1.0      1.0      10.0               
+                    ;;Node  Constituent  TimeSeries       InflowType  Mfactor  Sfactor  Baseline  Pattern  
+                    ;;----  -----------  ---------------  ----------  -------  -------  --------  -------  
+                    JUNC1   FLOW         "inflow_series"  FLOW        1.0      1.0      0.25      HOURLY   
+                    JUNC2   FLOW         ""               FLOW        1.0      1.0      10.0               
                     ;added hourly poll pattern
-                    JUNC3   Sewage       ""               CONCEN  1.0      1.0      100.0     HOURLY   
+                    JUNC3   Sewage       ""               CONCEN      1.0      1.0      100.0     HOURLY   
                     ;new inflow!
-                    JUNC4   FLOW         ""               FLOW    1.0      1.0      10.0               
+                    JUNC4   FLOW         ""               FLOW        1.0      1.0      10.0               
                 """
             ),
         )

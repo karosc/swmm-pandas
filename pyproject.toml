@@ -34,23 +34,32 @@ classifiers = [
 
 [project.urls]
 Homepage = "https://github.com/karosc/swmm-pandas"
-[build-system]
-requires = ["pdm-backend"]
-build-backend = "pdm.backend"
 
-[tool.pdm.version]
-source = "file"
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
 path = "src/swmm/pandas/__init__.py"
 
-[tool.pdm]
-distribution = true
-package-dir = "src"
+[tool.hatch.metadata]
+allow-dynamic = ["version"]
+readme = "README.md"
+license = {text = "CC BY 4.0"}
 
-[tool.pdm.build]
-includes = ["src/swmm"]
+[tool.hatch.build.targets.sdist]
+exclude = [
+  "/scripts",
+  "/tests",
+  "/docs",
+]
 
-[tool.pdm.dev-dependencies]
-docs = [
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/swmm"]
+
+[project.optional-dependencies]
+dev = [
     "sphinx",
     "nbsphinx",
     "sphinx-autobuild",
@@ -59,14 +68,11 @@ docs = [
     "furo",
     "numpydoc",
     "ipython",
-
-]
-lint = [
     "ruff",
-    "mypy"
+    "mypy",
+    "pytest",
+    "coverage",
 ]
-
-test = ["pytest", "coverage"]
 
 [tool.mypy]
 allow_redefinition = true

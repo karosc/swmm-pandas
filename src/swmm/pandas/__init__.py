@@ -1,6 +1,6 @@
 """Top-level package for swmm.pandas"""
 
-__version__ = "0.5.1"
+__version__ = "0.7.5"
 
 from swmm.pandas.output import Output
 from swmm.pandas.report import Report
