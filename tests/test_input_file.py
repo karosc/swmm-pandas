@@ -918,7 +918,7 @@ class InputFileTest(unittest.TestCase):
             inp.coverage.to_swmm_string(),
             dedent(
                 """\
-                    ;;Subcatchment  landuse        Percent  
+                    ;;Subcatchment  LandUse        Percent  
                     ;;------------  -------------  -------  
                     S1              Residential_1  100      
                     S2              Residential_1  27       
@@ -1402,14 +1402,14 @@ class InputFileTest(unittest.TestCase):
 
     def test_rerun(self):
         bench_inp = self.test_base_model_path
-        bench_rpt = bench_inp.replace("inp", "rpt")
-        bench_out = bench_inp.replace("inp", "out")
+        bench_rpt = bench_inp.replace(".inp", ".rpt")
+        bench_out = bench_inp.replace(".inp", ".out")
 
         test_inp = str(
             pathlib.Path(self.test_base_model_path).parent / "test_model.inp"
         )
-        test_rpt = test_inp.replace("inp", "rpt")
-        test_out = test_inp.replace("inp", "out")
+        test_rpt = test_inp.replace(".inp", ".rpt")
+        test_out = test_inp.replace(".inp", ".out")
 
         solver.swmm_run(
             bench_inp,

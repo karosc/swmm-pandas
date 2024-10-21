@@ -16,9 +16,17 @@ for section, obj in sections.items():
     # out_str += sectstring
     docstring = ""
     if hasattr(obj, "headings"):
-        docstring += f'"{obj.headings}"\n'
+        idx = (
+            tuple(obj._index_col)
+            if isinstance(obj._index_col, list)
+            else f"({obj._index_col!r})"
+        )
+        docstring += f'"{idx}{obj._data_cols()}"\n'
+    elif isinstance(doc := obj.__doc__, str):
+        string = doc.strip().strip("\n").splitlines()[0]
+        docstring += f'"{string}"\n'
     sectstring = f"""\
-@propery
+@property
 def {obj.__name__.lower()}(self) -> sc.{obj.__name__}:
     {docstring if len(docstring)>0 else ''}
     if not hasattr(self, "_{obj.__name__.lower()}"):

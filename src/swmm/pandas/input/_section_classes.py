@@ -111,6 +111,14 @@ def _is_data(line: str):
     return True
 
 
+def _is_nested_list(l: TRow | list[TRow]) -> TypeGuard[list[TRow]]:
+    return isinstance(l[0], list)
+
+
+def _is_not_nested_list(l: TRow | list[TRow]) -> TypeGuard[TRow]:
+    return not isinstance(l[0], list)
+
+
 def comment_formatter(line: str):
     if len(line) > 0:
         line = ";" + line.strip().strip("\n").strip()
@@ -133,6 +141,7 @@ class SectionSeries(pd.Series):
 
 
 class SectionBase(ABC):
+    """An abstract base class for a swmm section object"""
 
     _section_name: str
 
@@ -156,6 +165,8 @@ class SectionBase(ABC):
 
 
 class SectionText(SectionBase, str):
+    """A swmm section class for basic string sections (e.g. [TITLE])"""
+
     @classmethod
     def from_section_text(cls, text: str) -> Self:
         """Construct an instance of the class from the section inp text"""
@@ -178,13 +189,30 @@ class SectionText(SectionBase, str):
 
 
 class SectionDf(SectionBase, pd.DataFrame):
+    """
+    Base class for all sections that inherit from pandas dataframes.
+
+    Basic sections that follow standard tabular structure with a uniform number of columns
+    in every line can just inherit from this class without any addition.
+
+    Some sections permit varying number of columns depending on keywords, those sections
+    will need custom parsing logic via overriding the _tabulate and _get_rows methods.
+    """
+
     _metadata = ["_ncol", "_headings", "headings"]
     _ncol: int = 0
     _headings: list[str] = []
-    _index_col: list[str] | str | None = None
+    _index_col: list[str] | str = []
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # can't validate headings on init due to pandas inheritance non-sense
+        # object creation validation moved to classmethod from_frame
+        # self._validate_headings()
 
     @classmethod
     def _data_cols(cls, desc: bool = True) -> list[str]:
+        """Returns non-index columns names, optionally with the desc column."""
         if isinstance(cls._index_col, str):
             idx = [copy.deepcopy(cls._index_col)]
         else:
@@ -197,15 +225,31 @@ class SectionDf(SectionBase, pd.DataFrame):
 
     @classproperty
     def headings(cls) -> list[str]:
+        """Returns all headings in the dataframe, including index names."""
         return (
             cls._headings
             + [f"param{i+1}" for i in range(cls._ncol - len(cls._headings))]
             + ["desc"]
         )
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # self._validate_headings()
+    @classmethod
+    def from_frame(cls, obj: pd.DataFrame) -> Self:
+        """Create SWMM section from a dataframe, validating the column headings."""
+        df = cls(obj)
+        df._validate_headings()
+        df = df.reset_index().reindex(cls.headings, axis=1).set_index(cls._index_col)
+        return df
+
+    def _validate_headings(self) -> None:
+        missing = []
+        for heading in self.headings:
+            if heading not in self.reset_index().columns:
+                missing.append(heading)
+        if len(missing) > 0:
+            # print('cols: ',self.columns)
+            raise ValueError(
+                f"{self.__class__.__name__} section is missing columns {missing}"
+            )
 
     @classmethod
     def from_section_text(cls, text: str) -> Self:
@@ -216,7 +260,7 @@ class SectionDf(SectionBase, pd.DataFrame):
     def _from_section_text(cls, text: str, ncols: int) -> Self:
         """
 
-        Parse the SWMM section t ext into a dataframe
+        Parse the SWMM section text into a dataframe
 
         This is a generic parser that assumes the SWMM section is tabular with the each row
         having the same number of tokens (i.e. columns). Comments preceeding a row in the inp file
@@ -261,14 +305,6 @@ class SectionDf(SectionBase, pd.DataFrame):
         #     df.set_index(cls._index_col)
         # return df
 
-    @staticmethod
-    def _is_nested_list(l: TRow | list[TRow]) -> TypeGuard[list[TRow]]:
-        return isinstance(l[0], list)
-
-    @staticmethod
-    def _is_not_nested_list(l: TRow | list[TRow]) -> TypeGuard[TRow]:
-        return not isinstance(l[0], list)
-
     @classmethod
     def _get_rows(
         cls,
@@ -276,11 +312,12 @@ class SectionDf(SectionBase, pd.DataFrame):
         ncols: int,
         line_comment: str,
     ) -> list[TRow]:
+        """Function to collapse multi object lines and add comments to each"""
 
         _table_data: list[TRow]
-        if cls._is_nested_list(table_data):
+        if _is_nested_list(table_data):
             _table_data = table_data
-        elif cls._is_not_nested_list(table_data):
+        elif _is_not_nested_list(table_data):
             _table_data = [table_data]
         else:
             raise Exception(f"Error parsing row {table_data}")
@@ -321,22 +358,12 @@ class SectionDf(SectionBase, pd.DataFrame):
 
     @classmethod
     def _newobj(cls, *args, **kwargs) -> Self:
+        """Pandas inhertance requirement"""
         df = cls(*args, **kwargs)
         return df
 
-    def _validate_headings(self) -> None:
-        missing = []
-        for heading in self.headings:
-            if heading not in self.reset_index().columns:
-                missing.append(heading)
-        if len(missing) > 0:
-            # print('cols: ',self.columns)
-            raise ValueError(
-                f"{self.__class__.__name__} section is missing columns {missing}"
-            )
-            # self.reindex(self.headings,inplace=True)
-
     def add_element(self, **kwargs) -> Self:
+        """Convenience function?"""
         # Create a new row with NaN values for all columns
         headings = self.headings.copy()
         idx_name: str | tuple[str, ...]
@@ -457,7 +484,9 @@ class Title(SectionText):
 class Option(SectionDf):
     """
     Index: Option
-    Columns: Value
+    Columns: [Value]
+
+    Provides values for various analysis options.
     """
 
     _section_name = "OPTIONS"
@@ -474,6 +503,40 @@ class Option(SectionDf):
 
 
 class Report(SectionBase):
+    """
+    Data class with attribute for each report option.
+
+    Describes the contents of the report file that is produced.
+
+    Examples
+    --------
+
+    >>>inp.report
+    INPUT NO
+    CONTROLS NO
+    SUBCATCHMENTS ALL
+    NODES ALL
+    LINKS ALL
+    >>>inp.report.INPUT='YES'
+    >>>inp.report
+    INPUT YES
+    CONTROLS NO
+    SUBCATCHMENTS ALL
+    NODES ALL
+    LINKS ALL
+    >>>inp.report.LID.add(
+    ... 'MyLID',
+    ... 'SUB1',
+    ... 'Outfile.lid'
+    )
+    INPUT YES
+    CONTROLS NO
+    SUBCATCHMENTS ALL
+    NODES ALL
+    LINKS ALL
+    LID MyLID SUB1 Outfile.lid
+    """
+
     _section_name = "REPORT"
 
     @dataclass
@@ -635,10 +698,19 @@ class Report(SectionBase):
 
 
 class Files(SectionText):
+    """String to hold files section"""
+
     _section_name = "FILES"
 
 
 class Event(SectionDf):
+    """
+    Index:
+    Columns: [Start, End, desc]
+
+    Describes the start and end time of hydraulic computation events.
+    """
+
     _section_name = "EVENT"
     _ncol = 2
     _headings = ["Start", "End"]
@@ -673,6 +745,13 @@ class Event(SectionDf):
 
 
 class Raingage(SectionDf):
+    """
+    Index: 'Name'
+    Columns: [Format, Interval, SCF, Source_Type, Source, Station, Units]
+
+    Identifies each rain gage that provides rainfall data for the study area.
+    """
+
     _section_name = "RAINGAGES"
     _ncol = 8
     _headings = [
@@ -693,6 +772,13 @@ class Raingage(SectionDf):
 
 
 class Evap(SectionDf):
+    """
+    Index: 'Type'
+    Columns: [param1, param2, param3, param4, param5, param6, param7, param8, param9, param10, param11, param12, desc]
+
+    Specifies how daily potential evaporation rates vary with time for the study area.
+    """
+
     _section_name = "EVAPORATION"
     _ncol = 13
     _headings = ["Type"]
@@ -704,6 +790,13 @@ class Evap(SectionDf):
 
 
 class Temperature(SectionDf):
+    """
+    Index: 'Option'
+    Columns: [param1, param2, param3, param4, param5, param6, param7, param8, param9, param10, param11, param12, param13, desc]
+
+    Specifies daily air temperatures, monthly wind speed, and various snowmelt parameters for the study area.
+    """
+
     _section_name = "TEMPERATURE"
     _ncol = 14
     _headings = ["Option"]
@@ -715,6 +808,14 @@ class Temperature(SectionDf):
 
 
 class Subcatchment(SectionDf):
+    """
+    Index: 'Name'
+    Columns: ['RainGage', 'Outlet', 'Area', 'PctImp', 'Width', 'Slope', 'CurbLeng', 'SnowPack', 'desc']
+
+    Identifies each subcatchment within the study area. Subcatchments are land area units which
+    generate runoff from rainfall.
+    """
+
     _section_name = "SUBCATCHMENTS"
     _ncol = 9
     _headings = [
@@ -736,6 +837,15 @@ class Subcatchment(SectionDf):
 
 
 class Subarea(SectionDf):
+    """
+    Index: 'Subcatchment'
+    Columns: ['Nimp', 'Nperv', 'Simp', 'Sperv', 'PctZero', 'RouteTo', 'PctRouted', 'desc']
+
+    Supplies information about pervious and impervious areas for each subcatchment. Each
+    subcatchment can consist of a pervious subarea, an impervious subarea with depression
+    storage, and an impervious subarea without depression storage
+    """
+
     _section_name = "SUBAREAS"
     _ncol = 8
     _headings = [
@@ -756,6 +866,14 @@ class Subarea(SectionDf):
 
 
 class Infil(SectionDf):
+    """
+    Index: 'Subcatchment'
+    Columns: ['param1', 'param2', 'param3', 'param4', 'param5', 'Method', 'desc']
+
+    Supplies infiltration parameters for each subcatchment. Rainfall lost to infiltration only occurs
+    over the pervious subarea of a subcatchment.
+    """
+
     _section_name = "INFILTRATION"
     _ncol = 7
     _headings = [
@@ -797,6 +915,15 @@ class Infil(SectionDf):
 
 
 class Aquifer(SectionDf):
+    """
+    Index: 'Name'
+    Columns: ['Por', 'WP', 'FC', 'Ksat', 'Kslope', 'Tslope', 'ETu', 'ETs', 'Seep', 'Ebot', 'Egw', 'Umc', 'ETupat', 'desc']
+
+    Supplies parameters for each unconfined groundwater aquifer in the study area. Aquifers
+    consist of two zones - a lower saturated zone and an upper unsaturated zone with a moving
+    boundary between the two.
+    """
+
     _section_name = "AQUIFERS"
     _ncol = 14
     _headings = [
@@ -823,6 +950,14 @@ class Aquifer(SectionDf):
 
 
 class Groundwater(SectionDf):
+    """
+    Index: 'Subcatchment'
+    Columns: ['Aquifer', 'Node', 'Esurf', 'A1', 'B1', 'A2', 'B2', 'A3', 'Dsw', 'Egwt', 'Ebot', 'Wgr', 'Umc', 'desc']
+
+    Supplies parameters that determine the rate of groundwater flow between the aquifer
+    underneath a subcatchment and a node of the conveyance system.
+    """
+
     _section_name = "GROUNDWATER"
     _ncol = 14
     _headings = [
@@ -849,6 +984,13 @@ class Groundwater(SectionDf):
 
 
 class GWF(SectionDf):
+    """
+    Index: ('Subcatch', 'Type')
+    Columns: ['Expr', 'desc']
+
+    Defines custom groundwater flow equations for specific subcatchments.
+    """
+
     _section_name = "GWF"
     _ncol = 3
     _headings = [
@@ -872,6 +1014,14 @@ class GWF(SectionDf):
 
 
 class Snowpack(SectionDf):
+    """
+    Index: ('Name', 'Surface')
+    Columns: ['param1', 'param2', 'param3', 'param4', 'param5', 'param6', 'param7', 'desc']
+
+    Specifies parameters that govern how snowfall accumulates and melts on the plowable,
+    impervious and pervious surfaces of subcatchments.
+    """
+
     _section_name = "SNOWPACKS"
     _ncol = 9
     _headings = ["Name", "Surface"]
@@ -883,6 +1033,15 @@ class Snowpack(SectionDf):
 
 
 class Junc(SectionDf):
+    """
+    Index: 'Name'
+    Columns: ['Elevation', 'MaxDepth', 'InitDepth', 'SurDepth', 'Aponded', 'desc']
+
+    Identifies each junction node of the drainage system. Junctions are points in space where
+    channels and pipes connect together. For sewer systems they can be either connection
+    fittings or manholes.
+    """
+
     _section_name = "JUNCTIONS"
     _ncol = 6
     _headings = [
@@ -901,6 +1060,14 @@ class Junc(SectionDf):
 
 
 class Outfall(SectionDf):
+    """
+    Index: 'Name'
+    Columns: ['Elevation', 'MaxDepth', 'InitDepth', 'SurDepth', 'Aponded', 'desc']
+
+    Identifies each outfall node (i.e., final downstream boundary) of the drainage system and the
+    corresponding water stage elevation. Only one link can be incident on an outfall node.
+    """
+
     _section_name = "OUTFALLS"
     _ncol = 6
     _headings = ["Name", "Elevation", "Type", "StageData", "Gated", "RouteTo"]
@@ -932,6 +1099,14 @@ class Outfall(SectionDf):
 
 
 class Storage(SectionDf):
+    """
+    Index: 'Name'
+    Columns: ['Elev', 'MaxDepth', 'InitDepth', 'Shape', 'CurveName', 'A1_L', 'A2_W', 'A0_Z', 'SurDepth', 'Fevap', 'Psi', 'Ksat', 'IMD', 'desc']
+
+    Identifies each storage node of the drainage system. Storage nodes can have any shape as
+    specified by a surface area versus water depth relation.
+    """
+
     _section_name = "STORAGE"
     _ncol = 14
     _headings = [
@@ -977,6 +1152,15 @@ class Storage(SectionDf):
 
 
 class Divider(SectionDf):
+    """
+    Index: 'Name'
+    Columns: ['Elevation', 'DivLink', 'DivType', 'DivCurve', 'Qmin', 'Height', 'Cd', 'Ymax', 'Y0', 'Ysur', 'Apond', 'desc']
+
+    Identifies each flow divider node of the drainage system. Flow dividers are junctions with
+    exactly two outflow conduits where the total outflow is divided between the two in a
+    prescribed manner.
+    """
+
     _section_name = "DIVIDERS"
     _ncol = 12
     _headings = [
@@ -1030,6 +1214,14 @@ class Divider(SectionDf):
 
 
 class Conduit(SectionDf):
+    """
+    Index: 'Name'
+    Columns: ['FromNode', 'ToNode', 'Length', 'Roughness', 'InOffset', 'OutOffset', 'InitFlow', 'MaxFlow', 'desc']
+
+    Identifies each conduit link of the drainage system. Conduits are pipes or channels that convey
+    water from one node to another.
+    """
+
     _section_name = "CONDUITS"
     _ncol = 9
     _headings = [
@@ -1051,6 +1243,13 @@ class Conduit(SectionDf):
 
 
 class Pump(SectionDf):
+    """
+    Index: 'Name'
+    Columns: ['FromNode', 'ToNode', 'PumpCurve', 'Status', 'Startup', 'Shutoff', 'desc']
+
+    Identifies each pump link of the drainage system.
+    """
+
     _section_name = "PUMPS"
     _ncol = 7
     _headings = [
@@ -1070,6 +1269,14 @@ class Pump(SectionDf):
 
 
 class Orifice(SectionDf):
+    """
+    Index: 'Name'
+    Columns: ['FromNode', 'ToNode', 'Type', 'Offset', 'Qcoeff', 'Gated', 'CloseTime', 'desc']
+
+    Identifies each orifice link of the drainage system. An orifice link serves to limit the flow exiting
+    a node and is often used to model flow diversions and storage node outlets.
+    """
+
     _section_name = "ORIFICES"
     _ncol = 8
     _headings = [
@@ -1090,6 +1297,14 @@ class Orifice(SectionDf):
 
 
 class Weir(SectionDf):
+    """
+    Index: 'Name'
+    Columns: ['FromNode', 'ToNode', 'Type', 'CrestHt', 'Qcoeff', 'Gated', 'EndCon', 'EndCoeff', 'Surcharge', 'RoadWidth', 'RoadSurf', 'CoeffCurve', 'desc']
+
+    Identifies each weir link of the drainage system. Weirs are used to model flow diversions and
+    storage node outlets.
+    """
+
     _section_name = "WEIRS"
     _ncol = 13
     _headings = [
@@ -1115,6 +1330,15 @@ class Weir(SectionDf):
 
 
 class Outlet(SectionDf):
+    """
+    Index: 'Name'
+    Columns: ['FromNode', 'ToNode', 'Offset', 'Type', 'CurveName', 'Qcoeff', 'Qexpon', 'Gated', 'desc']
+
+    Identifies each outlet flow control device of the drainage system. These are devices used to
+    model outflows from storage units or flow diversions that have a user-defined relation
+    between flow rate and water depth.
+    """
+
     _section_name = "OUTLETS"
     _ncol = 9
     _headings = [
@@ -1153,6 +1377,13 @@ class Outlet(SectionDf):
 
 
 class Xsections(SectionDf):
+    """
+    Index: 'Link'
+    Columns: ['Shape', 'Geom1', 'Curve', 'Geom2', 'Geom3', 'Geom4', 'Barrels', 'Culvert', 'desc']
+
+    Provides cross-section geometric data for conduit, weir, and orifice links of the drainage system.
+    """
+
     _section_name = "XSECTIONS"
     _shapes = (
         "CIRCULAR",
@@ -1257,6 +1488,13 @@ class Xsections(SectionDf):
 
 
 class Street(SectionDf):
+    """
+    Index: 'Name'
+    Columns: ['Tcrown', 'Hcurb', 'Sroad', 'nRoad', 'Hdep', 'Wdep', 'Sides', 'Wback', 'Sback', 'nBack', 'desc']
+
+    Describes the cross-section geometry of conduits that represent streets.
+    """
+
     _section_name = "STREETS"
     _ncol = 11
     _headings = [
@@ -1280,10 +1518,23 @@ class Street(SectionDf):
 
 
 class Transects(SectionText):
+    """
+    String to hold transects section.
+
+    Describes the cross-section geometry of natural channels or conduits with irregular shapes
+    following the HEC-2 data format.
+    """
+
     _section_name = "TRANSECTS"
 
 
 class Timeseries(SectionBase):
+    """
+    Dict of dataframes or TimeseriesFile dataclass.
+
+    Describes how a quantity varies over time.
+    """
+
     _section_name = "TIMESERIES"
 
     def __init__(self, ts: dict):
@@ -1500,10 +1751,19 @@ class Timeseries(SectionBase):
 
 
 class Patterns(SectionDf):
+    """
+    Index: ('Name', 'Pattern_Index')
+    Columns: ['Multiplier', 'desc']
+    Attrs: {'Name':'Type'}
+
+    Specifies time patterns of dry weather flow or quality in the form of adjustment factors
+    applied as multipliers to baseline values.
+    """
+
     _section_name = "PATTERNS"
     _ncol = 3
     _headings = ["Name", "Type", "Multiplier"]
-    _index_col = ["Name"]
+    _index_col = "Name"
     _valid_types = [
         "MONTHLY",
         "DAILY",
@@ -1579,6 +1839,14 @@ class Patterns(SectionDf):
 
 
 class Inlet(SectionDf):
+    """
+    Index: ('Name', 'Type')
+    Columns: ['param1', 'param2', 'param3', 'param4', 'param5', 'desc']
+
+    Defines inlet structure designs used to capture street and channel flow that are sent to below
+    ground sewers.
+    """
+
     _section_name = "INLETS"
     _ncol = 7
     _headings = [
@@ -1593,6 +1861,13 @@ class Inlet(SectionDf):
 
 
 class Inlet_Usage(SectionDf):
+    """
+    Index: 'Conduit'
+    Columns: ['Inlet', 'Node', 'Number', '%Clogged', 'MaxFlow', 'hDStore', 'wDStore', 'Placement', 'desc']
+
+    Assigns inlet structures to specific street and open channel conduits.
+    """
+
     _section_name = "INLET_USAGE"
     _ncol = 9
     _headings = [
@@ -1614,6 +1889,13 @@ class Inlet_Usage(SectionDf):
 
 
 class Losses(SectionDf):
+    """
+    Index: 'Link'
+    Columns: ['Kentry', 'Kexit', 'Kavg', 'FlapGate', 'Seepage', 'desc']
+
+    Specifies minor head loss coefficients, flap gates, and seepage rates for conduits.
+    """
+
     _section_name = "LOSSES"
     _ncol = 6
     _headings = ["Link", "Kentry", "Kexit", "Kavg", "FlapGate", "Seepage"]
@@ -1636,6 +1918,13 @@ class Losses(SectionDf):
 
 
 class Controls(SectionBase):
+    """
+    Dict of control rules stored as text.
+
+    Determines how pumps and regulators will be adjusted based on simulation time or
+    conditions at specific nodes and links.
+    """
+
     _section_name = "CONTROLS"
 
     @dataclass
@@ -1685,7 +1974,7 @@ class Controls(SectionBase):
 
     def __len__(self):
         return len(self.controls)
-    
+
     @classmethod
     def _from_section_text(cls, text: str, *args, **kwargs) -> Self: ...
 
@@ -1711,6 +2000,13 @@ class Controls(SectionBase):
 
 
 class Pollutants(SectionDf):
+    """
+    Index: 'Name'
+    Columns: ['Units', 'Crain', 'Cgw', 'Crdii', 'Kdecay', 'SnowOnly', 'CoPollutant', 'CoFrac', 'Cdwf', 'Cinit', 'desc']
+
+    Identifies the pollutants being analyzed.
+    """
+
     _section_name = "POLLUTANTS"
     _ncol = 11
     _headings = [
@@ -1734,6 +2030,13 @@ class Pollutants(SectionDf):
 
 
 class LandUse(SectionDf):
+    """
+    Index: 'Name'
+    Columns: ['SweepInterval', 'Availability', 'LastSweep', 'desc']
+
+    Identifies the various categories of land uses within the drainage area.
+    """
+
     _section_name = "LANDUSES"
     _ncol = 4
     _headings = ["Name", "SweepInterval", "Availability", "LastSweep"]
@@ -1750,10 +2053,17 @@ class LandUse(SectionDf):
 
 
 class Coverage(SectionDf):
+    """
+    Index: ('Subcatchment', 'LandUse')
+    Columns: ['SweepInterval', 'Availability', 'LastSweep', 'desc']
+
+    Specifies the percentage of a subcatchment’s area that is covered by each category of land use.
+    """
+
     _section_name = "COVERAGES"
     _ncol = 3
-    _headings = ["Subcatchment", "landuse", "Percent"]
-    _index_col = ["Subcatchment", "landuse"]
+    _headings = ["Subcatchment", "LandUse", "Percent"]
+    _index_col = ["Subcatchment", "LandUse"]
 
     @classmethod
     def _tabulate(cls, line: list[str | float | int]) -> TRow | list[TRow]:
@@ -1771,6 +2081,13 @@ class Coverage(SectionDf):
 
 
 class Loading(SectionDf):
+    """
+    Index: ('Subcatchment', 'Pollutant')
+    Columns: ['InitBuildup', 'desc']
+
+    Specifies the pollutant buildup that exists on each subcatchment at the start of a simulation.
+    """
+
     _section_name = "LOADINGS"
     _ncol = 3
     _headings = ["Subcatchment", "Pollutant", "InitBuildup"]
@@ -1792,6 +2109,13 @@ class Loading(SectionDf):
 
 
 class Buildup(SectionDf):
+    """
+    Index: ('LandUse', 'Pollutant')
+    Columns: ['FuncType', 'C1', 'C2', 'C3', 'PerUnit', 'desc']
+
+    Specifies the rate at which pollutants build up over different land uses between rain events.
+    """
+
     _section_name = "BUILDUP"
     _ncol = 4
     _headings = ["Landuse", "Pollutant", "FuncType", "C1", "C2", "C3", "PerUnit"]
@@ -1803,6 +2127,13 @@ class Buildup(SectionDf):
 
 
 class Washoff(SectionDf):
+    """
+    Index: ('LandUse', 'Pollutant')
+    Columns: ['FuncType', 'C1', 'C2', 'SweepRmvl', 'BmpRmvl', 'desc']
+
+    Specifies the rate at which pollutants are washed off from different land uses during rain events.
+    """
+
     _section_name = "WASHOFF"
     _ncol = 4
     _headings = ["Landuse", "Pollutant", "FuncType", "C1", "C2", "SweepRmvl", "BmpRmvl"]
@@ -1814,6 +2145,13 @@ class Washoff(SectionDf):
 
 
 class Treatment(SectionDf):
+    """
+    Index: ('Node', 'Pollutant')
+    Columns: ['TimeSeries', 'InflowType', 'Mfactor', 'Sfactor', 'Baseline', 'Pattern', 'desc']
+
+    Specifies the degree of treatment received by pollutants at specific nodes of the drainage system.
+    """
+
     _section_name = "TREATMENT"
     _ncol = 3
     _headings = ["Node", "Pollutant", "Func"]
@@ -1833,6 +2171,13 @@ class Treatment(SectionDf):
 
 
 class Inflow(SectionDf):
+    """
+    Index: ('Node', 'Constituent')
+    Columns: ['TimeSeries', 'InflowType', 'Mfactor', 'Sfactor', 'Baseline', 'Pattern', 'desc']
+
+    Specifies external hydrographs and pollutographs that enter the drainage system at specific nodes.
+    """
+
     _section_name = "INFLOWS"
     _ncol = 8
     _headings = [
@@ -1867,6 +2212,13 @@ class Inflow(SectionDf):
 
 
 class DWF(SectionDf):
+    """
+    Index: ('Node', 'Constituent')
+    Columns: ['AvgValue', 'Pat1', 'Pat2', 'Pat3', 'Pat4', 'desc']
+
+    Specifies dry weather flow and its quality entering the drainage system at specific nodes.
+    """
+
     _section_name = "DWF"
     _ncol = 7
     _headings = [
@@ -1901,6 +2253,14 @@ class DWF(SectionDf):
 
 
 class RDII(SectionDf):
+    """
+    Index: 'Node'
+    Columns: ['UHgroup', 'SewerArea', 'desc']
+
+    Specifies the parameters that describe rainfall-dependent infiltration and inflow (RDII)
+    entering the drainage system at specific nodes.
+    """
+
     _section_name = "RDII"
     _ncol = 3
     _headings = ["Node", "UHgroup", "SewerArea"]
@@ -1912,6 +2272,15 @@ class RDII(SectionDf):
 
 
 class Hydrographs(SectionDf):
+    """
+    Index: ('Name', 'Month' , 'Response')
+    Columns: ['R', 'T', 'K', 'IA_max', 'IA_rec', 'IA_ini', 'desc']
+    attrs: {'Name' : 'RainGauge'}
+
+    Specifies the shapes of the triangular unit hydrographs that determine the amount of rainfall-
+    dependent infiltration and inflow (RDII) entering the drainage system.
+    """
+
     _section_name = "HYDROGRAPHS"
     _ncol = 9
     _headings = [
@@ -1987,10 +2356,18 @@ class Hydrographs(SectionDf):
 
 
 class Curves(SectionDf):
+    """
+    Index: ('Name', 'Curve_Index')
+    Columns: ['Type', 'X_Value', 'Y_Value', 'desc']
+    attrs: {'Name' : 'Curve_Type'}
+
+    Describes a relationship between two variables in tabular format.
+    """
+
     _section_name = "CURVES"
     _ncol = 4
     _headings = ["Name", "Type", "X_Value", "Y_Value"]
-    _index_col = ["Name"]
+    _index_col = "Name"
     _valid_types = [
         "STORAGE",
         "SHAPE",
@@ -2103,6 +2480,13 @@ class Curves(SectionDf):
 
 
 class Coordinates(SectionDf):
+    """
+    Index: 'Node'
+    Columns: ['X', 'Y', 'desc']
+
+    Assigns X,Y coordinates to drainage system nodes.
+    """
+
     _section_name = "COORDINATES"
     _ncol = 3
     _headings = ["Node", "X", "Y"]
@@ -2114,6 +2498,14 @@ class Coordinates(SectionDf):
 
 
 class Vertices(SectionDf):
+    """
+    Index: 'Link'
+    Columns: ['X', 'Y', 'desc']
+
+    TODO: Make Better!
+    Assigns X,Y coordinates to interior vertex points of curved drainage system links.
+    """
+
     _section_name = "VERTICIES"
     _ncol = 3
     _headings = ["Link", "X", "Y"]
@@ -2125,10 +2517,18 @@ class Vertices(SectionDf):
 
 
 class Polygons(SectionDf):
+    """
+    Index: 'Elem'
+    Columns: ['X', 'Y', 'desc']
+
+    TODO: Make Better!
+    Assigns X,Y coordinates to vertex points of polygons that define a subcatchment/storage boundary.
+    """
+
     _section_name = "POLYGONS"
     _ncol = 3
-    _headings = ["Subcatch", "X", "Y"]
-    _index_col = "Subcatch"
+    _headings = ["Elem", "X", "Y"]
+    _index_col = "Elem"
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -2136,6 +2536,13 @@ class Polygons(SectionDf):
 
 
 class Symbols(SectionDf):
+    """
+    Index: 'Gage'
+    Columns: ['X', 'Y', 'desc']
+
+    Assigns X,Y coordinates to rain gage symbols.
+    """
+
     _section_name = "SYMBOLS"
     _ncol = 3
     _headings = ["Gage", "X", "Y"]
@@ -2147,6 +2554,13 @@ class Symbols(SectionDf):
 
 
 class Labels(SectionDf):
+    """
+    Index:
+    Columns: ['Xcoord', 'Ycoord', 'Label', 'Anchor', 'Font', 'Size', 'Bold', 'Italic', 'desc']
+
+    Assigns X,Y coordinates to user-defined map labels.
+    """
+
     _section_name = "LABELS"
     _ncol = 8
     _headings = [
@@ -2166,6 +2580,13 @@ class Labels(SectionDf):
 
 
 class Tags(SectionDf):
+    """
+    Index: ('Element', 'Name')
+    Columns: ['Tag', 'desc']
+
+    Assigns tags to Node, Link, and Subcatch elements
+    """
+
     _section_name = "TAGS"
     _ncol = 3
     _headings = ["Element", "Name", "Tag"]
@@ -2177,10 +2598,19 @@ class Tags(SectionDf):
 
 
 class Profile(SectionText):
+    """String class to hold profile section text"""
+
     _section_name = "PROFILE"
 
 
 class LID_Control(SectionDf):
+    """
+    Index: 'Name'
+    Columns: ['Type', 'param1', 'param2', 'param3', 'param4', 'param5', 'param6', 'param7', 'desc']
+
+    Defines scale-independent LID controls that can be deployed within subcatchments.
+    """
+
     _section_name = "LID_CONTROLS"
     _ncol = 9
     _headings = ["Name", "Type"]
@@ -2208,6 +2638,13 @@ class LID_Control(SectionDf):
 
 
 class LID_Usage(SectionDf):
+    """
+    Index: ('Subcatchment',' 'LIDProcess')
+    Columns: ['Number', 'Area', 'Width', 'InitSat', 'FromImp', 'ToPerv', 'RptFile', 'DrainTo', 'FromPerv', 'desc']
+
+    Deploys LID controls within specific subcatchment areas.
+    """
+
     _section_name = "LID_USAGE"
     _ncol = 11
     _headings = [
@@ -2232,7 +2669,17 @@ class LID_Usage(SectionDf):
 
 
 class Adjustments(SectionDf):
-    _section_name = "ADJUSTMENTS"
+    """
+    Index: 'Parameter'
+    Columns: ['Subcatchment', 'Pattern', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'desc']
+
+    TODO: Make index better
+
+    Specifies optional monthly adjustments to be made to temperature, evaporation rate, rainfall
+    intensity and hydraulic conductivity in each time period of a simulation.
+    """
+
+    _section_name = "ADJUSTMENT"
     _ncol = 15
     _headings = [
         "Parameter",
@@ -2270,6 +2717,8 @@ class Adjustments(SectionDf):
 
 
 class Backdrop(SectionText):
+    """String class to hold backdrop section text."""
+
     _section_name = "BACKDROP"
 
 
@@ -2308,6 +2757,8 @@ class Backdrop(SectionText):
 
 
 class Map(SectionText):
+    """String class to hold map section text."""
+
     _section_name = "MAP"
 
 
@@ -2349,13 +2800,10 @@ class Map(SectionText):
 _sections: dict[str, type[SectionBase]] = {
     "TITLE": Title,
     "OPTION": Option,
-    "REPORT": Report,
-    "EVENT": Event,
     "FILE": Files,
     "RAINGAGE": Raingage,
     "EVAP": Evap,
     "TEMPERATURE": Temperature,
-    "ADJUSTMENT": Adjustments,
     "SUBCATCHMENT": Subcatchment,
     "SUBAREA": Subarea,
     "INFIL": Infil,
@@ -2397,13 +2845,16 @@ _sections: dict[str, type[SectionBase]] = {
     "CURVE": Curves,
     "TIMESERIES": Timeseries,
     "PATTERN": Patterns,
+    "REPORT": Report,
+    "ADJUSTMENT": Adjustments,
+    "EVENT": Event,
+    "TAG": Tags,
     "MAP": Map,
-    "POLYGON": Polygons,
     "COORDINATE": Coordinates,
     "VERTICES": Vertices,
-    "LABEL": Labels,
+    "POLYGON": Polygons,
     "SYMBOL": Symbols,
+    "LABEL": Labels,
     "BACKDROP": Backdrop,
     "PROFILE": Profile,
-    "TAG": Tags,
 }

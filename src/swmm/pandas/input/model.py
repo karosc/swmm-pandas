@@ -102,10 +102,10 @@ class Input:
         cols = output_frame._data_cols(desc=False)
         for inp_frame in inp_frames:
             inp_df = inp_frame.loc[:, cols]
-            inp_dfs.append(out_df)
+            inp_dfs.append(inp_df)
 
         out_df = copy.deepcopy(output_frame)
-        inp_df = pd.concat([inp_dfs], axis=0)
+        inp_df = pd.concat(inp_dfs, axis=0)
 
         out_df = out_df.reindex(inp_df.index.rename(out_df.index.name))
         out_df.loc[inp_df.index, cols] = inp_df[cols]
@@ -122,7 +122,7 @@ class Input:
     ) -> pd.DataFrame:
         cols = output_frame._data_cols(desc=False)
         inp_df = input_frame.loc[:, cols]
-        out_df = copy.deepcopy(output_frame)
+        # out_df = copy.deepcopy(output_frame)
         levels = [pd.Index([val], name=nom) for nom, val in prepend]
         levels += [inp_df.index.rename(input_index_name)]
         levels += [pd.Index([val], name=nom) for nom, val in append]
@@ -130,10 +130,10 @@ class Input:
         new_idx = pd.MultiIndex.from_product(levels)
         inp_df.index = new_idx
 
-        out_df = out_df.reindex(out_df.index.union(inp_df.index))
-        out_df.loc[inp_df.index, cols] = inp_df[cols]
-        out_df = out_df.dropna(how="all")
-        return out_df
+        # out_df = out_df.reindex(out_df.index.union(inp_df.index))
+        # out_df.loc[inp_df.index, cols] = inp_df[cols]
+        # out_df = out_df.dropna(how="all")
+        return inp_df.dropna(how="all")
 
     # constructors
     def _general_constructor(self, inp_frames: list[SectionDf]) -> pd.DataFrame:
@@ -165,7 +165,7 @@ class Input:
             (self.weir, "Link"),
             (self.orifice, "Link"),
             (self.outlet, "Link"),
-            # (self.subcatchment,'Subcatch')
+            (self.subcatchment, "Subcatch"),
         ]
         tag_dfs = [
             self._extract_table_and_restore_multi_index(
@@ -186,17 +186,25 @@ class Input:
         out_dfs = [self.inp.rdii, self.inp.coordinates]
         inflo_dfs = [self.inp.dwf, self.inp.inflow]
 
-        for df in out_dfs:
-            self._general_destructor(inp_frames=node_dfs, output_frame=df)
-        # for df in inflo_dfs:
-        #     inp_dfs = [
-        #         self._extract_table_and_restore_multi_index(
-        #         input_frame=inp_df,
-        #         input_index_name="Node",
-        #         output_frame=df,
-        #         prepend=[("Element", elem_type)],
-        #     ) for inp_df,elem_type in tagged_dfs
-        # ]
+        for out_df in out_dfs:
+            self._general_destructor(inp_frames=node_dfs, output_frame=out_df)
+
+        for out_df in inflo_dfs:
+            output_frame_name = out_df.__class__.__name__.lower()
+            out_df = out_df.drop("FLOW", level="Constituent")
+            inp_dfs = [
+                self._extract_table_and_restore_multi_index(
+                    input_frame=inp_df,
+                    input_index_name="Node",
+                    output_frame=out_df,
+                    append=[("Constituent", "FLOW")],
+                )
+                for inp_df in node_dfs
+            ]
+            inp_dfs.append(out_df)
+
+            inp_df = pd.concat(inp_dfs).dropna(how="all")
+            setattr(self.inp, output_frame_name, inp_df)
 
     def _destruct_xsect(self) -> None:
         if (
@@ -206,7 +214,7 @@ class Input:
         ):
             self._general_destructor(
                 inp_frames=[self.conduit, self.weir, self.orifice],
-                output_frame=self.inp.xsection,
+                output_frame=self.inp.xsections,
             )
 
     # endregion DESTRUCTORS ######
@@ -232,32 +240,6 @@ class Input:
                 self.inp.coordinates,
             ]
         )
-
-    # def _node_destructor(self, inp_df: pd.DataFrame, out_df: SectionDf) -> None:
-    #     self._general_destructor(
-    #         inp_df,
-    #         [
-    #             out_df,
-    #             self.inp.rdii,
-    #             self.inp.coordinates,
-    #         ],
-    #     )
-
-    #     self._destruct_tags(inp_df, "Node")
-
-    #     self.inp.dwf = self._extract_table_and_restore_multi_index(
-    #         input_frame=inp_df,
-    #         input_index_name="Node",
-    #         output_frame=self.inp.dwf,
-    #         append=[("Constituent", "FLOW")],
-    #     )
-
-    #     self.inp.inflow = self._extract_table_and_restore_multi_index(
-    #         input_frame=inp_df,
-    #         input_index_name="Node",
-    #         output_frame=self.inp.inflow,
-    #         append=[("Constituent", "FLOW")],
-    #     )
 
     # endregion NODES and LINKS ######
 
@@ -305,11 +287,11 @@ class Input:
     @no_setter_property
     def divider(self):
         if not hasattr(self, "_divider_full"):
-            self._divider_full = self._general_destructor(self.inp.divider)
+            self._divider_full = self._node_constructor(self.inp.divider)
 
-        return self._storage_full
+        return self._divider_full
 
-    def _storage_destructor(self) -> None:
+    def _divider_destructor(self) -> None:
         if hasattr(self, "_divider_full"):
             self._general_destructor([self.divider], self.inp.divider)
 
@@ -330,15 +312,8 @@ class Input:
 
     def _conduit_destructor(self) -> None:
         if hasattr(self, "_conduit_full"):
-            self._general_destructor(
-                self.conduit,
-                [
-                    self.inp.conduit,
-                    self.inp.losses,
-                    self.inp.xsections,
-                ],
-            )
-            self._destruct_tags(self.conduit, "Link")
+            for frame in [self.inp.conduit, self.inp.losses]:
+                self._general_destructor([self.conduit], frame)
 
     ######## PUMPS #########
     @no_setter_property
@@ -374,12 +349,9 @@ class Input:
     def _weir_destructor(self) -> None:
         if hasattr(self, "_weir_full"):
             self._general_destructor(
-                self.weir,
-                [
-                    self.inp.weir,
-                ],
+                [self.weir],
+                self.inp.weir,
             )
-            self._destruct_tags(self.weir, "Link")
 
     ######## ORIFICES #########
     @no_setter_property
@@ -388,6 +360,7 @@ class Input:
             self._orifice_full = self._general_constructor(
                 [
                     self.inp.orifice,
+                    self.inp.xsections,
                     self.inp.tags.loc[slice("Link", "Link"), slice(None)].droplevel(0),
                 ]
             )
@@ -397,12 +370,9 @@ class Input:
     def _orifice_destructor(self) -> None:
         if hasattr(self, "_orifice_full"):
             self._general_destructor(
-                self.orifice,
-                [
-                    self.inp.orifice,
-                ],
+                [self.orifice],
+                self.inp.orifice,
             )
-            self._destruct_tags(self.orifice, "Link")
 
     ######## OULETS #########
     @no_setter_property
@@ -410,7 +380,7 @@ class Input:
         if not hasattr(self, "_outlet_full"):
             self._outlet_full = self._general_constructor(
                 [
-                    self.outlet,
+                    self.inp.outlet,
                     self.inp.tags.loc[slice("Link", "Link"), slice(None)].droplevel(0),
                 ]
             )
@@ -420,14 +390,39 @@ class Input:
     def _outlet_destructor(self) -> None:
         if hasattr(self, "_outlet_full"):
             self._general_destructor(
-                self.outlet,
-                [
-                    self.inp.outlet,
-                ],
+                [self.outlet],
+                self.inp.outlet,
             )
-            self._destruct_tags(self.outlet, "Link")
 
     ####### SUBCATCHMENTS
+    @no_setter_property
+    def subcatchment(self) -> pd.DataFrame:
+        if not hasattr(self, "_subcatch_full"):
+            self._subcatch_full = self._general_constructor(
+                [
+                    self.inp.subcatchment,
+                    self.inp.subarea,
+                    self.inp.tags.loc[
+                        slice("Subcatch", "Subcatch"), slice(None)
+                    ].droplevel("Element"),
+                ]
+            )
+
+        return self._subcatch_full
+
+    def _subcatchment_destructor(self) -> None:
+        if hasattr(self, "_subcatch_full"):
+
+            self._general_destructor(
+                [self.subcatchment],
+                self.inp.subcatchment,
+            )
+
+            self._general_destructor(
+                [self.subcatchment],
+                self.inp.subarea,
+            )
+
     # endregion MAIN TABLES ######
 
     def _sync(self):
@@ -442,6 +437,14 @@ class Input:
         self._orifice_destructor()
         self._weir_destructor()
         self._outlet_destructor()
+
+        # subcatch
+        self._subcatchment_destructor()
+
+        # other
+        self._destruct_nodes()
+        self._destruct_xsect()
+        self._destruct_tags()
 
     def to_file(self, path: str | pathlib.Path):
         self._sync()
