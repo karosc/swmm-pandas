@@ -251,10 +251,14 @@ class SectionDf(SectionBase, pd.DataFrame):
                 f"{self.__class__.__name__} section is missing columns {missing}"
             )
 
+    # @classmethod
+    # def from_section_text(cls, text: str) -> Self:
+    #     """Construct an instance of the class from the section inp text"""
+    #     raise NotImplementedError
+
     @classmethod
     def from_section_text(cls, text: str) -> Self:
-        """Construct an instance of the class from the section inp text"""
-        raise NotImplementedError
+        return cls._from_section_text(text, cls._ncol)
 
     @classmethod
     def _from_section_text(cls, text: str, ncols: int) -> Self:
@@ -308,7 +312,7 @@ class SectionDf(SectionBase, pd.DataFrame):
 
         df = cls(df.set_index(cls._index_col)) if cls._index_col else df
         # return df
-        return df.sort_index()
+        return df
 
         # if cls._index_col is not None:
         #     df.set_index(cls._index_col)
@@ -502,10 +506,6 @@ class Option(SectionDf):
     _ncol = 2
     _headings = ["Option", "Value"]
     _index_col = "Option"
-
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
 
     def _ipython_key_completions_(self):
         return list(["Value"])
@@ -741,10 +741,6 @@ class Event(SectionDf):
             print(f"Error parsing event dates: {start_time}  or   {end_time}")
             raise e
 
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
-
     def to_swmm_string(self) -> str:
         df = self.copy()
 
@@ -775,10 +771,6 @@ class Raingage(SectionDf):
     ]
     _index_col = "Name"
 
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
-
 
 class Evap(SectionDf):
     """
@@ -793,10 +785,6 @@ class Evap(SectionDf):
     _headings = ["Type"]
     _index_col = "Type"
 
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
-
 
 class Temperature(SectionDf):
     """
@@ -810,10 +798,6 @@ class Temperature(SectionDf):
     _ncol = 14
     _headings = ["Option"]
     _index_col = "Option"
-
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
 
 
 class Subcatchment(SectionDf):
@@ -840,10 +824,6 @@ class Subcatchment(SectionDf):
     ]
     _index_col = "Name"
 
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
-
 
 class Subarea(SectionDf):
     """
@@ -868,10 +848,6 @@ class Subarea(SectionDf):
         "PctRouted",
     ]
     _index_col = "Subcatchment"
-
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
 
 
 class Infil(SectionDf):
@@ -902,10 +878,6 @@ class Infil(SectionDf):
         "MODIFIED_GREEN_AMPT",
         "CURVE_NUMBER",
     )
-
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
 
     @classmethod
     def _tabulate(cls, line: list[str | float | int]) -> TRow | list[TRow]:
@@ -953,10 +925,6 @@ class Aquifer(SectionDf):
     ]
     _index_col = "Name"
 
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
-
 
 class Groundwater(SectionDf):
     """
@@ -987,10 +955,6 @@ class Groundwater(SectionDf):
     ]
     _index_col = "Subcatchment"
 
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
-
 
 class GWF(SectionDf):
     """
@@ -1010,16 +974,17 @@ class GWF(SectionDf):
     _index_col = ["Subcatch", "Type"]
 
     @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
-
-    @classmethod
     def _tabulate(cls, line: list[str | float]) -> TRow | list[TRow]:
         out: TRow = [""] * cls._ncol
         out[0] = line.pop(0)
         out[1] = line.pop(0)
         out[2] = "".join([str(s).strip() for s in line])
         return out
+
+    @classmethod
+    def from_section_text(cls, text: str) -> Self:
+        df = cls._from_section_text(text, cls._ncol)
+        return df.sort_index()
 
 
 class Snowpack(SectionDf):
@@ -1037,8 +1002,9 @@ class Snowpack(SectionDf):
     _index_col = ["Name", "Surface"]
 
     @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
+    def from_section_text(cls, text: str) -> Self:
+        df = cls._from_section_text(text, cls._ncol)
+        return df.sort_index()
 
 
 class Junc(SectionDf):
@@ -1062,10 +1028,6 @@ class Junc(SectionDf):
         "Aponded",
     ]
     _index_col = "Name"
-
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
 
 
 class Outfall(SectionDf):
@@ -1101,10 +1063,6 @@ class Outfall(SectionDf):
         except Exception as e:
             print("Error parsing Outfall line: {line}")
             raise e
-
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
 
 
 class Storage(SectionDf):
@@ -1154,10 +1112,6 @@ class Storage(SectionDf):
             return out
         else:
             raise ValueError(f"Unexpected line in storage section ({line})")
-
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
 
 
 class Divider(SectionDf):
@@ -1217,10 +1171,6 @@ class Divider(SectionDf):
             print("Error parsing Divider line: {line!r}")
             raise e
 
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
-
 
 class Conduit(SectionDf):
     """
@@ -1246,10 +1196,6 @@ class Conduit(SectionDf):
     ]
     _index_col = "Name"
 
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
-
 
 class Pump(SectionDf):
     """
@@ -1271,10 +1217,6 @@ class Pump(SectionDf):
         "Shutoff",
     ]
     _index_col = "Name"
-
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
 
 
 class Orifice(SectionDf):
@@ -1299,10 +1241,6 @@ class Orifice(SectionDf):
         "CloseTime",
     ]
     _index_col = "Name"
-
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
 
 
 class Weir(SectionDf):
@@ -1332,10 +1270,6 @@ class Weir(SectionDf):
         "CoeffCurve",
     ]
     _index_col = "Name"
-
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
 
 
 class Outlet(SectionDf):
@@ -1379,10 +1313,6 @@ class Outlet(SectionDf):
             return out
         else:
             raise ValueError(f"Unexpected line in outlet section ({line})")
-
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
 
 
 class Xsections(SectionDf):
@@ -1466,10 +1396,6 @@ class Xsections(SectionDf):
         else:
             raise ValueError(f"Unexpected line in xsection section ({line})")
 
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
-
     def to_swmm_string(self) -> str:
         df = self.copy(deep=True)
 
@@ -1520,10 +1446,6 @@ class Street(SectionDf):
         "nBack",
     ]
     _index_col = "Name"
-
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
 
 
 class Transects(SectionText):
@@ -1865,8 +1787,9 @@ class Inlet(SectionDf):
     _index_col = ["Name", "Type"]
 
     @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
+    def from_section_text(cls, text: str) -> Self:
+        df = cls._from_section_text(text, cls._ncol)
+        return df.sort_index()
 
 
 class Inlet_Usage(SectionDf):
@@ -1892,10 +1815,6 @@ class Inlet_Usage(SectionDf):
     ]
     _index_col = "Conduit"
 
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
-
 
 class Losses(SectionDf):
     """
@@ -1909,10 +1828,6 @@ class Losses(SectionDf):
     _ncol = 6
     _headings = ["Link", "Kentry", "Kexit", "Kavg", "FlapGate", "Seepage"]
     _index_col = "Link"
-
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
 
     def to_swmm_string(self) -> str:
         df = self.copy(deep=True)
@@ -2033,10 +1948,6 @@ class Pollutants(SectionDf):
     ]
     _index_col = "Name"
 
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
-
 
 class LandUse(SectionDf):
     """
@@ -2050,10 +1961,6 @@ class LandUse(SectionDf):
     _ncol = 4
     _headings = ["Name", "SweepInterval", "Availability", "LastSweep"]
     _index_col = "Name"
-
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
 
     def to_swmm_string(self) -> str:
         for col in self.columns:
@@ -2085,8 +1992,9 @@ class Coverage(SectionDf):
         return super()._tabulate(line)
 
     @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
+    def from_section_text(cls, text: str) -> Self:
+        df = cls._from_section_text(text, cls._ncol)
+        return df.sort_index()
 
 
 class Loading(SectionDf):
@@ -2113,8 +2021,9 @@ class Loading(SectionDf):
         return super()._tabulate(line)
 
     @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
+    def from_section_text(cls, text: str) -> Self:
+        df = cls._from_section_text(text, cls._ncol)
+        return df.sort_index()
 
 
 class Buildup(SectionDf):
@@ -2131,8 +2040,9 @@ class Buildup(SectionDf):
     _index_col = ["Landuse", "Pollutant"]
 
     @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
+    def from_section_text(cls, text: str) -> Self:
+        df = cls._from_section_text(text, cls._ncol)
+        return df.sort_index()
 
 
 class Washoff(SectionDf):
@@ -2149,8 +2059,9 @@ class Washoff(SectionDf):
     _index_col = ["Landuse", "Pollutant"]
 
     @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
+    def from_section_text(cls, text: str) -> Self:
+        df = cls._from_section_text(text, cls._ncol)
+        return df.sort_index()
 
 
 class Treatment(SectionDf):
@@ -2167,17 +2078,16 @@ class Treatment(SectionDf):
     _index_col = ["Node", "Pollutant"]
 
     @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
-
-    @classmethod
     def _tabulate(cls, line: list[str | float]) -> TRow | list[TRow]:
         node = str(line.pop(0))
         poll = str(line.pop(0))
         eqn = " ".join(str(v) for v in line)
         out: TRow = [node, poll, eqn]
         return out
-
+    @classmethod
+    def from_section_text(cls, text: str) -> Self:
+        df = cls._from_section_text(text, cls._ncol)
+        return df.sort_index()
 
 class Inflow(SectionDf):
     """
@@ -2202,10 +2112,6 @@ class Inflow(SectionDf):
     _index_col = ["Node", "Constituent"]
 
     @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
-
-    @classmethod
     def _tabulate(cls, line: list[str | float | int]) -> TRow | list[TRow]:
         return [v.replace('"', "") if isinstance(v, str) else v for v in line]
 
@@ -2218,6 +2124,11 @@ class Inflow(SectionDf):
         df["TimeSeries"] = df["TimeSeries"].fillna("").str.replace('"', "")
         df["TimeSeries"] = '"' + df["TimeSeries"].astype(str) + '"'
         return super(Inflow, df).to_swmm_string()
+
+    @classmethod
+    def from_section_text(cls, text: str) -> Self:
+        df = cls._from_section_text(text, cls._ncol)
+        return df.sort_index()
 
 
 class DWF(SectionDf):
@@ -2242,10 +2153,6 @@ class DWF(SectionDf):
     _index_col = ["Node", "Constituent"]
 
     @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
-
-    @classmethod
     def _tabulate(cls, line: list[str | float | int]) -> TRow | list[TRow]:
         return [v.replace('"', "") if isinstance(v, str) else v for v in line]
 
@@ -2259,6 +2166,11 @@ class DWF(SectionDf):
             df[col] = '"' + df[col].astype(str) + '"'
 
         return super(DWF, df).to_swmm_string()
+
+    @classmethod
+    def from_section_text(cls, text: str) -> Self:
+        df = cls._from_section_text(text, cls._ncol)
+        return df.sort_index()
 
 
 class RDII(SectionDf):
@@ -2274,10 +2186,6 @@ class RDII(SectionDf):
     _ncol = 3
     _headings = ["Node", "UHgroup", "SewerArea"]
     _index_col = "Node"
-
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
 
 
 class Hydrographs(SectionDf):
@@ -2501,10 +2409,6 @@ class Coordinates(SectionDf):
     _headings = ["Node", "X", "Y"]
     _index_col = "Node"
 
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
-
 
 class Vertices(SectionDf):
     """
@@ -2519,10 +2423,6 @@ class Vertices(SectionDf):
     _ncol = 3
     _headings = ["Link", "X", "Y"]
     _index_col = "Link"
-
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
 
 
 class Polygons(SectionDf):
@@ -2539,10 +2439,6 @@ class Polygons(SectionDf):
     _headings = ["Elem", "X", "Y"]
     _index_col = "Elem"
 
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
-
 
 class Symbols(SectionDf):
     """
@@ -2556,10 +2452,6 @@ class Symbols(SectionDf):
     _ncol = 3
     _headings = ["Gage", "X", "Y"]
     _index_col = "Gage"
-
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
 
 
 class Labels(SectionDf):
@@ -2583,10 +2475,6 @@ class Labels(SectionDf):
         "Italic",
     ]
 
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
-
 
 class Tags(SectionDf):
     """
@@ -2602,8 +2490,9 @@ class Tags(SectionDf):
     _index_col = ["Element", "Name"]
 
     @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
+    def from_section_text(cls, text: str) -> Self:
+        df = cls._from_section_text(text, cls._ncol)
+        return df.sort_index()
 
 
 class Profile(SectionText):
@@ -2624,10 +2513,6 @@ class LID_Control(SectionDf):
     _ncol = 9
     _headings = ["Name", "Type"]
     _index_col = "Name"
-
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
 
     @classmethod
     def _tabulate(cls, line: list[str | float]) -> TRow | list[TRow]:
@@ -2673,8 +2558,9 @@ class LID_Usage(SectionDf):
     _index_col = ["Subcatchment", "LIDProcess"]
 
     @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
+    def from_section_text(cls, text: str) -> Self:
+        df = cls._from_section_text(text, cls._ncol)
+        return df.sort_index()
 
 
 class Adjustments(SectionDf):
@@ -2708,10 +2594,6 @@ class Adjustments(SectionDf):
         "Dec",
     ]
     _index_col = "Parameter"
-
-    @classmethod
-    def from_section_text(cls, text: str):
-        return super()._from_section_text(text, cls._ncol)
 
     @classmethod
     def _tabulate(cls, line: list[str | float | int]) -> TRow | list[TRow]:

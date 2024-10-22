@@ -488,8 +488,8 @@ class InputFileTest(unittest.TestCase):
                     S1              InfilTrench  4       532.0     133    0        40       0       *        *        0         
                     S1              RainBarrels  32      5.0       0      0        17       1       *        *        0         
                     S4              Planters     30      500.0     0      0        80       0       *        *        0         
-                    S5              PorousPave   1       232872.0  683    0        0        0       *        *        0         
                     S5              GreenRoof    1       18400.0   136    0        0        0       *        *        0         
+                    S5              PorousPave   1       232872.0  683    0        0        0       *        *        0         
                     ;Update width
                     Swale3          Swale        1       14374.8   100    0        0        0       *        *        0         
                     ;Update width
@@ -594,9 +594,9 @@ class InputFileTest(unittest.TestCase):
                 """\
                     ;;Name  Surface     param1  param2  param3  param4  param5  param6  param7  
                     ;;----  ----------  ------  ------  ------  ------  ------  ------  ------  
-                    SNOW1   PLOWABLE    0.005   0.007   24.0    0.2     0.0     0.0     0.1     
                     SNOW1   IMPERVIOUS  0.005   0.007   24.0    0.2     0.0     0.0     2.0     
                     SNOW1   PERVIOUS    0.004   0.004   25.0    0.2     0.0     0.0     2.0     
+                    SNOW1   PLOWABLE    0.005   0.007   24.0    0.2     0.0     0.0     0.1     
                     ;Update plow depth
                     SNOW1   REMOVAL     4.0     0.0     0.0     1.0     0.0     0.0             
                 """,
@@ -827,9 +827,9 @@ class InputFileTest(unittest.TestCase):
                 """\
                     ;;Name      Type   param1  param2  param3      param4  param5  
                     ;;--------  -----  ------  ------  ----------  ------  ------  
+                    ComboInlet  CURB   2       0.5     HORIZONTAL                  
                     ;update pct open and splace velocity of grate
                     ComboInlet  GRATE  2       2.0     P_BAR-50    0.5     0.3     
-                    ComboInlet  CURB   2       0.5     HORIZONTAL                  
                 """
             ),
         )
@@ -925,9 +925,9 @@ class InputFileTest(unittest.TestCase):
                     S2              Residential_2  73       
                     S3              Residential_1  27       
                     S3              Residential_2  32       
+                    S4              Commercial     26       
                     S4              Residential_1  9        
                     S4              Residential_2  30       
-                    S4              Commercial     26       
                     ;reduced to 50%
                     S5              Commercial     50       
                     S6              Commercial     100      
@@ -982,10 +982,10 @@ class InputFileTest(unittest.TestCase):
                 """\
                     ;;Landuse      Pollutant  FuncType  C1    C2   C3   PerUnit  
                     ;;-----------  ---------  --------  ----  ---  ---  -------  
+                    Commercial     TSS        EXP       0.15  0.2  0.0  CURB     
                     ;increased rate
                     Residential_1  TSS        EXP       0.22  0.5  0.0  CURB     
                     Residential_2  TSS        EXP       0.13  0.5  0.0  CURB     
-                    Commercial     TSS        EXP       0.15  0.2  0.0  CURB     
                     Undeveloped    TSS        NONE      0.0   0.0  0.0  AREA     
                     Residential_3  TSS        SAT       0.1   0.0  1.0  AREA     
                 """
@@ -1008,10 +1008,10 @@ class InputFileTest(unittest.TestCase):
                 """\
                     ;;Landuse      Pollutant  FuncType  C1   C2   SweepRmvl  BmpRmvl  
                     ;;-----------  ---------  --------  ---  ---  ---------  -------  
+                    Commercial     TSS        EXP       4    2.2  0.0        0.0      
                     ;set sweep removal eff
                     Residential_1  TSS        EXP       2    1.8  0.6        0.0      
                     Residential_2  TSS        EXP       4    2.2  0.0        0.0      
-                    Commercial     TSS        EXP       4    2.2  0.0        0.0      
                     Undeveloped    TSS        RC        500  2.0  0.0        0.0      
                     Residential_3  TSS        EMC       55                            
                 """
@@ -1040,10 +1040,10 @@ class InputFileTest(unittest.TestCase):
                 """\
                     ;;Node  Pollutant    Func                          
                     ;;----  -----------  ----------------------------  
-                    ;modded equation
-                    STOR1   Rainfall     C = Rainfall * exp(-0.1*HRT)  
                     ;groundwater removed with rainfall
                     STOR1   Groundwater  R = 0.2 * R_Rainfall          
+                    ;modded equation
+                    STOR1   Rainfall     C = Rainfall * exp(-0.1*HRT)  
                     ;added treatment for sewage
                     STOR1   Sewage       R = 0.1 * R_Rainfall          
                 """
@@ -1280,8 +1280,8 @@ class InputFileTest(unittest.TestCase):
         inp = self.test_outlet_model
         self.assertEqual(inp.outlet.reset_index().shape, (4, 10))
 
-        inp.outlet.loc[8060, "Qcoeff"] = 100
-        inp.outlet.loc[8060, "desc"] = "bumped Qcoeff"
+        inp.outlet.loc["8060", "Qcoeff"] = 100
+        inp.outlet.loc["8060", "desc"] = "bumped Qcoeff"
 
         self.assertMultiLineEqual(
             inp.outlet.to_swmm_string(),
@@ -1385,6 +1385,8 @@ class InputFileTest(unittest.TestCase):
                     ;;Element  Name  Tag               
                     ;;-------  ----  ----------------  
                     Link       C1    Swale             
+                    Link       C10   Swale             
+                    Link       C11   Culvert           
                     Link       C2    Gutter            
                     Link       C3    Culvert           
                     Link       C4    Swale             
@@ -1394,8 +1396,6 @@ class InputFileTest(unittest.TestCase):
                     Link       C7    Culvert           
                     Link       C8    Swale             
                     Link       C9    Swale             
-                    Link       C10   Swale             
-                    Link       C11   Culvert           
                 """
             ),
         )

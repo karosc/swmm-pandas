@@ -137,11 +137,11 @@ class Input:
 
     # constructors
     def _general_constructor(self, inp_frames: list[SectionDf]) -> pd.DataFrame:
-        left = inp_frames.pop(0).drop("desc", axis=1)
+        left = inp_frames.pop(0).drop("desc", axis=1, errors="ignore")
         for right in inp_frames:
             left = pd.merge(
                 left,
-                right.drop("desc", axis=1),
+                right.drop("desc", axis=1, errors="ignore"),
                 left_index=True,
                 right_index=True,
                 how="left",
@@ -178,7 +178,8 @@ class Input:
         ]
 
         tag_df = pd.concat(tag_dfs, axis=0)
-        self.inp.tags = tag_df
+        self.inp.tags = self.inp.tags.reindex(tag_df.index)
+        self.inp.tags.loc[self.inp.tags.index, :] = self.inp.tags
 
     def _destruct_nodes(self) -> None:
         node_dfs = [self.junc, self.outfall, self.storage, self.divider]
@@ -191,7 +192,7 @@ class Input:
 
         for out_df in inflo_dfs:
             output_frame_name = out_df.__class__.__name__.lower()
-            out_df = out_df.drop("FLOW", level="Constituent")
+            out_df = out_df.drop("FLOW", level="Constituent", errors="ignore")
             inp_dfs = [
                 self._extract_table_and_restore_multi_index(
                     input_frame=inp_df,
