@@ -299,7 +299,16 @@ class SectionDf(SectionBase, pd.DataFrame):
 
         # instantiate DataFrame
         df = cls(data=data, columns=cls.headings, dtype=object)
-        return cls(df.set_index(cls._index_col)) if cls._index_col else df
+        if isinstance(cls._index_col, str):
+            idx = [cls._index_col]
+        else:
+            idx = cls._index_col
+        for col in idx:
+            df[col] = df[col].astype(str)
+
+        df = cls(df.set_index(cls._index_col)) if cls._index_col else df
+        # return df
+        return df.sort_index()
 
         # if cls._index_col is not None:
         #     df.set_index(cls._index_col)
