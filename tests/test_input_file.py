@@ -438,7 +438,7 @@ class InputFileTest(unittest.TestCase):
                     SUB2            4.3     0.86    0.23                    MODIFIED_GREEN_AMPT  
                     SUB3            4.3     0.86    0.23    0.04    2       HORTON               
                     ;This is fake
-                    FAKE_SUB        0.0     0.0     0.0     0       0                            
+                    FAKE_SUB        0       0       0       0       0                            
                 """,
             ),
         )
@@ -483,19 +483,19 @@ class InputFileTest(unittest.TestCase):
             inp.lid_usage.to_swmm_string(),
             dedent(
                 """\
-                    ;;Subcatchment  LIDProcess   Number  Area      Width  InitSat  FromImp  ToPerv  RptFile  DrainTo  FromPerv  
-                    ;;------------  -----------  ------  --------  -----  -------  -------  ------  -------  -------  --------  
-                    S1              InfilTrench  4       532.0     133    0        40       0       *        *        0         
-                    S1              RainBarrels  32      5.0       0      0        17       1       *        *        0         
-                    S4              Planters     30      500.0     0      0        80       0       *        *        0         
-                    S5              GreenRoof    1       18400.0   136    0        0        0       *        *        0         
-                    S5              PorousPave   1       232872.0  683    0        0        0       *        *        0         
+                    ;;Subcatchment  LIDProcess   Number  Area     Width  InitSat  FromImp  ToPerv  RptFile  DrainTo  FromPerv  
+                    ;;------------  -----------  ------  -------  -----  -------  -------  ------  -------  -------  --------  
+                    S1              InfilTrench  4       532      133    0        40       0       *        *        0         
+                    S1              RainBarrels  32      5        0      0        17       1       *        *        0         
+                    S4              Planters     30      500      0      0        80       0       *        *        0         
+                    S5              GreenRoof    1       18400    136    0        0        0       *        *        0         
+                    S5              PorousPave   1       232872   683    0        0        0       *        *        0         
                     ;Update width
-                    Swale3          Swale        1       14374.8   100    0        0        0       *        *        0         
+                    Swale3          Swale        1       14374.8  100    0        0        0       *        *        0         
                     ;Update width
-                    Swale4          Swale        1       21780.0   100    0        0        0       *        *        0         
+                    Swale4          Swale        1       21780.0  100    0        0        0       *        *        0         
                     ;Update width
-                    Swale6          Swale        1       17859.6   100    0        0        0       *        *        0         
+                    Swale6          Swale        1       17859.6  100    0        0        0       *        *        0         
                 """,
             ),
         )
@@ -518,7 +518,7 @@ class InputFileTest(unittest.TestCase):
                     ;;----  ----  ----  ----  ----  ------  ------  ---  ---  ----  ------  -----  ----  ------  
                     SUB1    0.46  0.13  0.28  0.8   5       20      0.7  10   0     -39.3   1.5    0.23          
                     SUB2    0.46  0.13  0.28  0.8   5       20      0.7  10   0     -36.75  4.5    0.23          
-                    SUB3    0.46  0.13  10.0  0.8   5       20      0.7  10   0     -4.53   36.57  0.23          
+                    SUB3    0.46  0.13  10    0.8   5       20      0.7  10   0     -4.53   36.57  0.23          
                 """,
             ),
         )
@@ -598,7 +598,7 @@ class InputFileTest(unittest.TestCase):
                     SNOW1   PERVIOUS    0.004   0.004   25.0    0.2     0.0     0.0     2.0     
                     SNOW1   PLOWABLE    0.005   0.007   24.0    0.2     0.0     0.0     0.1     
                     ;Update plow depth
-                    SNOW1   REMOVAL     4.0     0.0     0.0     1.0     0.0     0.0             
+                    SNOW1   REMOVAL     4       0       0       1       0.0     0.0             
                 """,
             ),
         )
@@ -624,7 +624,7 @@ class InputFileTest(unittest.TestCase):
                     JUNC3   -3.47      11.5      0          0         5000     
                     ;dropped invert 5ft
                     JUNC4   -10.25     13.8      0          0         5000     
-                    JUNC6   0.0        9.0       0          200       0        
+                    JUNC6   0          9         0          200       0        
                 """,
             ),
         )
@@ -783,8 +783,8 @@ class InputFileTest(unittest.TestCase):
                     COND6   FORCE_MAIN       1.0                 130.0  0      0      1        0        
                     ;changed to single barrel
                     COND7   CUSTOM           10.0   COND7_curve         0      0      1                 
-                    COND8   IRREGULAR               Transect                                            
-                    WR1     RECT_OPEN        3.2                 3.0    0      0                        
+                    COND8   IRREGULAR               Transect            0      0      1                 
+                    WR1     RECT_OPEN        3.2                 3.0    0      0      1                 
                 """
             ),
         )
