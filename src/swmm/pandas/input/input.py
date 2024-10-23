@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 
 class InputFile:
-    _section_re = re.compile(R"^\[[\s\S]*?(?=^\[)", re.MULTILINE)
+    _section_re = re.compile(R"^\[[\s\S]*?(?=^\[|\Z)", re.MULTILINE)
     _section_keys = tuple(_sections.keys())
 
     def __init__(self, inpfile: Optional[str | pathlib.Path] = None):
