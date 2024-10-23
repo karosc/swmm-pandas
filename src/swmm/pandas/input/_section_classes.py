@@ -15,7 +15,7 @@ from pandas._libs.missing import NAType
 import numpy as np
 
 if TYPE_CHECKING:
-    from typing import Self, TypeGuard
+    from typing import Self, TypeGuard, Type
     from collections.abc import Iterable, Iterator
 
 TRow = list[str | float | int | pd.Timestamp | pd.Timedelta | NAType]
@@ -61,7 +61,9 @@ class classproperty:
 #     return ClassPropertyDescriptor(func)
 
 
-def _coerce_numeric(data: str) -> str | float | int:
+def _coerce_numeric(data: str, dtype: Type | None = None) -> str | float | int:
+    if dtype is not None:
+        return dtype(data)
     try:
         number = float(data)
         number = int(number) if number.is_integer() and "." not in data else number
@@ -106,7 +108,7 @@ def _is_data(line: str):
     Determines if an inp file line has data by checking if the line
     is a table header (starting with `;;`) or a section header (starting with a `[`)
     """
-    if len(line) == 0 or line.strip()[0:2] == ";;" or line.strip()[0] == "[":
+    if len(line.strip()) == 0 or line.strip()[0:2] == ";;" or line.strip()[0] == "[":
         return False
     return True
 
@@ -211,6 +213,10 @@ class SectionDf(SectionBase, pd.DataFrame):
         # self._validate_headings()
 
     @classmethod
+    def _section_dtype(cls, i):
+        return None
+
+    @classmethod
     def _data_cols(cls, desc: bool = True) -> list[str]:
         """Returns non-index columns names, optionally with the desc column."""
         if isinstance(cls._index_col, str):
@@ -288,7 +294,10 @@ class SectionDf(SectionBase, pd.DataFrame):
                 line_comment += comment + "\n"
 
             # split row into tokens coercing numerics into floats
-            split_data = [_coerce_numeric(val) for val in line.split()]
+            split_data = [
+                _coerce_numeric(val, cls._section_dtype(i))
+                for i, val in enumerate(line.split())
+            ]
 
             # parse tokenzied data into uniform tabular shape so each
             # row has the same number of columns
@@ -437,57 +446,57 @@ class SectionDf(SectionBase, pd.DataFrame):
     def to_swmm_string(self) -> str:
         """Create a string representation of section"""
         self._validate_headings()
-        # reset index
-        out_df = (
-            self.reset_index(self._index_col)
-            .reindex(self.headings, axis=1)
-            .infer_objects(copy=False)
-            .fillna("")
-        )
-
-        # determine the longest variable in each column of the table
-        # used to figure out how wide to make the columns
-        max_data = (
-            out_df.astype(str)
-            .map(
-                len,
+        with pd.option_context("future.no_silent_downcasting", True):
+            # reset index
+            out_df = (
+                self.reset_index(self._index_col)
+                .reindex(self.headings, axis=1)
+                .fillna("")
             )
-            .max()
-        )
-        # determine the length of the header names
-        max_header = out_df.columns.to_series().apply(len)
 
-        max_header.iloc[
-            0
-        ] += 2  # add 2 to first header to account for comment formatting
+            # determine the longest variable in each column of the table
+            # used to figure out how wide to make the columns
+            max_data = (
+                out_df.astype(str)
+                .map(
+                    len,
+                )
+                .max()
+            )
+            # determine the length of the header names
+            max_header = out_df.columns.to_series().apply(len)
 
-        # determine the column widths by finding the max legnth out of data
-        # and headers
-        col_widths = pd.concat([max_header, max_data], axis=1).max(axis=1) + 2
+            max_header.iloc[
+                0
+            ] += 2  # add 2 to first header to account for comment formatting
 
-        # create format strings for header, divider, and data
-        header_format = ""
-        header_divider = ""
-        data_format = ""
-        for i, col in enumerate(col_widths.drop("desc")):
-            data_format += f"{{:<{col}}}"
-            header_format += f";;{{:<{col-2}}}" if i == 0 else f"{{:<{col}}}"
-            header_divider += f";;{'-'*(col-4)}  " if i == 0 else f"{'-'*(col-2)}  "
-        data_format += "\n"
-        header_format += "\n"
-        header_divider += "\n"
+            # determine the column widths by finding the max legnth out of data
+            # and headers
+            col_widths = pd.concat([max_header, max_data], axis=1).max(axis=1) + 2
 
-        # loop over data and format each each row of data as a string
-        outstr = ""
-        for i, row in enumerate(out_df.drop("desc", axis=1).values):
-            desc = out_df.loc[i, "desc"]
-            if (not pd.isna(desc)) and (len(strdesc := str(desc)) > 0):
-                outstr += comment_formatter(strdesc)
-            outstr += data_format.format(*row)
+            # create format strings for header, divider, and data
+            header_format = ""
+            header_divider = ""
+            data_format = ""
+            for i, col in enumerate(col_widths.drop("desc")):
+                data_format += f"{{:<{col}}}"
+                header_format += f";;{{:<{col-2}}}" if i == 0 else f"{{:<{col}}}"
+                header_divider += f";;{'-'*(col-4)}  " if i == 0 else f"{'-'*(col-2)}  "
+            data_format += "\n"
+            header_format += "\n"
+            header_divider += "\n"
 
-        header = header_format.format(*out_df.drop("desc", axis=1).columns)
-        # concatenate the header, divider, and data
-        return header + header_divider + outstr
+            # loop over data and format each each row of data as a string
+            outstr = ""
+            for i, row in enumerate(out_df.drop("desc", axis=1).values):
+                desc = out_df.loc[i, "desc"]
+                if (not pd.isna(desc)) and (len(strdesc := str(desc)) > 0):
+                    outstr += comment_formatter(strdesc)
+                outstr += data_format.format(*row)
+
+            header = header_format.format(*out_df.drop("desc", axis=1).columns)
+            # concatenate the header, divider, and data
+            return header + header_divider + outstr
 
 
 class Title(SectionText):
@@ -824,6 +833,11 @@ class Subcatchment(SectionDf):
     ]
     _index_col = "Name"
 
+    @classmethod
+    def _section_dtype(cls, i):
+        types = [str, str, str, float, float, float, float, float, str]
+        return types[i]
+
 
 class Subarea(SectionDf):
     """
@@ -848,6 +862,11 @@ class Subarea(SectionDf):
         "PctRouted",
     ]
     _index_col = "Subcatchment"
+
+    @classmethod
+    def _section_dtype(cls, i):
+        types = [str, float, float, float, float, float, str, float]
+        return types[i]
 
 
 class Infil(SectionDf):
@@ -878,6 +897,11 @@ class Infil(SectionDf):
         "MODIFIED_GREEN_AMPT",
         "CURVE_NUMBER",
     )
+
+    @classmethod
+    def _section_dtype(cls, i):
+        types = [str, None, None, None, None, None, None]
+        return types[i]
 
     @classmethod
     def _tabulate(cls, line: list[str | float | int]) -> TRow | list[TRow]:
@@ -1397,29 +1421,47 @@ class Xsections(SectionDf):
             raise ValueError(f"Unexpected line in xsection section ({line})")
 
     def to_swmm_string(self) -> str:
-        df = self.copy(deep=True)
+        with pd.option_context("future.no_silent_downcasting", True):
+            df = self.copy(deep=True)
 
-        # fill geoms
-        mask = df["Shape"].isin(self._shapes)
-        geom_cols = [f"Geom{i}" for i in range(1, 5)]
-        df.loc[mask, geom_cols] = (
-            df.loc[mask, geom_cols]
-            .infer_objects(copy=False)
-            .fillna(0)
-            .infer_objects(copy=False)
-        )
-        df.loc[mask, geom_cols] = (
-            df.loc[mask, geom_cols]
-            .infer_objects(copy=False)
-            .replace("", 0)
-            .infer_objects(copy=False)
-        )
+            # fill geoms
+            mask = df["Shape"].isin(self._shapes)
+            geom_cols = [f"Geom{i}" for i in range(1, 5)]
+            df.loc[:, geom_cols] = (
+                df.loc[:, geom_cols]
+                #
+                .fillna(0)
+                #
+            )
+            df.loc[:, geom_cols] = (
+                df.loc[:, geom_cols]
+                #
+                .replace("", 0)
+                #
+            )
 
-        # fix custom shapes, Geom2 needs to be empty since the curve goes there
-        mask = df["Shape"].astype(str).str.upper() == "CUSTOM"
-        df.loc[mask, "Geom2"] = ""
+            df.loc[:, "Barrels"] = (
+                df.loc[:, "Barrels"]
+                #
+                .fillna(1)
+                #
+            )
+            df.loc[:, "Barrels"] = (
+                df.loc[:, "Barrels"]
+                #
+                .replace("", 1)
+                #
+            )
 
-        return super(Xsections, df).to_swmm_string()
+            # fix custom shapes, Geom2 needs to be empty since the curve goes there
+            mask = df["Shape"].astype(str).str.upper().isin(["CUSTOM", "IRREGULAR"])
+            df.loc[mask, "Geom2"] = ""
+
+            # This line is required to support SWMM<5.2, when all xsection entries required 6 tokens
+            mask = df["Shape"].astype(str).str.upper() == "IRREGULAR"
+            df.loc[mask, "Geom1"] = ""
+
+            return super(Xsections, df).to_swmm_string()
 
 
 class Street(SectionDf):
@@ -1483,41 +1525,45 @@ class Timeseries(SectionBase):
 
     @staticmethod
     def _timeseries_to_swmm_dat(df, name):
-        def df_time_formatter(x):
-            if isinstance(x, pd.Timedelta):
-                total_seconds = x.total_seconds()
-                hours = int(total_seconds // 3600)  # Get the total hours
-                minutes = int((total_seconds % 3600) // 60)  # Get the remaining minutes
-                return f"{hours:02}:{minutes:02}"
-            elif isinstance(x, pd.Timestamp):
-                return x.strftime("%m/%d/%Y %H:%M")
-            elif isinstance(x, (float, int)):
-                return x
+        with pd.option_context("future.no_silent_downcasting", True):
 
-        def df_comment_formatter(x):
-            if len(x) > 0:
-                return comment_formatter(x).strip("\n")
+            def df_time_formatter(x):
+                if isinstance(x, pd.Timedelta):
+                    total_seconds = x.total_seconds()
+                    hours = int(total_seconds // 3600)  # Get the total hours
+                    minutes = int(
+                        (total_seconds % 3600) // 60
+                    )  # Get the remaining minutes
+                    return f"{hours:02}:{minutes:02}"
+                elif isinstance(x, pd.Timestamp):
+                    return x.strftime("%m/%d/%Y %H:%M")
+                elif isinstance(x, (float, int)):
+                    return x
+
+            def df_comment_formatter(x):
+                if len(x) > 0:
+                    return comment_formatter(x).strip("\n")
+                else:
+                    return ""
+
+            df["name"] = name
+
+            if len(comment := df.attrs.get("desc", "")) > 0:
+                comment_line = df_comment_formatter(comment) + "\n"
             else:
-                return ""
-
-        df["name"] = name
-
-        if len(comment := df.attrs.get("desc", "")) > 0:
-            comment_line = df_comment_formatter(comment) + "\n"
-        else:
-            comment_line = ""
-        return (
-            comment_line
-            + df.reset_index(names="time")
-            .reindex(["name", "time", "value", "desc"], axis=1)
-            .fillna("")
-            .to_string(
-                formatters=dict(time=df_time_formatter, desc=df_comment_formatter),
-                index=False,
-                header=False,
+                comment_line = ""
+            return (
+                comment_line
+                + df.reset_index(names="time")
+                .reindex(["name", "time", "value", "desc"], axis=1)
+                .fillna("")
+                .to_string(
+                    formatters=dict(time=df_time_formatter, desc=df_comment_formatter),
+                    index=False,
+                    header=False,
+                )
+                + "\n\n"
             )
-            + "\n\n"
-        )
 
     @classmethod
     def from_section_text(cls, text: str):
@@ -1830,15 +1876,16 @@ class Losses(SectionDf):
     _index_col = "Link"
 
     def to_swmm_string(self) -> str:
-        df = self.copy(deep=True)
+        with pd.option_context("future.no_silent_downcasting", True):
+            df = self.copy(deep=True)
 
-        for col in self._data_cols(desc=False):
-            if col != "FlapGate":
-                df[col] = df[col].infer_objects(copy=False).fillna(0.0)
-            else:
-                df[col] = df[col].infer_objects(copy=False).fillna("NO")
+            for col in self._data_cols(desc=False):
+                if col != "FlapGate":
+                    df[col] = df[col].fillna(0.0)
+                else:
+                    df[col] = df[col].fillna("NO")
 
-        return super(Losses, df).to_swmm_string()
+            return super(Losses, df).to_swmm_string()
 
 
 class Controls(SectionBase):
@@ -1963,9 +2010,10 @@ class LandUse(SectionDf):
     _index_col = "Name"
 
     def to_swmm_string(self) -> str:
-        for col in self.columns:
-            self[col] = self[col].infer_objects(copy=False).fillna(0.0)
-        return super().to_swmm_string()
+        with pd.option_context("future.no_silent_downcasting", True):
+            for col in self.columns:
+                self[col] = self[col].fillna(0.0)
+            return super().to_swmm_string()
 
 
 class Coverage(SectionDf):
@@ -2084,10 +2132,12 @@ class Treatment(SectionDf):
         eqn = " ".join(str(v) for v in line)
         out: TRow = [node, poll, eqn]
         return out
+
     @classmethod
     def from_section_text(cls, text: str) -> Self:
         df = cls._from_section_text(text, cls._ncol)
         return df.sort_index()
+
 
 class Inflow(SectionDf):
     """
@@ -2116,14 +2166,15 @@ class Inflow(SectionDf):
         return [v.replace('"', "") if isinstance(v, str) else v for v in line]
 
     def to_swmm_string(self) -> str:
-        df = self.copy(deep=True)
-        df["Mfactor"] = df["Mfactor"].infer_objects(copy=False).fillna(1.0)
-        df["Sfactor"] = df["Sfactor"].infer_objects(copy=False).fillna(1.0)
+        with pd.option_context("future.no_silent_downcasting", True):
+            df = self.copy(deep=True)
+            df["Mfactor"] = df["Mfactor"].fillna(1.0)
+            df["Sfactor"] = df["Sfactor"].fillna(1.0)
 
-        # strip out any existing double quotes
-        df["TimeSeries"] = df["TimeSeries"].fillna("").str.replace('"', "")
-        df["TimeSeries"] = '"' + df["TimeSeries"].astype(str) + '"'
-        return super(Inflow, df).to_swmm_string()
+            # strip out any existing double quotes
+            df["TimeSeries"] = df["TimeSeries"].fillna("").str.replace('"', "")
+            df["TimeSeries"] = '"' + df["TimeSeries"].astype(str) + '"'
+            return super(Inflow, df).to_swmm_string()
 
     @classmethod
     def from_section_text(cls, text: str) -> Self:
@@ -2157,15 +2208,16 @@ class DWF(SectionDf):
         return [v.replace('"', "") if isinstance(v, str) else v for v in line]
 
     def to_swmm_string(self) -> str:
-        df = self.copy(deep=True)
-        df["AvgValue"] = df["AvgValue"].infer_objects(copy=False).fillna(0.0)
+        with pd.option_context("future.no_silent_downcasting", True):
+            df = self.copy(deep=True)
+            df["AvgValue"] = df["AvgValue"].fillna(0.0)
 
-        for ipat in range(1, 5):
-            col = f"Pat{ipat}"
-            df[col] = df[col].fillna("").str.replace('"', "")
-            df[col] = '"' + df[col].astype(str) + '"'
+            for ipat in range(1, 5):
+                col = f"Pat{ipat}"
+                df[col] = df[col].fillna("").str.replace('"', "")
+                df[col] = '"' + df[col].astype(str) + '"'
 
-        return super(DWF, df).to_swmm_string()
+            return super(DWF, df).to_swmm_string()
 
     @classmethod
     def from_section_text(cls, text: str) -> Self:
@@ -2250,6 +2302,10 @@ class Hydrographs(SectionDf):
         def index_mapper(index):
             if index.name == "Month_RG":
                 return index.map(month_to_number)
+            elif index.name == "Response":
+                return index.str.lower().map(
+                    {"": 0, "short": 1, "medium": 2, "long": 3}
+                )
             else:
                 return index
 
@@ -2268,7 +2324,7 @@ class Hydrographs(SectionDf):
 
         df = pd.concat([self, _temp])
         # sort by name, month, and response after adding in raingauges
-        df = Hydrographs(df.sort_index(ascending=[True, True, False], key=index_mapper))
+        df = Hydrographs(df.sort_index(ascending=[True, True, True], key=index_mapper))
         return super(Hydrographs, df).to_swmm_string()
 
 
@@ -2342,7 +2398,7 @@ class Curves(SectionDf):
         curve_types = cls._validate_curve_types(df)
         df = df.reset_index().drop("Type", axis=1)
         df["Curve_Index"] = df.groupby("Name").cumcount()
-        df = cls(df.set_index(["Name", "Curve_Index"]))
+        df = cls(df.set_index(["Name", "Curve_Index"]).sort_index())
         df.attrs = curve_types  # type: ignore
         return df
 
@@ -2419,7 +2475,7 @@ class Vertices(SectionDf):
     Assigns X,Y coordinates to interior vertex points of curved drainage system links.
     """
 
-    _section_name = "VERTICIES"
+    _section_name = "VERTICES"
     _ncol = 3
     _headings = ["Link", "X", "Y"]
     _index_col = "Link"
