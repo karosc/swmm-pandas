@@ -77,6 +77,10 @@ class Output:
         ----------
         binfile: str
             model binary file path
+        preload: bool
+            If true, the whole output file will be preloaded into memory before instantiating the object.
+            This is usefull if you plan on extracting lots of data from an output file that can easily
+            fit into ram as it significantly can speed up iterative I/O.
         """
 
         self._period: int
