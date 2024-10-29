@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from typing import Self, TypeGuard, Type, Optional, Any
     from collections.abc import Iterable, Iterator
 
-TRow = list[str | float | int | pd.Timestamp | pd.Timedelta | NAType]
+    TRow = list[str | float | int | pd.Timestamp | pd.Timedelta | NAType]
 
 _logger = logging.getLogger(__name__)
 
