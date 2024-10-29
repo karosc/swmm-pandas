@@ -12,12 +12,12 @@ from swmm.toolkit.shared_enum import SubcatchAttribute
 from swmm.pandas import Output
 
 _HERE = pathlib.Path(__file__).parent
-test_out_path = str(_HERE / "data" / "Model.out")
+example_out_path = str(_HERE / "data" / "Model.out")
 
 
 @pytest.fixture(scope="module")
 def outfile():
-    out = Output(test_out_path)
+    out = Output(example_out_path)
     yield out
     out._close()
 

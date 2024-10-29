@@ -1228,8 +1228,8 @@ class Output:
 
         Pull single time series for a single subcatchment
 
-        >>> from swmm.pandas import Output,test_out_path
-        >>> out = Output(test_out_path)
+        >>> from swmm.pandas import Output,example_out_path
+        >>> out = Output(example_out_path)
         >>> out.subcatch_series('SUB1', 'runoff_rate')
                              runoff_rate
         datetime
@@ -1288,10 +1288,10 @@ class Output:
 
            import matplotlib.pyplot as plt
            from matplotlib.dates import DateFormatter
-           from swmm.pandas import Output,test_out_path
+           from swmm.pandas import Output,example_out_path
 
            # read output file in Output object
-           out = Output(test_out_path)
+           out = Output(example_out_path)
 
            # pull rainfall and runoff_rate timeseries and plot them
            ax = out.subcatch_series('SUB1', ['rainfall', 'runoff_rate']).plot(figsize=(8,4))
@@ -1305,10 +1305,10 @@ class Output:
 
            import matplotlib.pyplot as plt
            from matplotlib.dates import DateFormatter
-           from swmm.pandas import Output,test_out_path
+           from swmm.pandas import Output,example_out_path
 
            # read output file in Output object
-           out = Output(test_out_path)
+           out = Output(example_out_path)
 
            # pull runoff_rate timeseries for all cathments and plot them
            ax = out.subcatch_series(out.subcatchments, 'runoff_rate', columns='elem').plot(figsize=(8,4))
@@ -1424,8 +1424,8 @@ class Output:
 
         Pull single time series for a single node
 
-        >>> from swmm.pandas import Output,test_out_path
-        >>> out = Output(test_out_path)
+        >>> from swmm.pandas import Output,example_out_path
+        >>> out = Output(example_out_path)
         >>> out.node_series('JUNC2', 'invert_depth')
                              invert_depth
         datetime
@@ -1618,8 +1618,8 @@ class Output:
 
         Pull flow rate for two conduits
 
-        >>> from swmm.pandas import Output,test_out_path
-        >>> out = Output(test_out_path)
+        >>> from swmm.pandas import Output,example_out_path
+        >>> out = Output(example_out_path)
         >>> out.link_series(['COND1','COND6'],out.link_attributes.FLOW_RATE,columns='elem')
                                 COND1   COND6
         datetime
@@ -1680,9 +1680,9 @@ class Output:
 
             import matplotlib.pyplot as plt
             import matplotlib.dates as mdates
-            from swmm.pandas import Output,test_out_path
+            from swmm.pandas import Output,example_out_path
 
-            out = Output(test_out_path)
+            out = Output(example_out_path)
             df = out.link_series('COND6',['flow_rate','groundwater','pol_rainfall','sewage'])
 
             # set up figure
@@ -1796,8 +1796,8 @@ class Output:
 
         Pull two system attribute time series
 
-        >>> from swmm.pandas import Output,test_out_path
-        >>> out = Output(test_out_path)
+        >>> from swmm.pandas import Output,example_out_path
+        >>> out = Output(example_out_path)
         >>> out.system_series(['total_lateral_inflow','rainfall'])
                              total_lateral_inflow  rainfall
         datetime
@@ -1890,8 +1890,8 @@ class Output:
         ---------
         Pull rainfall for all catchments at start of simulation
 
-        >>> from swmm.pandas import Output,test_out_path
-        >>> out = Output(test_out_path)
+        >>> from swmm.pandas import Output,example_out_path
+        >>> out = Output(example_out_path)
         >>> out.subcatch_attribute(0,'rainfall')
                           rainfall
             subcatchment
@@ -1966,8 +1966,8 @@ class Output:
         ---------
         Pull all attributes from middle of simulation
 
-        >>> from swmm.pandas import Output,test_out_path
-        >>> out = Output(test_out_path)
+        >>> from swmm.pandas import Output,example_out_path
+        >>> out = Output(example_out_path)
         >>> out.node_attribute(out.period/2)
                    invert_depth  hydraulic_head  ponded_volume  ...  groundwater  pol_rainfall    sewage
             node                                                ...
@@ -2047,8 +2047,8 @@ class Output:
         ---------
         Pull depth. flooding, and total inflow attributes from end of simulation
 
-        >>> from swmm.pandas import Output,test_out_path
-        >>> out = Output(test_out_path)
+        >>> from swmm.pandas import Output,example_out_path
+        >>> out = Output(example_out_path)
         >>> out.link_attribute(out.period/2)
                    invert_depth  flooding_losses  total_inflow
             node
@@ -2126,8 +2126,8 @@ class Output:
 
         Pull all system attributes for the 10th time step
 
-        >>> from swmm.pandas import Output,test_out_path
-        >>> out = Output(test_out_path)
+        >>> from swmm.pandas import Output,example_out_path
+        >>> out = Output(example_out_path)
         >>> out.system_attribute(10)
                                        result
             attribute
@@ -2202,8 +2202,8 @@ class Output:
 
         Pull all attributes at start, middle, and end time steps for a single catchment
 
-        >>> from swmm.pandas import Output,test_out_path
-        >>> out = Output(test_out_path)
+        >>> from swmm.pandas import Output,example_out_path
+        >>> out = Output(example_out_path)
         >>> out.subcatch_result("SUB1",[0,out.period/2,out.period-1])
                                  rainfall  snow_depth  evap_loss  infil_loss  ...  soil_moisture  groundwater  pol_rainfall  sewage
             datetime                                                          ...
@@ -2214,8 +2214,8 @@ class Output:
 
         Pull all attributes for all catchments at the start of the simulation
 
-        >>> from swmm.pandas import Output,test_out_path
-        >>> out = Output(test_out_path)
+        >>> from swmm.pandas import Output,example_out_path
+        >>> out = Output(example_out_path)
         >>> out.subcatch_result(out.subcatchments,'1900-01-01')
                           rainfall  snow_depth  evap_loss  infil_loss  ...  soil_moisture  groundwater  pol_rainfall  sewage
             subcatchment                                               ...
@@ -2300,8 +2300,8 @@ class Output:
 
         Pull all attributes at start, middle, and end time steps for a single node
 
-        >>> from swmm.pandas import Output,test_out_path
-        >>> out = Output(test_out_path)
+        >>> from swmm.pandas import Output,example_out_path
+        >>> out = Output(example_out_path)
         >>> out.node_result("JUNC1",[0,out.period/2,out.period-1])
                                  invert_depth  hydraulic_head  ponded_volume  lateral_inflow  ...  flooding_losses  groundwater  pol_rainfall  sewage
             datetime                                                                          ...
@@ -2312,8 +2312,8 @@ class Output:
 
         Pull all attributes for all nodes at the start of the simulation
 
-        >>> from swmm.pandas import Output,test_out_path
-        >>> out = Output(test_out_path)
+        >>> from swmm.pandas import Output,example_out_path
+        >>> out = Output(example_out_path)
         >>> out.node_result(out.nodes,'1900-01-01')
                    invert_depth  hydraulic_head  ponded_volume  lateral_inflow  total_inflow  flooding_losses  groundwater  pol_rainfall     sewage
             node
@@ -2401,8 +2401,8 @@ class Output:
 
         Pull all attributes at start, middle, and end time steps for a single link
 
-        >>> from swmm.pandas import Output,test_out_path
-        >>> out = Output(test_out_path)
+        >>> from swmm.pandas import Output,example_out_path
+        >>> out = Output(example_out_path)
         >>> out.link_result("COND1",[0,out.period/2,out.period-1])
                                  flow_rate  flow_depth  flow_velocity  flow_volume  capacity  groundwater  pol_rainfall        sewage
             datetime
@@ -2412,8 +2412,8 @@ class Output:
 
         Pull all attributes for all links at the start of the simulation
 
-        >>> from swmm.pandas import Output,test_out_path
-        >>> out = Output(test_out_path)
+        >>> from swmm.pandas import Output,example_out_path
+        >>> out = Output(example_out_path)
         >>> out.link_result(out.links,'1900-01-01')
                    flow_rate  flow_depth  flow_velocity  flow_volume  capacity  groundwater  pol_rainfall     sewage
             link
@@ -2495,8 +2495,8 @@ class Output:
 
         Pull all attributes at start of simulation
 
-        >>> from swmm.pandas import Output,test_out_path
-        >>> out = Output(test_out_path)
+        >>> from swmm.pandas import Output,example_out_path
+        >>> out = Output(example_out_path)
         >>> out.system_result('1900-01-01')
                                     result
             attribute

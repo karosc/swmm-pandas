@@ -2,9 +2,9 @@ import os.path
 
 _this_dir, _this_filename = os.path.split(__file__)
 
-test_inp_path = os.path.join(_this_dir, "test_data/Model.inp")
-test_out_path = os.path.join(_this_dir, "test_data/Model.out")
-test_rpt_path = os.path.join(_this_dir, "test_data/Model.rpt")
+# test_inp_path = os.path.join(_this_dir, "example_data/Model.inp")
+example_out_path = os.path.join(_this_dir, "example_data/Model.out")
+example_rpt_path = os.path.join(_this_dir, "example_data/Model.rpt")
 
 # volume
 gal_per_cf = 7.48052
