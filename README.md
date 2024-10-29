@@ -3,7 +3,8 @@
 ## A pandorable interface for SWMM files
 
 [![image](https://img.shields.io/pypi/v/swmm-pandas.svg)](https://pypi.python.org/pypi/swmm-pandas)
-[![image](https://img.shields.io/badge/docs-pages-success)](https://karosc.github.io/swmm-python/)
+[![image](https://github.com/karosc/swmm-pandas/actions/workflows/tests.yml/badge.svg)]
+[![image](https://github.com/karosc/swmm-pandas/actions/workflows/docs.yml/badge.svg)]
 [![image](http://www.mypy-lang.org/static/mypy_badge.svg)](http://mypy-lang.org/)
 ## What and Why?
 
@@ -11,9 +12,9 @@ swmm-pandas is a high level api for interacting with swmm files via pandas dataf
 
 ### Status
 
--   **input**: not implemented
--   [**ouput**](http://www.karosc.com/swmm-python/reference/output/)
--   [**report**](http://www.karosc.com/swmm-python/reference/report/)
+-   [**input**](http://www.karosc.com/swmm-pandas/reference/input/) (✨NEW in v0.9✨, docs or work in progress)
+-   [**ouput**](http://www.karosc.com/swmm-pandas/reference/output/)
+-   [**report**](http://www.karosc.com/swmm-pandas/reference/report/)
 
 ## Installation
 
