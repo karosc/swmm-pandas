@@ -46,7 +46,7 @@ class InputFileTest(unittest.TestCase):
 
     def test_title(self):
         inp = self.test_base_model
-        self.assertEqual(inp.title, "SWMM is the best!")
+        self.assertEqual(str(inp.title), "SWMM is the best!")
         self.assertEqual(
             inp.title.to_swmm_string(),
             ";;Project Title/Notes\nSWMM is the best!",
@@ -648,7 +648,7 @@ class InputFileTest(unittest.TestCase):
                     ;changed to normal outfall
                     OUT1    0.1        FREE                     NO              
                     OUT2    -1.04      FREE                     NO              
-                    OUT3    0.0        TIMESERIES  head_series  YES    SUB1     
+                    OUT3    0          TIMESERIES  head_series  YES    SUB1     
                 """
             ),
         )
@@ -697,11 +697,11 @@ class InputFileTest(unittest.TestCase):
                     COND2   JUNC2     JUNC3   599.52   0.019      0         0.25       0         0        
                     ;update from node
                     COND3   JUNC1     JUNC4   541.1    0.019      0         0.5        0         0        
-                    COND4   JUNC4     JUNC5   732.48   0.019      0         0.0        0         0        
+                    COND4   JUNC4     JUNC5   732.48   0.019      0         0          0         0        
                     COND5   JUNC5     STOR1   64.72    0.019      0         8.74       0         0        
-                    COND6   JUNC6     OUT1    37.72    0.015      0         0.0        0         0        
-                    COND7   JUNC5     STOR1   37.72    0.015      0         0.0        0         0        
-                    COND8   JUNC5     STOR1   37.72    0.015      0         0.0        0         0        
+                    COND6   JUNC6     OUT1    37.72    0.015      0         0          0         0        
+                    COND7   JUNC5     STOR1   37.72    0.015      0         0          0         0        
+                    COND8   JUNC5     STOR1   37.72    0.015      0         0          0         0        
                 """
             ),
         )
@@ -755,7 +755,7 @@ class InputFileTest(unittest.TestCase):
                 """\
                     ;;Name  FromNode  ToNode  Type  Offset  Qcoeff  Gated  CloseTime  
                     ;;----  --------  ------  ----  ------  ------  -----  ---------  
-                    O1      SU1       J_out   SIDE  0.0     0.65    YES    0          
+                    O1      SU1       J_out   SIDE  0       0.65    YES    0          
                     ;a new orifice!
                     O2      SU1       J_out   SIDE  1.25                   6          
                 """
@@ -775,16 +775,16 @@ class InputFileTest(unittest.TestCase):
                 """\
                     ;;Link  Shape            Geom1  Curve        Geom2  Geom3  Geom4  Barrels  Culvert  
                     ;;----  ---------------  -----  -----------  -----  -----  -----  -------  -------  
-                    COND1   CIRCULAR         1.0                 0.0    0      0      1        0        
+                    COND1   CIRCULAR         1                   0      0      0      1        0        
                     COND2   FILLED_CIRCULAR  1.25                0.5    0      0      1        0        
                     COND3   FILLED_CIRCULAR  1.5                 0.5    0      0      1        0        
-                    COND4   FILLED_CIRCULAR  2.0                 0.5    0      0      1        0        
-                    COND5   FILLED_CIRCULAR  2.0                 1.0    0      0      1        0        
-                    COND6   FORCE_MAIN       1.0                 130.0  0      0      1        0        
+                    COND4   FILLED_CIRCULAR  2                   0.5    0      0      1        0        
+                    COND5   FILLED_CIRCULAR  2                   1      0      0      1        0        
+                    COND6   FORCE_MAIN       1                   130    0      0      1        0        
                     ;changed to single barrel
-                    COND7   CUSTOM           10.0   COND7_curve         0      0      1                 
+                    COND7   CUSTOM           10     COND7_curve         0      0      1                 
                     COND8   IRREGULAR               Transect            0      0      1                 
-                    WR1     RECT_OPEN        3.2                 3.0    0      0      1                 
+                    WR1     RECT_OPEN        3.2                 3      0      0      1                 
                 """
             ),
         )
@@ -829,7 +829,7 @@ class InputFileTest(unittest.TestCase):
                     ;;--------  -----  ------  ------  ----------  ------  ------  
                     ComboInlet  CURB   2       0.5     HORIZONTAL                  
                     ;update pct open and splace velocity of grate
-                    ComboInlet  GRATE  2       2.0     P_BAR-50    0.5     0.3     
+                    ComboInlet  GRATE  2       2       P_BAR-50    0.5     0.3     
                 """
             ),
         )
@@ -897,9 +897,9 @@ class InputFileTest(unittest.TestCase):
                     ;;-----------  -------------  ------------  ---------  
                     ;set weekly street sweeping
                     Residential_1  7              0.5           3          
-                    Residential_2  0              0.0           0          
-                    Commercial     0              0.0           0          
-                    Undeveloped    0              0.0           0          
+                    Residential_2  0              0             0          
+                    Commercial     0              0             0          
+                    Undeveloped    0              0             0          
                 """
             ),
         )
@@ -951,11 +951,11 @@ class InputFileTest(unittest.TestCase):
                 """\
                     ;;Subcatchment  Pollutant  InitBuildup  
                     ;;------------  ---------  -----------  
-                    SUB1            Rainfall   1.0          
+                    SUB1            Rainfall   1            
                     SUB2            Rainfall   1.4          
                     SUB3            Rainfall   1.1          
                     ;bumped initial conc
-                    SUB1            Ranfall    10.0         
+                    SUB1            Ranfall    10           
                 """
             ),
         )
@@ -987,7 +987,7 @@ class InputFileTest(unittest.TestCase):
                     Residential_1  TSS        EXP       0.22  0.5  0.0  CURB     
                     Residential_2  TSS        EXP       0.13  0.5  0.0  CURB     
                     Undeveloped    TSS        NONE      0.0   0.0  0.0  AREA     
-                    Residential_3  TSS        SAT       0.1   0.0  1.0  AREA     
+                    Residential_3  TSS        SAT       0.1   0    1    AREA     
                 """
             ),
         )
@@ -1012,7 +1012,7 @@ class InputFileTest(unittest.TestCase):
                     ;set sweep removal eff
                     Residential_1  TSS        EXP       2    1.8  0.6        0.0      
                     Residential_2  TSS        EXP       4    2.2  0.0        0.0      
-                    Undeveloped    TSS        RC        500  2.0  0.0        0.0      
+                    Undeveloped    TSS        RC        500  2    0.0        0.0      
                     Residential_3  TSS        EMC       55                            
                 """
             ),
@@ -1071,11 +1071,11 @@ class InputFileTest(unittest.TestCase):
                     ;;Node  Constituent  TimeSeries       InflowType  Mfactor  Sfactor  Baseline  Pattern  
                     ;;----  -----------  ---------------  ----------  -------  -------  --------  -------  
                     JUNC1   FLOW         "inflow_series"  FLOW        1.0      1.0      0.25      HOURLY   
-                    JUNC2   FLOW         ""               FLOW        1.0      1.0      10.0               
+                    JUNC2   FLOW         ""               FLOW        1.0      1.0      10                 
                     ;added hourly poll pattern
-                    JUNC3   Sewage       ""               CONCEN      1.0      1.0      100.0     HOURLY   
+                    JUNC3   Sewage       ""               CONCEN      1.0      1.0      100       HOURLY   
                     ;new inflow!
-                    JUNC4   FLOW         ""               FLOW        1.0      1.0      10.0               
+                    JUNC4   FLOW         ""               FLOW        1.0      1.0      10                 
                 """
             ),
         )
@@ -1104,7 +1104,7 @@ class InputFileTest(unittest.TestCase):
                     JUNC2   FLOW         0.2       "HOURLY"  ""    ""        "HOURLY2"  
                     JUNC4   FLOW         0.7       "HOURLY"  ""    ""        ""         
                     ;testing a pattern addition
-                    JUNC1   FLOW         1.0       ""        ""    "HOURLY"  ""         
+                    JUNC1   FLOW         1         ""        ""    "HOURLY"  ""         
                 """
             ),
         )
@@ -1122,7 +1122,7 @@ class InputFileTest(unittest.TestCase):
                 """\
                     ;;Node  UHgroup  SewerArea       
                     ;;----  -------  --------------  
-                    JUNC1   HydrC    10.0            
+                    JUNC1   HydrC    10              
                     ;bumped acreage
                     JUNC2   HydrA    1244.282478391  
                     ;this rdii has high precision
@@ -1145,42 +1145,42 @@ class InputFileTest(unittest.TestCase):
                     ;;Name  Month_RG     Response  R  T           K          IA_max  IA_rec  IA_ini  
                     ;;----  -----------  --------  -  ----------  ---------  ------  ------  ------  
                     HydrB   RainGauge_C                                                              
-                    HydrB   Jan          Short        0.575       0.825      0.0     0.0     0.0     
-                    HydrB   Jan          Medium       5.5         7.275      0.0     0.0     0.0     
-                    HydrB   Jan          Long         7.0         17.0       0.0     0.0     0.0     
-                    HydrB   Feb          Short        0.63125     0.9354165  0.0     0.0     0.0     
-                    HydrB   Feb          Medium       5.19833325  7.38125    0.0     0.0     0.0     
-                    HydrB   Feb          Long         7.08333325  21.166665  0.0     0.0     0.0     
-                    HydrB   Mar          Short        0.6875      1.045833   0.0     0.0     0.0     
-                    HydrB   Mar          Medium       4.8966665   7.4875     0.0     0.0     0.0     
-                    HydrB   Mar          Long         7.1666665   25.33333   0.0     0.0     0.0     
-                    HydrB   Apr          Short        0.74375     1.1562495  0.0     0.0     0.0     
-                    HydrB   Apr          Medium       4.59499975  7.59375    0.0     0.0     0.0     
-                    HydrB   Apr          Long         7.24999975  29.499995  0.0     0.0     0.0     
-                    HydrB   May          Short        0.8         1.266666   0.0     0.0     0.0     
-                    HydrB   May          Medium       4.293333    7.7        0.0     0.0     0.0     
-                    HydrB   May          Long         7.333333    33.66666   0.0     0.0     0.0     
-                    HydrB   Jun          Short        0.7         1.033333   0.0     0.0     0.0     
-                    HydrB   Jun          Medium       5.0         6.8        0.0     0.0     0.0     
-                    HydrB   Jun          Long         8.0         28.33333   0.0     0.0     0.0     
-                    HydrB   Jul          Short        0.7         1.033333   0.0     0.0     0.0     
-                    HydrB   Jul          Medium       5.0         6.8        0.0     0.0     0.0     
-                    HydrB   Jul          Long         8.0         28.33333   0.0     0.0     0.0     
-                    HydrB   Aug          Short        0.7         1.033333   0.0     0.0     0.0     
-                    HydrB   Aug          Medium       5.0         6.8        0.0     0.0     0.0     
-                    HydrB   Aug          Long         8.0         28.33333   0.0     0.0     0.0     
-                    HydrB   Sep          Short        0.5         1.2166665  0.0     0.0     0.0     
-                    HydrB   Sep          Medium       3.75        12.65      0.0     0.0     0.0     
-                    HydrB   Sep          Long         10.75       24.166665  0.0     0.0     0.0     
-                    HydrB   Oct          Short        0.3         1.4        0.0     0.0     0.0     
-                    HydrB   Oct          Medium       2.5         18.5       0.0     0.0     0.0     
-                    HydrB   Oct          Long         13.5        20.0       0.0     0.0     0.0     
-                    HydrB   Nov          Short        0.4375      1.1125     0.0     0.0     0.0     
-                    HydrB   Nov          Medium       4.0         12.8875    0.0     0.0     0.0     
-                    HydrB   Nov          Long         10.25       18.5       0.0     0.0     0.0     
-                    HydrB   Dec          Short        0.575       0.825      0.0     0.0     0.0     
-                    HydrB   Dec          Medium       5.5         7.275      0.0     0.0     0.0     
-                    HydrB   Dec          Long         7.0         17.0       0.0     0.0     0.0     
+                    HydrB   Jan          Short        0.575       0.825      0       0       0       
+                    HydrB   Jan          Medium       5.5         7.275      0       0       0       
+                    HydrB   Jan          Long         7           17         0       0       0       
+                    HydrB   Feb          Short        0.63125     0.9354165  0       0       0       
+                    HydrB   Feb          Medium       5.19833325  7.38125    0       0       0       
+                    HydrB   Feb          Long         7.08333325  21.166665  0       0       0       
+                    HydrB   Mar          Short        0.6875      1.045833   0       0       0       
+                    HydrB   Mar          Medium       4.8966665   7.4875     0       0       0       
+                    HydrB   Mar          Long         7.1666665   25.33333   0       0       0       
+                    HydrB   Apr          Short        0.74375     1.1562495  0       0       0       
+                    HydrB   Apr          Medium       4.59499975  7.59375    0       0       0       
+                    HydrB   Apr          Long         7.24999975  29.499995  0       0       0       
+                    HydrB   May          Short        0.8         1.266666   0       0       0       
+                    HydrB   May          Medium       4.293333    7.7        0       0       0       
+                    HydrB   May          Long         7.333333    33.66666   0       0       0       
+                    HydrB   Jun          Short        0.7         1.033333   0       0       0       
+                    HydrB   Jun          Medium       5           6.8        0       0       0       
+                    HydrB   Jun          Long         8           28.33333   0       0       0       
+                    HydrB   Jul          Short        0.7         1.033333   0       0       0       
+                    HydrB   Jul          Medium       5           6.8        0       0       0       
+                    HydrB   Jul          Long         8           28.33333   0       0       0       
+                    HydrB   Aug          Short        0.7         1.033333   0       0       0       
+                    HydrB   Aug          Medium       5           6.8        0       0       0       
+                    HydrB   Aug          Long         8           28.33333   0       0       0       
+                    HydrB   Sep          Short        0.5         1.2166665  0       0       0       
+                    HydrB   Sep          Medium       3.75        12.65      0       0       0       
+                    HydrB   Sep          Long         10.75       24.166665  0       0       0       
+                    HydrB   Oct          Short        0.3         1.4        0       0       0       
+                    HydrB   Oct          Medium       2.5         18.5       0       0       0       
+                    HydrB   Oct          Long         13.5        20         0       0       0       
+                    HydrB   Nov          Short        0.4375      1.1125     0       0       0       
+                    HydrB   Nov          Medium       4           12.8875    0       0       0       
+                    HydrB   Nov          Long         10.25       18.5       0       0       0       
+                    HydrB   Dec          Short        0.575       0.825      0       0       0       
+                    HydrB   Dec          Medium       5.5         7.275      0       0       0       
+                    HydrB   Dec          Long         7           17         0       0       0       
                 """
             ),
         )
@@ -1197,17 +1197,17 @@ class InputFileTest(unittest.TestCase):
                 """\
                     ;;Name       Type     X_Value  Y_Value  
                     ;;---------  -------  -------  -------  
-                    COND7_curve  SHAPE    0.1      2.0      
-                    COND7_curve           0.2      5.0      
-                    COND7_curve           0.5      10.0     
-                    COND7_curve           1.0      10.0     
-                    P1           PUMP5    0.0      0.0      
-                    P1                    7.0      5.8      
+                    COND7_curve  SHAPE    0.1      2        
+                    COND7_curve           0.2      5        
+                    COND7_curve           0.5      10       
+                    COND7_curve           1        10       
+                    P1           PUMP5    0        0        
+                    P1                    7        5.8      
                     ;extended the curve
-                    P1                    10.0     10.0     
-                    Store1       STORAGE  1.0      20.0     
-                    Store1                2.0      30.0     
-                    Store1                3.0      40.0     
+                    P1                    10       10       
+                    Store1       STORAGE  1        20       
+                    Store1                2        30       
+                    Store1                3        40       
                 """
             ),
         )
@@ -1269,7 +1269,7 @@ class InputFileTest(unittest.TestCase):
                     ;;-----  ---------  -------  --------  --------  ----  ------  ----  ----  --  ----  -----  
                     KRO1003  594.73     C3       TABULAR   Outflow                       5     0   0     0      
                     ;bumped ymax
-                    KRO1004  584.0      C2       WEIR                0.2   5       3.33  100   0   0     0      
+                    KRO1004  584        C2       WEIR                0.2   5       3.33  100   0   0     0      
                     KRO1010  584.82     C1       CUTOFF              0.2                 11    0   0     0      
                     KRO4008  583.48     C4       OVERFLOW                                10    0   0     0      
                 """

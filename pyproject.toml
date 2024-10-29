@@ -3,21 +3,15 @@ name = "swmm-pandas"
 dynamic = ["version"]
 description = "SWMM binary outputfile reader and API"
 authors = [
-    {name = "Constantine Karos", email = "ckaros@outlook.com"},
-    {name = "See README.md"},
+    { name = "Constantine Karos", email = "ckaros@outlook.com" },
+    { name = "See README.md" },
 ]
-dependencies = [
-    "julian",
-    "pandas>=2.1",
-    "swmm-toolkit>=0.8.1",
-]
+dependencies = ["julian", "pandas>=2.1", "swmm-toolkit>=0.8.1"]
 requires-python = ">=3.9"
 readme = "README.md"
-license = {text = "CC BY 4.0"}
+license = { text = "CC BY 4.0" }
 keywords = ["swmm5", "swmm", "stormwater", "hydraulics", "hydrology", ""]
-maintainers = [
-    {email = "ckaros@outlook.com"},
-]
+maintainers = [{ email = "ckaros@outlook.com" }]
 classifiers = [
     "Development Status :: 4 - Beta",
     "License :: Other/Proprietary License",
@@ -45,15 +39,10 @@ path = "src/swmm/pandas/__init__.py"
 [tool.hatch.metadata]
 allow-dynamic = ["version"]
 readme = "README.md"
-license = {text = "CC BY 4.0"}
+license = { text = "CC BY 4.0" }
 
 [tool.hatch.build.targets.sdist]
-exclude = [
-  "/scripts",
-  "/tests",
-  "/docs",
-]
-
+exclude = ["/scripts", "/tests", "/docs"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/swmm"]

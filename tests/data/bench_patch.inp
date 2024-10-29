@@ -1,0 +1,9 @@
+[-CONDUITS]
+;;Name           From Node        To Node          Length     Roughness  InOffset   OutOffset  InitFlow   MaxFlow   
+;;-------------- ---------------- ---------------- ---------- ---------- ---------- ---------- ---------- ----------
+COND1            JUNC1            JUNC2            932.363    0.015      0          0.25       0          0         
+
+[CONDUITS]
+;;Name           From Node        To Node          Length     Roughness  InOffset   OutOffset  InitFlow   MaxFlow   
+;;-------------- ---------------- ---------------- ---------- ---------- ---------- ---------- ---------- ----------
+COND9            JUNC1            JUNC2            10.363     0.013      0          0.25       0          0         

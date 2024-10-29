@@ -3,6 +3,7 @@
 #   - high level api for loading, inspecting, changing, and
 #     altering a SWMM input file using pandas dataframes
 from __future__ import annotations
+from venv import logger
 
 from swmm.pandas.input._section_classes import SectionBase, _sections
 import swmm.pandas.input._section_classes as sc
@@ -79,7 +80,7 @@ class InputFile:
             model inp file path
         """
         if inpfile is not None:
-            self.path: str = inpfile
+            self.path = inpfile
             self._load_inp_file()
         # for sect in _sections.keys():
         #     # print(sect)
@@ -104,11 +105,11 @@ class InputFile:
                 section_key = self._section_keys[section_idx]
                 self._section_texts[section_key] = data
             except Exception as e:
-                print(e)
-                self._sections[name] = data
+                logger.error(f"Error parsing section: {name}")
+                raise e
+                # print(e)
+                # self._sections[name] = data
                 # self.__setattr__(name.lower(), "Not Implemented")
-
-                print(f"Section {name} not yet supported")
 
     def _get_section(self, key):
         if key in self._section_texts:

@@ -16,6 +16,7 @@ pd.set_option("future.no_silent_downcasting", True)
 _HERE = pathlib.Path(__file__).parent
 
 
+@unittest.skip("Not Ready")
 class InputFileTest(unittest.TestCase):
     def setUp(self):
         self.test_base_model_path = str(_HERE / "data" / "bench_inp.inp")

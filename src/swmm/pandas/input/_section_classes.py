@@ -15,7 +15,7 @@ from pandas._libs.missing import NAType
 import numpy as np
 
 if TYPE_CHECKING:
-    from typing import Self, TypeGuard, Type
+    from typing import Self, TypeGuard, Type, Optional, Any
     from collections.abc import Iterable, Iterator
 
 TRow = list[str | float | int | pd.Timestamp | pd.Timedelta | NAType]
@@ -165,9 +165,18 @@ class SectionBase(ABC):
     @abstractmethod
     def to_swmm_string(self) -> str: ...
 
+    @abstractmethod
+    def patch(self, add: Any, drop: Any) -> None: ...
 
-class SectionText(SectionBase, str):
+
+class SectionText(SectionBase):
     """A swmm section class for basic string sections (e.g. [TITLE])"""
+
+    def __init__(self, text: str):
+        self._text: str = text
+
+    def __str__(self):
+        return self._text
 
     @classmethod
     def from_section_text(cls, text: str) -> Self:
@@ -187,8 +196,13 @@ class SectionText(SectionBase, str):
         return cls(*args, **kwargs)
 
     def to_swmm_string(self) -> str:
-        return ";;Project Title/Notes\n" + self
+        return self._text
 
+    def patch(self, add: Optional[str], drop: Optional[list[str] | str] = None) -> None:
+        self._text = add
+
+    def __len__(self):
+        return len(self._text)
 
 class SectionDf(SectionBase, pd.DataFrame):
     """
@@ -213,7 +227,7 @@ class SectionDf(SectionBase, pd.DataFrame):
         # self._validate_headings()
 
     @classmethod
-    def _section_dtype(cls, i):
+    def _section_dtype(cls, i: int) -> Type:
         return None
 
     @classmethod
@@ -256,11 +270,6 @@ class SectionDf(SectionBase, pd.DataFrame):
             raise ValueError(
                 f"{self.__class__.__name__} section is missing columns {missing}"
             )
-
-    # @classmethod
-    # def from_section_text(cls, text: str) -> Self:
-    #     """Construct an instance of the class from the section inp text"""
-    #     raise NotImplementedError
 
     @classmethod
     def from_section_text(cls, text: str) -> Self:
@@ -423,26 +432,6 @@ class SectionDf(SectionBase, pd.DataFrame):
         self.loc[idx, :] = new_row
         return self
 
-    @property
-    def _constructor(self):
-        # required override for pandas
-        # https://pandas.pydata.org/docs/development/extending.html#override-constructor-properties
-        return self.__class__
-
-    @property
-    def _constructor_sliced(self):
-        # required override for pandas
-        # https://pandas.pydata.org/docs/development/extending.html#override-constructor-properties
-        return SectionSeries
-
-    def _constructor_from_mgr(self, mgr, axes) -> Self:
-        # required override for pandas
-        return self.__class__._from_mgr(mgr, axes)
-
-    def _constructor_sliced_from_mgr(self, mgr, axes) -> SectionSeries:
-        # required override for pandas
-        return SectionSeries._from_mgr(mgr, axes)
-
     def to_swmm_string(self) -> str:
         """Create a string representation of section"""
         self._validate_headings()
@@ -498,9 +487,47 @@ class SectionDf(SectionBase, pd.DataFrame):
             # concatenate the header, divider, and data
             return header + header_divider + outstr
 
+    def patch(
+        self,
+        add: Optional[Self],
+        drop: pd.Index | list[str] | list[tuple[str, ...]] | str | None = None,
+    ) -> None:
+        if isinstance(drop, pd.Index | list | str):
+            self.drop(drop, errors="ignore", inplace=True)
+
+        if isinstance(add, type(self)):
+            for idx, row in add.iterrows():
+                self.loc[idx] = row
+
+    # %% ####################################
+    # region required pandas overrides ######
+    #########################################
+    @property
+    def _constructor(self):
+        # required override for pandas
+        # https://pandas.pydata.org/docs/development/extending.html#override-constructor-properties
+        return self.__class__
+
+    @property
+    def _constructor_sliced(self):
+        # required override for pandas
+        # https://pandas.pydata.org/docs/development/extending.html#override-constructor-properties
+        return SectionSeries
+
+    def _constructor_from_mgr(self, mgr, axes) -> Self:
+        # required override for pandas
+        return self.__class__._from_mgr(mgr, axes)
+
+    def _constructor_sliced_from_mgr(self, mgr, axes) -> SectionSeries:
+        # required override for pandas
+        return SectionSeries._from_mgr(mgr, axes)
+
 
 class Title(SectionText):
     _section_name = "TITLE"
+
+    def to_swmm_string(self) -> str:
+        return ";;Project Title/Notes\n" + str(self)
 
 
 class Option(SectionDf):
@@ -714,6 +741,8 @@ class Report(SectionBase):
         length += len(self.LID)
         return length
 
+    def patch(self, add: Self, drop: Any) -> None: ...
+
 
 class Files(SectionText):
     """String to hold files section"""
@@ -835,7 +864,7 @@ class Subcatchment(SectionDf):
 
     @classmethod
     def _section_dtype(cls, i):
-        types = [str, str, str, float, float, float, float, float, str]
+        types = [str, str, str, None, None, None, None, None, str]
         return types[i]
 
 
@@ -865,7 +894,7 @@ class Subarea(SectionDf):
 
     @classmethod
     def _section_dtype(cls, i):
-        types = [str, float, float, float, float, float, str, float]
+        types = [str, None, None, None, None, None, str, None]
         return types[i]
 
 
@@ -1726,6 +1755,8 @@ class Timeseries(SectionBase):
 
         return list(self._timeseries.keys())
 
+    def patch(self, add: Self, drop: str | list[str]) -> None: ...
+
 
 class Patterns(SectionDf):
     """
@@ -1904,7 +1935,7 @@ class Controls(SectionBase):
         control_text: str
         desc: str
 
-    def __init__(self, controls: dict[str:Control]):
+    def __init__(self, controls: dict[str, Control]):
         self.controls = controls
 
     @classmethod
@@ -1969,7 +2000,7 @@ class Controls(SectionBase):
     def add_control(self, name: str, control_text: str, desc: str):
         self.controls[name] = Controls.Control(name, control_text, desc)
 
-
+    def patch(self, add: Self, drop: str | list[str]) -> None: ...
 class Pollutants(SectionDf):
     """
     Index: 'Name'
@@ -2446,10 +2477,26 @@ class Curves(SectionDf):
         )
 
         df = pd.concat([self, df], axis=0)
-        attrs = self.attrs
+        attrs = self.attrs  # type: ignore
         attrs[name] = curve_type
-        self.__init__(df)
+        Curves.__init__(self, df)
         self.attrs = attrs
+
+    def patch(
+        self,
+        add: Optional[Self],
+        drop: pd.Index | list[str] | list[tuple[str, ...]] | str = None,
+    ) -> None:
+        if isinstance(drop, pd.Index | list | str):
+            self.drop(drop, errors="ignore", inplace=True)
+
+        if isinstance(add, type(self)):
+            _to_add = add.index.get_level_values("Name").unique()
+            self.drop(_to_add, errors="ignore", inplace=True)
+            df = pd.concat([self, add], axis=0)
+            attrs = {**self.attrs, **add.attrs}
+            Curves.__init__(self, df)
+            self.attrs = attrs
 
 
 class Coordinates(SectionDf):
