@@ -27,4 +27,4 @@ jobs:
           uv sync -p ${{ matrix.python-version }}
 
       - name: run unit tests
-        run: pytest
+        run: uv run pytest
