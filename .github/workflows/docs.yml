@@ -30,7 +30,7 @@ jobs:
 
       - name: Install swmm-pandas
         run: |
-          uv sync --all-extras -p ${{ matrix.python-version }}
+          uv sync --all-extras -p 3.12
 
       - name: Sphinx build
         run: uv run sphinx-build docs/source docs/build
