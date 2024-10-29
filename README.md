@@ -2,10 +2,10 @@
 
 ## A pandorable interface for SWMM files
 
-[![image](https://img.shields.io/pypi/v/swmm-pandas.svg)](https://pypi.python.org/pypi/swmm-pandas)
-[![image](https://github.com/karosc/swmm-pandas/actions/workflows/tests.yml/badge.svg)]
-[![image](https://github.com/karosc/swmm-pandas/actions/workflows/docs.yml/badge.svg)]
-[![image](http://www.mypy-lang.org/static/mypy_badge.svg)](http://mypy-lang.org/)
+[![pypi badge](https://img.shields.io/pypi/v/swmm-pandas.svg)](https://pypi.python.org/pypi/swmm-pandas)
+![test badge](https://github.com/karosc/swmm-pandas/actions/workflows/tests.yml/badge.svg)
+![docs badge](https://github.com/karosc/swmm-pandas/actions/workflows/docs.yml/badge.svg)
+[![mypy badge](http://www.mypy-lang.org/static/mypy_badge.svg)](http://mypy-lang.org/)
 ## What and Why?
 
 swmm-pandas is a high level api for interacting with swmm files via pandas dataframes. The ambition of this project is to create concise interfaces for the SWMM input, report and output files.
