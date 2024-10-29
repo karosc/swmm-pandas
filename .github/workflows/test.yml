@@ -24,7 +24,7 @@ jobs:
 
       - name: Install swmm-pandas
         run: |
-          uv sync -p ${{ matrix.python-version }}
+          uv sync --all-extras -p ${{ matrix.python-version }}
 
       - name: run unit tests
         run: uv run pytest
