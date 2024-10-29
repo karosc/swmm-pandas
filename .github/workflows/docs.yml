@@ -33,7 +33,7 @@ jobs:
           uv sync --all-extras -p 3.12
 
       - name: Sphinx build
-        run: uv run sphinx-build docs/source docs/build
+        run: uv run sphinx-build docs/ docs/build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
