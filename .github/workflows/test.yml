@@ -1,4 +1,4 @@
-name: Build Wheels
+name: Test
 
 on: [push, pull_request]
 
@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: Checkout the repository
-          uses: actions/checkout@main
+        uses: actions/checkout@main
       - name: Install uv
         uses: astral-sh/setup-uv@v3
         with:
