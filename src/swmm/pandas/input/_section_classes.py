@@ -166,7 +166,10 @@ class SectionBase(ABC):
     def to_swmm_string(self) -> str: ...
 
     @abstractmethod
-    def patch(self, add: Any, drop: Any) -> None: ...
+    def _patch(self, abj: Any) -> None: ...
+
+    @abstractmethod
+    def _drop(self, obj: Any) -> None: ...
 
 
 class SectionText(SectionBase):
@@ -198,11 +201,15 @@ class SectionText(SectionBase):
     def to_swmm_string(self) -> str:
         return self._text
 
-    def patch(self, add: Optional[str], drop: Optional[list[str] | str] = None) -> None:
-        self._text = add
+    def _patch(self, obj: Optional[str]) -> None:
+        pass
+
+    def _drop(self, obj: Optional[list[str] | str] = None) -> None:
+        pass
 
     def __len__(self):
         return len(self._text)
+
 
 class SectionDf(SectionBase, pd.DataFrame):
     """
@@ -434,6 +441,7 @@ class SectionDf(SectionBase, pd.DataFrame):
 
     def to_swmm_string(self) -> str:
         """Create a string representation of section"""
+        _logger.debug(f"writing {self._section_name} to string")
         self._validate_headings()
         with pd.option_context("future.no_silent_downcasting", True):
             # reset index
@@ -487,17 +495,23 @@ class SectionDf(SectionBase, pd.DataFrame):
             # concatenate the header, divider, and data
             return header + header_divider + outstr
 
-    def patch(
+    def _patch(
         self,
-        add: Optional[Self],
-        drop: pd.Index | list[str] | list[tuple[str, ...]] | str | None = None,
+        obj: Optional[Self],
     ) -> None:
-        if isinstance(drop, pd.Index | list | str):
-            self.drop(drop, errors="ignore", inplace=True)
 
-        if isinstance(add, type(self)):
-            for idx, row in add.iterrows():
+        if isinstance(obj, type(self)):
+            for idx, row in obj.iterrows():
                 self.loc[idx] = row
+
+    def _drop(
+        self,
+        obj: pd.Index | list[str] | list[tuple[str, ...]] | str | None = None,
+    ) -> None:
+        if isinstance(obj, SectionDf):
+            obj = obj.index
+        if isinstance(obj, (pd.Index, list, str)):
+            self.drop(obj, errors="ignore", inplace=True)
 
     # %% ####################################
     # region required pandas overrides ######
@@ -741,7 +755,9 @@ class Report(SectionBase):
         length += len(self.LID)
         return length
 
-    def patch(self, add: Self, drop: Any) -> None: ...
+    def _patch(self, obj: Self) -> None: ...
+
+    def _drop(self, obj) -> None: ...
 
 
 class Files(SectionText):
@@ -1755,7 +1771,9 @@ class Timeseries(SectionBase):
 
         return list(self._timeseries.keys())
 
-    def patch(self, add: Self, drop: str | list[str]) -> None: ...
+    def _patch(self, obj: Self) -> None: ...
+
+    def _drop(self, boj: str | list[str]) -> None: ...
 
 
 class Patterns(SectionDf):
@@ -1778,6 +1796,12 @@ class Patterns(SectionDf):
         "HOURLY",
         "WEEKEND",
     ]
+
+    @classmethod
+    def _new_empty(cls) -> Self:
+        """Construct and empty instance"""
+        df = cls(data=[], columns=cls.headings + ["Pattern_Index"])
+        return df.set_index([cls._index_col, "Pattern_Index"])
 
     @classmethod
     def _tabulate(cls, line: list[str | float]) -> TRow | list[TRow]:
@@ -1936,7 +1960,7 @@ class Controls(SectionBase):
         desc: str
 
     def __init__(self, controls: dict[str, Control]):
-        self.controls = controls
+        self._controls = controls
 
     @classmethod
     def from_section_text(cls, text: str, *args, **kwargs) -> Self:
@@ -1966,8 +1990,9 @@ class Controls(SectionBase):
                 desc, rule = re.split(rule_line_pattern, rule_block)
                 rule = f"{mat.group()}{rule}"
                 rule_name = mat.group().split()[1]
+                rule_text = rule.split(rule_name)[1]
                 rules[rule_name] = Controls.Control(
-                    name=rule_name, control_text=rule, desc=desc
+                    name=rule_name, control_text=rule_text, desc=desc
                 )
 
             start_char = end_char
@@ -1975,7 +2000,7 @@ class Controls(SectionBase):
         return cls(rules)
 
     def __len__(self):
-        return len(self.controls)
+        return len(self._controls)
 
     @classmethod
     def _from_section_text(cls, text: str, *args, **kwargs) -> Self: ...
@@ -1990,17 +2015,50 @@ class Controls(SectionBase):
 
     def to_swmm_string(self) -> str:
         out_text = ""
-        for control in self.controls.values():
+        for control in self._controls.values():
             if len(control.desc) > 0:
-
                 out_text += control.desc.strip("\n") + "\n"
+            out_text += f"RULE {control.name}\n"
             out_text += control.control_text.strip("\n") + "\n\n"
         return out_text
 
     def add_control(self, name: str, control_text: str, desc: str):
-        self.controls[name] = Controls.Control(name, control_text, desc)
+        self._controls[name] = Controls.Control(name, control_text, desc)
 
-    def patch(self, add: Self, drop: str | list[str]) -> None: ...
+    def _patch(self, obj: Self) -> None:
+        if isinstance(obj, Controls):
+            self._controls.update(obj._controls)
+
+    def _drop(self, obj: Self | str | list[str]) -> None:
+        if isinstance(obj, Controls):
+            to_drop = obj._controls.keys()
+        elif isinstance(obj, str):
+            to_drop = [obj]
+        elif isinstance(obj, list):
+            to_drop = obj
+        else:
+            raise TypeError(f"Expected Controls, list, or str type, got {type(obj)}")
+
+        for key in to_drop:
+            try:
+                self._controls.pop(key)
+            except KeyError:
+                _logger.debug(f"{key!r} not found in controls dict when dropping.")
+
+    def __repr__(self):
+        longest_name = max(map(len, self._controls.keys()))
+        out_str = "{"
+        for name, control in self._controls.items():
+            if (
+                len(desc := control.desc.replace("\n", " ").replace(";", "").strip())
+                > 0
+            ):
+                out_str += f"\n    ;{desc}"
+            out_str += f"\n    {name:<{longest_name+1}} : {control.control_text.replace("\n"," ")}"
+        out_str += "\n}"
+        return out_str
+
+
 class Pollutants(SectionDf):
     """
     Index: 'Name'
@@ -2388,6 +2446,12 @@ class Curves(SectionDf):
     ]
 
     @classmethod
+    def _new_empty(cls) -> Self:
+        """Construct and empty instance"""
+        df = cls(data=[], columns=cls.headings + ["Curve_Index"])
+        return df.set_index([cls._index_col, "Curve_Index"])
+
+    @classmethod
     def _tabulate(cls, line: list[str | float]) -> TRow | list[TRow]:
         out = []
         name = line.pop(0)
@@ -2434,6 +2498,7 @@ class Curves(SectionDf):
         return df
 
     def to_swmm_string(self) -> str:
+        _logger.debug(f"writing {self._section_name} to string")
         df = self.copy(deep=True)
 
         # add type back into frame in first row of curve
@@ -2482,14 +2547,10 @@ class Curves(SectionDf):
         Curves.__init__(self, df)
         self.attrs = attrs
 
-    def patch(
+    def _patch(
         self,
         add: Optional[Self],
-        drop: pd.Index | list[str] | list[tuple[str, ...]] | str = None,
     ) -> None:
-        if isinstance(drop, pd.Index | list | str):
-            self.drop(drop, errors="ignore", inplace=True)
-
         if isinstance(add, type(self)):
             _to_add = add.index.get_level_values("Name").unique()
             self.drop(_to_add, errors="ignore", inplace=True)
@@ -2497,6 +2558,14 @@ class Curves(SectionDf):
             attrs = {**self.attrs, **add.attrs}
             Curves.__init__(self, df)
             self.attrs = attrs
+
+    def _drop(
+        self, drop: pd.Index | list[str] | list[tuple[str, ...]] | str = None
+    ) -> None:
+        if isinstance(drop, Curves):
+            drop = drop.index
+        if isinstance(drop, pd.Index | list | str):
+            self.drop(drop, errors="ignore", inplace=True)
 
 
 class Coordinates(SectionDf):
@@ -2527,6 +2596,18 @@ class Vertices(SectionDf):
     _headings = ["Link", "X", "Y"]
     _index_col = "Link"
 
+    def _patch(
+        self,
+        obj: Optional[Self],
+    ) -> None:
+        if isinstance(obj, type(self)):
+            _to_add = obj.index.get_level_values("Link").unique()
+            self.drop(_to_add, errors="ignore", inplace=True)
+            df = pd.concat([self, obj], axis=0)
+            attrs = {**self.attrs, **obj.attrs}
+            Vertices.__init__(self, df)
+            self.attrs = attrs
+
 
 class Polygons(SectionDf):
     """
@@ -2541,6 +2622,18 @@ class Polygons(SectionDf):
     _ncol = 3
     _headings = ["Elem", "X", "Y"]
     _index_col = "Elem"
+
+    def _patch(
+        self,
+        obj: Optional[Self],
+    ) -> None:
+        if isinstance(obj, type(self)):
+            _to_add = obj.index.get_level_values("Elem").unique()
+            self.drop(_to_add, errors="ignore", inplace=True)
+            df = pd.concat([self, obj], axis=0)
+            attrs = {**self.attrs, **obj.attrs}
+            Polygons.__init__(self, df)
+            self.attrs = attrs
 
 
 class Symbols(SectionDf):

@@ -156,7 +156,7 @@ class Input:
             for inp_df, elem_type in tagged_dfs
         ]
 
-        tag_df = pd.concat(tag_dfs, axis=0)
+        tag_df = pd.concat(tag_dfs, axis=0).sort_index()
         self._inp.tags = self._inp.tags.reindex(tag_df.index)
         self._inp.tags.loc[tag_df.index, "Tag"] = tag_df["Tag"]
 
@@ -183,7 +183,7 @@ class Input:
             ]
             inp_dfs.append(out_df)
 
-            inp_df = pd.concat(inp_dfs).dropna(how="all")
+            inp_df = pd.concat(inp_dfs).dropna(how="all").sort_index()
             setattr(self._inp, output_frame_name, inp_df)
 
     def _destruct_xsect(self) -> None:
@@ -214,9 +214,9 @@ class Input:
                     "Constituent"
                 ),
                 self._inp.rdii,
-                self._inp.tags.loc[slice("Node", "Node"), slice(None)].droplevel(
-                    "Element"
-                ),
+                self._inp.tags.sort_index()
+                .loc[slice("Node", "Node"), slice(None)]
+                .droplevel("Element"),
                 self._inp.coordinates,
             ]
         )
@@ -289,7 +289,9 @@ class Input:
                     self._inp.conduit,
                     self._inp.losses,
                     self._inp.xsections,
-                    self._inp.tags.loc[slice("Link", "Link"), slice(None)].droplevel(0),
+                    self._inp.tags.sort_index()
+                    .loc[slice("Link", "Link"), slice(None)]
+                    .droplevel(0),
                 ]
             )
 
@@ -308,7 +310,9 @@ class Input:
             self._pump_full = self._general_constructor(
                 [
                     self._inp.pump,
-                    self._inp.tags.loc[slice("Link", "Link"), slice(None)].droplevel(0),
+                    self._inp.tags.sort_index()
+                    .loc[slice("Link", "Link"), slice(None)]
+                    .droplevel(0),
                 ]
             )
 
@@ -327,7 +331,9 @@ class Input:
                 [
                     self._inp.weir,
                     self._inp.xsections,
-                    self._inp.tags.loc[slice("Link", "Link"), slice(None)].droplevel(0),
+                    self._inp.tags.sort_index()
+                    .loc[slice("Link", "Link"), slice(None)]
+                    .droplevel(0),
                 ]
             )
 
@@ -350,7 +356,9 @@ class Input:
                 [
                     self._inp.orifice,
                     self._inp.xsections,
-                    self._inp.tags.loc[slice("Link", "Link"), slice(None)].droplevel(0),
+                    self._inp.tags.sort_index()
+                    .loc[slice("Link", "Link"), slice(None)]
+                    .droplevel(0),
                 ]
             )
 
@@ -372,7 +380,9 @@ class Input:
             self._outlet_full = self._general_constructor(
                 [
                     self._inp.outlet,
-                    self._inp.tags.loc[slice("Link", "Link"), slice(None)].droplevel(0),
+                    self._inp.tags.sort_index()
+                    .loc[slice("Link", "Link"), slice(None)]
+                    .droplevel(0),
                 ]
             )
 
@@ -396,9 +406,9 @@ class Input:
                 [
                     self._inp.subcatchment,
                     self._inp.subarea,
-                    self._inp.tags.loc[
-                        slice("Subcatch", "Subcatch"), slice(None)
-                    ].droplevel("Element"),
+                    self._inp.tags.sort_index()
+                    .loc[slice("Subcatch", "Subcatch"), slice(None)]
+                    .droplevel("Element"),
                 ]
             )
 
