@@ -3,6 +3,7 @@
 #   - high level api for loading, inspecting, changing, and
 #     altering a SWMM input file using pandas dataframes
 from __future__ import annotations
+from tokenize import String
 from venv import logger
 
 from swmm.pandas.input._section_classes import SectionBase, _sections
@@ -10,6 +11,7 @@ import swmm.pandas.input._section_classes as sc
 import pathlib
 import re
 import warnings
+from io import StringIO
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -21,7 +23,7 @@ class InputFile:
     _section_re = re.compile(R"^\[[\s\S]*?(?=^\[|\Z)", re.MULTILINE)
     _section_keys = tuple(_sections.keys())
 
-    def __init__(self, inpfile: Optional[str | pathlib.Path] = None):
+    def __init__(self, inpfile: Optional[str | pathlib.Path | StringIO] = None):
         """Base class for a SWMM input file.
 
         The input object provides an attribute for each section supported the SWMM inp file. The
@@ -80,16 +82,23 @@ class InputFile:
             model inp file path
         """
         if inpfile is not None:
-            self.path = inpfile
+            self._inpfile = inpfile
             self._load_inp_file()
         # for sect in _sections.keys():
         #     # print(sect)
         #     self._set_section_prop(sect)
 
     def _load_inp_file(self) -> None:
-        with open(self.path) as inp:
-            self.text: str = inp.read()
 
+        if isinstance(self._inpfile, (str, pathlib.Path)):
+            with open(self._inpfile) as inp:
+                self.text: str = inp.read()
+        elif isinstance(self._inpfile, StringIO):
+            self.text: str = self._inpfile.read()
+        else:
+            raise TypeError(
+                f"InputFile class expected string, path, or StringIO, got {type(self._inpfile)}"
+            )
         self._sections: dict[str, SectionBase] = {}
         self._section_texts: dict[str, str] = {}
 
