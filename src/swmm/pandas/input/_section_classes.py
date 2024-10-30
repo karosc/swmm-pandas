@@ -2054,7 +2054,8 @@ class Controls(SectionBase):
                 > 0
             ):
                 out_str += f"\n    ;{desc}"
-            out_str += f"\n    {name:<{longest_name+1}} : {control.control_text.replace("\n"," ")}"
+            control_text = control.control_text.replace("\n", " ")
+            out_str += f"\n    {name:<{longest_name+1}} : {control_text}"
         out_str += "\n}"
         return out_str
 
