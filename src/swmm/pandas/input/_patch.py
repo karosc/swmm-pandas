@@ -1,5 +1,6 @@
-from swmm.pandas.input._section_classes import SectionBase, _sections
 import re
+
+from swmm.pandas.input._section_classes import SectionBase, _sections
 
 
 def split_patch(inp):

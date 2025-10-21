@@ -1,22 +1,24 @@
 from __future__ import annotations
 
+import copy
 import logging
-from numbers import Number
-import warnings
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import TYPE_CHECKING
-from calendar import month_abbr
 import re
 import textwrap
-import copy
-import pandas as pd
-from pandas._libs.missing import NAType
+import warnings
+from abc import ABC, abstractmethod
+from calendar import month_abbr
+from dataclasses import dataclass
+from numbers import Number
+from typing import TYPE_CHECKING
+
 import numpy as np
 
+import pandas as pd
+from pandas._libs.missing import NAType
+
 if TYPE_CHECKING:
-    from typing import Self, TypeGuard, Type, Optional, Any
     from collections.abc import Iterable, Iterator
+    from typing import Any, Optional, Self, Type, TypeGuard
 
     TRow = list[str | float | int | pd.Timestamp | pd.Timedelta | NAType]
 
@@ -275,7 +277,7 @@ class SectionDf(SectionBase, pd.DataFrame):
         if len(missing) > 0:
             # print('cols: ',self.columns)
             raise ValueError(
-                f"{self.__class__.__name__} section is missing columns {missing}"
+                f"{self.__class__.__name__} section is missing columns {missing}",
             )
 
     @classmethod
@@ -423,7 +425,7 @@ class SectionDf(SectionBase, pd.DataFrame):
 
         except KeyError:
             raise KeyError(
-                f"Missing index column {self._index_col!r} in provided values. Please provide a value for {self._index_col!r}"
+                f"Missing index column {self._index_col!r} in provided values. Please provide a value for {self._index_col!r}",
             )
         new_row = pd.Series(index=headings, name=idx, dtype=object)
 
@@ -433,7 +435,7 @@ class SectionDf(SectionBase, pd.DataFrame):
                 new_row.loc[col] = value
             else:
                 print(
-                    f"Warning: Column '{col}' not found in the DataFrame. Skipping this value."
+                    f"Warning: Column '{col}' not found in the DataFrame. Skipping this value.",
                 )
         # Append the new row to the DataFrame
         self.loc[idx, :] = new_row
@@ -569,7 +571,6 @@ class Report(SectionBase):
 
     Examples
     --------
-
     >>>inp.report
     INPUT NO
     CONTROLS NO
@@ -683,7 +684,7 @@ class Report(SectionBase):
             report_type = tokens[0].upper()
             if not hasattr(obj, report_type):
                 warnings.warn(
-                    f"{report_type} is not a supported report type, skipping..."
+                    f"{report_type} is not a supported report type, skipping...",
                 )
                 continue
             elif report_type in ("SUBCATCHMENTS", "NODES", "LINKS"):
@@ -1577,7 +1578,7 @@ class Timeseries(SectionBase):
                     total_seconds = x.total_seconds()
                     hours = int(total_seconds // 3600)  # Get the total hours
                     minutes = int(
-                        (total_seconds % 3600) // 60
+                        (total_seconds % 3600) // 60,
                     )  # Get the remaining minutes
                     return f"{hours:02}:{minutes:02}"
                 elif isinstance(x, pd.Timestamp):
@@ -1653,7 +1654,7 @@ class Timeseries(SectionBase):
 
                 if len(current_time_series_data) > 0:
                     df = pd.DataFrame(
-                        current_time_series_data, columns=["time", "value", "desc"]
+                        current_time_series_data, columns=["time", "value", "desc"],
                     ).set_index("time")
                     df.attrs["desc"] = ts_comment
                     timeseries[current_time_series_name] = df
@@ -1665,7 +1666,7 @@ class Timeseries(SectionBase):
 
                 if str(split_data[0]).upper() == "FILE" and len(split_data) == 2:
                     timeseries[ts_name] = cls.TimeseriesFile(
-                        name=ts_name, Fname=str(split_data[1]), desc=line_comment
+                        name=ts_name, Fname=str(split_data[1]), desc=line_comment,
                     )
                     continue
             time: pd.Timedelta | pd.Timestamp
@@ -1681,7 +1682,7 @@ class Timeseries(SectionBase):
                     date = pd.to_datetime(split_data.pop(0))
                     if not is_valid_time_format(split_data[0]):
                         raise ValueError(
-                            f"Error parsing timeseries {ts_name!r} time: {split_data[0]}"
+                            f"Error parsing timeseries {ts_name!r} time: {split_data[0]}",
                         )
                     hours, minutes = str(split_data.pop(0)).split(":")
                     _time = pd.Timedelta(hours=int(hours), minutes=int(minutes))
@@ -1714,7 +1715,7 @@ class Timeseries(SectionBase):
             """\
             ;;Name           Date       Time       Value     
             ;;-------------- ---------- ---------- ----------
-        """
+        """,
         )
         for ts_name, ts_data in self._timeseries.items():
             if isinstance(ts_data, pd.DataFrame):
@@ -1725,7 +1726,7 @@ class Timeseries(SectionBase):
 
     def add_file_timeseries(self, name: str, Fname: str, comment: str = "") -> Self:
         self._timeseries[name] = self.TimeseriesFile(
-            name=name, Fname=Fname, desc=comment
+            name=name, Fname=Fname, desc=comment,
         )
         return self
 
@@ -1733,14 +1734,14 @@ class Timeseries(SectionBase):
         if isinstance(data, pd.DataFrame):
             if "value" not in data.columns:
                 raise ValueError(
-                    f"Expected 'value' columns in dataframe, got {data.columns!r}"
+                    f"Expected 'value' columns in dataframe, got {data.columns!r}",
                 )
 
             self._timeseries[key] = data.reindex(["value", "comment"], axis=1)
         else:
             raise TypeError(
                 f"__setitem__ currently only supports dataframes, got {type(data)}. "
-                "Use the `add_file_timeseries` method to add file-based timeseries"
+                "Use the `add_file_timeseries` method to add file-based timeseries",
             )
 
     def __getitem__(self, name) -> TimeseriesFile | pd.DataFrame:
@@ -1829,10 +1830,10 @@ class Patterns(SectionDf):
         if unique_patterns["Name"].duplicated().any():
             raise ValueError(
                 "Pattern with duplicate types found in input file. "
-                "Each pattern must only specify a single type to work with swmm.pandas"
+                "Each pattern must only specify a single type to work with swmm.pandas",
             )
         if not all(
-            bools := [pattern in cls._valid_types for pattern in unique_patterns.Type]
+            bools := [pattern in cls._valid_types for pattern in unique_patterns.Type],
         ):
             invalid_patterns = unique_patterns["Type"].loc[~np.array(bools)].to_list()
             raise ValueError(f"Unknown curves {invalid_patterns!r}")
@@ -1858,7 +1859,7 @@ class Patterns(SectionDf):
             .drop("Name", axis=1)
             .groupby("Name")["Pattern_Index"]
             .min()
-            .reset_index()
+            .reset_index(),
         )
         type_values = type_idx.get_level_values(0).map(df.attrs).to_numpy()
         df.loc[:, "Type"] = ""
@@ -1992,7 +1993,7 @@ class Controls(SectionBase):
                 rule_name = mat.group().split()[1]
                 rule_text = rule.split(rule_name)[1]
                 rules[rule_name] = Controls.Control(
-                    name=rule_name, control_text=rule_text, desc=desc
+                    name=rule_name, control_text=rule_text, desc=desc,
                 )
 
             start_char = end_char
@@ -2394,7 +2395,7 @@ class Hydrographs(SectionDf):
                 return index.map(month_to_number)
             elif index.name == "Response":
                 return index.str.lower().map(
-                    {"": 0, "short": 1, "medium": 2, "long": 3}
+                    {"": 0, "short": 1, "medium": 2, "long": 3},
                 )
             else:
                 return index
@@ -2404,12 +2405,12 @@ class Hydrographs(SectionDf):
         for name in self.index.get_level_values("Name").unique():
             try:
                 _temp.add_element(
-                    Name=name, Month_RG=self.rain_gauges[name], Response=""
+                    Name=name, Month_RG=self.rain_gauges[name], Response="",
                 )
             except KeyError:
                 raise KeyError(
                     f"Raingauge for hydrograph {name!r} not found in hydrographs.rain_gauges property. "
-                    f"Only found {self.rain_gauges!r}"
+                    f"Only found {self.rain_gauges!r}",
                 )
 
         df = pd.concat([self, _temp])
@@ -2478,10 +2479,10 @@ class Curves(SectionDf):
         if unique_curves["Name"].duplicated().any():
             raise ValueError(
                 "Curve with duplicate types found in input file. "
-                "Each curve must only specify a single type to work with swmm.pandas"
+                "Each curve must only specify a single type to work with swmm.pandas",
             )
         if not all(
-            bools := [curve in cls._valid_types for curve in unique_curves.Type]
+            bools := [curve in cls._valid_types for curve in unique_curves.Type],
         ):
             invalid_curves = unique_curves["Type"].loc[~np.array(bools)].to_list()
             raise ValueError(f"Unknown curves {invalid_curves!r}")
@@ -2508,7 +2509,7 @@ class Curves(SectionDf):
             .drop("Name", axis=1)
             .groupby("Name")["Curve_Index"]
             .min()
-            .reset_index()
+            .reset_index(),
         )
         type_values = type_idx.get_level_values(0).map(df.attrs).to_numpy()
         df.loc[:, "Type"] = ""
@@ -2520,16 +2521,16 @@ class Curves(SectionDf):
         return super(Curves, df).to_swmm_string()
 
     def add_curve(
-        self, name: str, curve_type: str, x_values: list[float], y_values: list[float]
+        self, name: str, curve_type: str, x_values: list[float], y_values: list[float],
     ) -> None:
         if curve_type.upper() not in self._valid_types:
             raise ValueError(f"{curve_type!r} is not a value swmm curve type.")
         if name in self.index.get_level_values("Name").unique():
             raise ValueError(
-                f"Curve {name!r} already exists in section. Drop it first before adding."
+                f"Curve {name!r} already exists in section. Drop it first before adding.",
             )
         if len(x_values) != len(y_values):
-            raise ValueError(f"x_values and y_value are different shapes.")
+            raise ValueError("x_values and y_value are different shapes.")
         idx = pd.MultiIndex.from_product(
             [
                 [name],
@@ -2561,7 +2562,7 @@ class Curves(SectionDf):
             self.attrs = attrs
 
     def _drop(
-        self, drop: pd.Index | list[str] | list[tuple[str, ...]] | str = None
+        self, drop: pd.Index | list[str] | list[tuple[str, ...]] | str = None,
     ) -> None:
         if isinstance(drop, Curves):
             drop = drop.index

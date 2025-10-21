@@ -5,17 +5,16 @@
 #     altering a SWMM input file using pandas dataframes
 from __future__ import annotations
 
-from swmm.pandas.input._section_classes import SectionBase, SectionDf, _sections
-from swmm.pandas.input.input import InputFile
-import pandas as pd
-
-import swmm.pandas.input._section_classes as sc
+import copy
 import pathlib
 import re
-from typing import Optional, Callable, Any, TypeVar
 import warnings
-import copy
+from typing import Any, Callable, Optional, TypeVar
 
+import pandas as pd
+import swmm.pandas.input._section_classes as sc
+from swmm.pandas.input._section_classes import SectionBase, SectionDf, _sections
+from swmm.pandas.input.input import InputFile
 
 T = TypeVar("T")
 
@@ -73,7 +72,7 @@ class Input:
 
     # destructors
     def _general_destructor(
-        self, inp_frames: list[pd.DataFrame], output_frame: SectionDf
+        self, inp_frames: list[pd.DataFrame], output_frame: SectionDf,
     ) -> None:
 
         inp_dfs = []
@@ -208,17 +207,17 @@ class Input:
             [
                 inp_df,
                 self._inp.dwf.loc[(slice(None), slice("FLOW", "FLOW")), :].droplevel(
-                    "Constituent"
+                    "Constituent",
                 ),
                 self._inp.inflow.loc[(slice(None), slice("FLOW", "FLOW")), :].droplevel(
-                    "Constituent"
+                    "Constituent",
                 ),
                 self._inp.rdii,
                 self._inp.tags.sort_index()
                 .loc[slice("Node", "Node"), slice(None)]
                 .droplevel("Element"),
                 self._inp.coordinates,
-            ]
+            ],
         )
 
     # endregion NODES and LINKS ######
@@ -292,7 +291,7 @@ class Input:
                     self._inp.tags.sort_index()
                     .loc[slice("Link", "Link"), slice(None)]
                     .droplevel(0),
-                ]
+                ],
             )
 
         return self._conduit_full
@@ -313,7 +312,7 @@ class Input:
                     self._inp.tags.sort_index()
                     .loc[slice("Link", "Link"), slice(None)]
                     .droplevel(0),
-                ]
+                ],
             )
 
         return self._pump_full
@@ -334,7 +333,7 @@ class Input:
                     self._inp.tags.sort_index()
                     .loc[slice("Link", "Link"), slice(None)]
                     .droplevel(0),
-                ]
+                ],
             )
 
         return self._weir_full
@@ -359,7 +358,7 @@ class Input:
                     self._inp.tags.sort_index()
                     .loc[slice("Link", "Link"), slice(None)]
                     .droplevel(0),
-                ]
+                ],
             )
 
         return self._orifice_full
@@ -383,7 +382,7 @@ class Input:
                     self._inp.tags.sort_index()
                     .loc[slice("Link", "Link"), slice(None)]
                     .droplevel(0),
-                ]
+                ],
             )
 
         return self._outlet_full
@@ -409,7 +408,7 @@ class Input:
                     self._inp.tags.sort_index()
                     .loc[slice("Subcatch", "Subcatch"), slice(None)]
                     .droplevel("Element"),
-                ]
+                ],
             )
 
         return self._subcatch_full
@@ -472,7 +471,7 @@ class Input:
 
     @property
     def option(self) -> sc.Option:
-        "('Option')['Value', 'desc']"
+        """('Option')['Value', 'desc']"""
 
         return self._inp.option
 
@@ -482,7 +481,7 @@ class Input:
 
     @property
     def files(self) -> sc.Files:
-        "String to hold files section"
+        """String to hold files section"""
 
         return self._inp.files
 
@@ -492,7 +491,7 @@ class Input:
 
     @property
     def raingage(self) -> sc.Raingage:
-        "('Name')['Format', 'Interval', 'SCF', 'Source_Type', 'Source', 'Station', 'Units', 'desc']"
+        """('Name')['Format', 'Interval', 'SCF', 'Source_Type', 'Source', 'Station', 'Units', 'desc']"""
 
         return self._inp.raingage
 
@@ -502,7 +501,7 @@ class Input:
 
     @property
     def evap(self) -> sc.Evap:
-        "('Type')['param1', 'param2', 'param3', 'param4', 'param5', 'param6', 'param7', 'param8', 'param9', 'param10', 'param11', 'param12', 'desc']"
+        """('Type')['param1', 'param2', 'param3', 'param4', 'param5', 'param6', 'param7', 'param8', 'param9', 'param10', 'param11', 'param12', 'desc']"""
 
         return self._inp.evap
 
@@ -512,7 +511,7 @@ class Input:
 
     @property
     def temperature(self) -> sc.Temperature:
-        "('Option')['param1', 'param2', 'param3', 'param4', 'param5', 'param6', 'param7', 'param8', 'param9', 'param10', 'param11', 'param12', 'param13', 'desc']"
+        """('Option')['param1', 'param2', 'param3', 'param4', 'param5', 'param6', 'param7', 'param8', 'param9', 'param10', 'param11', 'param12', 'param13', 'desc']"""
 
         return self._inp.temperature
 
@@ -522,7 +521,7 @@ class Input:
 
     @property
     def subarea(self) -> sc.Subarea:
-        "('Subcatchment')['Nimp', 'Nperv', 'Simp', 'Sperv', 'PctZero', 'RouteTo', 'PctRouted', 'desc']"
+        """('Subcatchment')['Nimp', 'Nperv', 'Simp', 'Sperv', 'PctZero', 'RouteTo', 'PctRouted', 'desc']"""
 
         return self._inp.subarea
 
@@ -532,7 +531,7 @@ class Input:
 
     @property
     def infil(self) -> sc.Infil:
-        "('Subcatchment')['param1', 'param2', 'param3', 'param4', 'param5', 'Method', 'desc']"
+        """('Subcatchment')['param1', 'param2', 'param3', 'param4', 'param5', 'Method', 'desc']"""
 
         return self._inp.infil
 
@@ -542,7 +541,7 @@ class Input:
 
     @property
     def lid_control(self) -> sc.LID_Control:
-        "('Name')['Type', 'param1', 'param2', 'param3', 'param4', 'param5', 'param6', 'param7', 'desc']"
+        """('Name')['Type', 'param1', 'param2', 'param3', 'param4', 'param5', 'param6', 'param7', 'desc']"""
 
         return self._inp.lid_control
 
@@ -552,7 +551,7 @@ class Input:
 
     @property
     def lid_usage(self) -> sc.LID_Usage:
-        "('Subcatchment', 'LIDProcess')['Number', 'Area', 'Width', 'InitSat', 'FromImp', 'ToPerv', 'RptFile', 'DrainTo', 'FromPerv', 'desc']"
+        """('Subcatchment', 'LIDProcess')['Number', 'Area', 'Width', 'InitSat', 'FromImp', 'ToPerv', 'RptFile', 'DrainTo', 'FromPerv', 'desc']"""
 
         return self._inp.lid_usage
 
@@ -562,7 +561,7 @@ class Input:
 
     @property
     def aquifer(self) -> sc.Aquifer:
-        "('Name')['Por', 'WP', 'FC', 'Ksat', 'Kslope', 'Tslope', 'ETu', 'ETs', 'Seep', 'Ebot', 'Egw', 'Umc', 'ETupat', 'desc']"
+        """('Name')['Por', 'WP', 'FC', 'Ksat', 'Kslope', 'Tslope', 'ETu', 'ETs', 'Seep', 'Ebot', 'Egw', 'Umc', 'ETupat', 'desc']"""
 
         return self._inp.aquifer
 
@@ -572,7 +571,7 @@ class Input:
 
     @property
     def groundwater(self) -> sc.Groundwater:
-        "('Subcatchment')['Aquifer', 'Node', 'Esurf', 'A1', 'B1', 'A2', 'B2', 'A3', 'Dsw', 'Egwt', 'Ebot', 'Wgr', 'Umc', 'desc']"
+        """('Subcatchment')['Aquifer', 'Node', 'Esurf', 'A1', 'B1', 'A2', 'B2', 'A3', 'Dsw', 'Egwt', 'Ebot', 'Wgr', 'Umc', 'desc']"""
 
         return self._inp.groundwater
 
@@ -582,7 +581,7 @@ class Input:
 
     @property
     def gwf(self) -> sc.GWF:
-        "('Subcatch', 'Type')['Expr', 'desc']"
+        """('Subcatch', 'Type')['Expr', 'desc']"""
 
         return self._inp.gwf
 
@@ -592,7 +591,7 @@ class Input:
 
     @property
     def snowpack(self) -> sc.Snowpack:
-        "('Name', 'Surface')['param1', 'param2', 'param3', 'param4', 'param5', 'param6', 'param7', 'desc']"
+        """('Name', 'Surface')['param1', 'param2', 'param3', 'param4', 'param5', 'param6', 'param7', 'desc']"""
 
         return self._inp.snowpack
 
@@ -602,7 +601,7 @@ class Input:
 
     @property
     def xsections(self) -> sc.Xsections:
-        "('Link')['Shape', 'Geom1', 'Curve', 'Geom2', 'Geom3', 'Geom4', 'Barrels', 'Culvert', 'desc']"
+        """('Link')['Shape', 'Geom1', 'Curve', 'Geom2', 'Geom3', 'Geom4', 'Barrels', 'Culvert', 'desc']"""
 
         return self._inp.xsections
 
@@ -612,7 +611,7 @@ class Input:
 
     @property
     def transects(self) -> sc.Transects:
-        "String to hold transects section."
+        """String to hold transects section."""
 
         return self._inp.transects
 
@@ -622,7 +621,7 @@ class Input:
 
     @property
     def street(self) -> sc.Street:
-        "('Name')['Tcrown', 'Hcurb', 'Sroad', 'nRoad', 'Hdep', 'Wdep', 'Sides', 'Wback', 'Sback', 'nBack', 'desc']"
+        """('Name')['Tcrown', 'Hcurb', 'Sroad', 'nRoad', 'Hdep', 'Wdep', 'Sides', 'Wback', 'Sback', 'nBack', 'desc']"""
 
         return self._inp.street
 
@@ -632,7 +631,7 @@ class Input:
 
     @property
     def inlet_usage(self) -> sc.Inlet_Usage:
-        "('Conduit')['Inlet', 'Node', 'Number', '%Clogged', 'MaxFlow', 'hDStore', 'wDStore', 'Placement', 'desc']"
+        """('Conduit')['Inlet', 'Node', 'Number', '%Clogged', 'MaxFlow', 'hDStore', 'wDStore', 'Placement', 'desc']"""
 
         return self._inp.inlet_usage
 
@@ -642,7 +641,7 @@ class Input:
 
     @property
     def inlet(self) -> sc.Inlet:
-        "('Name', 'Type')['param1', 'param2', 'param3', 'param4', 'param5', 'desc']"
+        """('Name', 'Type')['param1', 'param2', 'param3', 'param4', 'param5', 'desc']"""
 
         return self._inp.inlet
 
@@ -652,7 +651,7 @@ class Input:
 
     @property
     def losses(self) -> sc.Losses:
-        "('Link')['Kentry', 'Kexit', 'Kavg', 'FlapGate', 'Seepage', 'desc']"
+        """('Link')['Kentry', 'Kexit', 'Kavg', 'FlapGate', 'Seepage', 'desc']"""
 
         return self._inp.losses
 
@@ -662,7 +661,7 @@ class Input:
 
     @property
     def controls(self) -> sc.Controls:
-        "Dict of control rules stored as text."
+        """Dict of control rules stored as text."""
 
         return self._inp.controls
 
@@ -672,7 +671,7 @@ class Input:
 
     @property
     def pollutants(self) -> sc.Pollutants:
-        "('Name')['Units', 'Crain', 'Cgw', 'Crdii', 'Kdecay', 'SnowOnly', 'CoPollutant', 'CoFrac', 'Cdwf', 'Cinit', 'desc']"
+        """('Name')['Units', 'Crain', 'Cgw', 'Crdii', 'Kdecay', 'SnowOnly', 'CoPollutant', 'CoFrac', 'Cdwf', 'Cinit', 'desc']"""
 
         return self._inp.pollutants
 
@@ -682,7 +681,7 @@ class Input:
 
     @property
     def landuse(self) -> sc.LandUse:
-        "('Name')['SweepInterval', 'Availability', 'LastSweep', 'desc']"
+        """('Name')['SweepInterval', 'Availability', 'LastSweep', 'desc']"""
 
         return self._inp.landuse
 
@@ -692,7 +691,7 @@ class Input:
 
     @property
     def coverage(self) -> sc.Coverage:
-        "('Subcatchment', 'LandUse')['Percent', 'desc']"
+        """('Subcatchment', 'LandUse')['Percent', 'desc']"""
 
         return self._inp.coverage
 
@@ -702,7 +701,7 @@ class Input:
 
     @property
     def loading(self) -> sc.Loading:
-        "('Subcatchment', 'Pollutant')['InitBuildup', 'desc']"
+        """('Subcatchment', 'Pollutant')['InitBuildup', 'desc']"""
 
         return self._inp.loading
 
@@ -712,7 +711,7 @@ class Input:
 
     @property
     def buildup(self) -> sc.Buildup:
-        "('Landuse', 'Pollutant')['FuncType', 'C1', 'C2', 'C3', 'PerUnit', 'desc']"
+        """('Landuse', 'Pollutant')['FuncType', 'C1', 'C2', 'C3', 'PerUnit', 'desc']"""
 
         return self._inp.buildup
 
@@ -722,7 +721,7 @@ class Input:
 
     @property
     def washoff(self) -> sc.Washoff:
-        "('Landuse', 'Pollutant')['FuncType', 'C1', 'C2', 'SweepRmvl', 'BmpRmvl', 'desc']"
+        """('Landuse', 'Pollutant')['FuncType', 'C1', 'C2', 'SweepRmvl', 'BmpRmvl', 'desc']"""
 
         return self._inp.washoff
 
@@ -732,7 +731,7 @@ class Input:
 
     @property
     def treatment(self) -> sc.Treatment:
-        "('Node', 'Pollutant')['Func', 'desc']"
+        """('Node', 'Pollutant')['Func', 'desc']"""
 
         return self._inp.treatment
 
@@ -742,7 +741,7 @@ class Input:
 
     @property
     def inflow(self) -> sc.Inflow:
-        "('Node', 'Constituent')['TimeSeries', 'InflowType', 'Mfactor', 'Sfactor', 'Baseline', 'Pattern', 'desc']"
+        """('Node', 'Constituent')['TimeSeries', 'InflowType', 'Mfactor', 'Sfactor', 'Baseline', 'Pattern', 'desc']"""
 
         return self._inp.inflow
 
@@ -752,7 +751,7 @@ class Input:
 
     @property
     def dwf(self) -> sc.DWF:
-        "('Node', 'Constituent')['AvgValue', 'Pat1', 'Pat2', 'Pat3', 'Pat4', 'desc']"
+        """('Node', 'Constituent')['AvgValue', 'Pat1', 'Pat2', 'Pat3', 'Pat4', 'desc']"""
 
         return self._inp.dwf
 
@@ -762,7 +761,7 @@ class Input:
 
     @property
     def rdii(self) -> sc.RDII:
-        "('Node')['UHgroup', 'SewerArea', 'desc']"
+        """('Node')['UHgroup', 'SewerArea', 'desc']"""
 
         return self._inp.rdii
 
@@ -772,7 +771,7 @@ class Input:
 
     @property
     def hydrographs(self) -> sc.Hydrographs:
-        "('Name', 'Month_RG', 'Response')['R', 'T', 'K', 'IA_max', 'IA_rec', 'IA_ini', 'desc']"
+        """('Name', 'Month_RG', 'Response')['R', 'T', 'K', 'IA_max', 'IA_rec', 'IA_ini', 'desc']"""
 
         return self._inp.hydrographs
 
@@ -782,7 +781,7 @@ class Input:
 
     @property
     def curves(self) -> sc.Curves:
-        "('Name')['Type', 'X_Value', 'Y_Value', 'desc']"
+        """('Name')['Type', 'X_Value', 'Y_Value', 'desc']"""
 
         return self._inp.curves
 
@@ -792,7 +791,7 @@ class Input:
 
     @property
     def timeseries(self) -> sc.Timeseries:
-        "Dict of dataframes or TimeseriesFile dataclass."
+        """Dict of dataframes or TimeseriesFile dataclass."""
 
         return self._inp.timeseries
 
@@ -802,7 +801,7 @@ class Input:
 
     @property
     def patterns(self) -> sc.Patterns:
-        "('Name')['Type', 'Multiplier', 'desc']"
+        """('Name')['Type', 'Multiplier', 'desc']"""
 
         return self._inp.patterns
 
@@ -812,7 +811,7 @@ class Input:
 
     @property
     def report(self) -> sc.Report:
-        "Data class with attribute for each report option."
+        """Data class with attribute for each report option."""
 
         return self._inp.report
 
@@ -822,7 +821,7 @@ class Input:
 
     @property
     def adjustments(self) -> sc.Adjustments:
-        "('Parameter')['Subcatchment', 'Pattern', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'desc']"
+        """('Parameter')['Subcatchment', 'Pattern', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'desc']"""
 
         return self._inp.adjustments
 
@@ -832,7 +831,7 @@ class Input:
 
     @property
     def event(self) -> sc.Event:
-        "()['Start', 'End', 'desc']"
+        """()['Start', 'End', 'desc']"""
 
         return self._inp.event
 
@@ -842,7 +841,7 @@ class Input:
 
     @property
     def tags(self) -> sc.Tags:
-        "('Element', 'Name')['Tag', 'desc']"
+        """('Element', 'Name')['Tag', 'desc']"""
 
         return self._inp.tags
 
@@ -852,7 +851,7 @@ class Input:
 
     @property
     def map(self) -> sc.Map:
-        "String class to hold map section text."
+        """String class to hold map section text."""
 
         return self._inp.map
 
@@ -862,7 +861,7 @@ class Input:
 
     @property
     def coordinates(self) -> sc.Coordinates:
-        "('Node')['X', 'Y', 'desc']"
+        """('Node')['X', 'Y', 'desc']"""
 
         return self._inp.coordinates
 
@@ -872,7 +871,7 @@ class Input:
 
     @property
     def vertices(self) -> sc.Vertices:
-        "('Link')['X', 'Y', 'desc']"
+        """('Link')['X', 'Y', 'desc']"""
 
         return self._inp.vertices
 
@@ -882,7 +881,7 @@ class Input:
 
     @property
     def polygons(self) -> sc.Polygons:
-        "('Elem')['X', 'Y', 'desc']"
+        """('Elem')['X', 'Y', 'desc']"""
 
         return self._inp.polygons
 
@@ -892,7 +891,7 @@ class Input:
 
     @property
     def symbols(self) -> sc.Symbols:
-        "('Gage')['X', 'Y', 'desc']"
+        """('Gage')['X', 'Y', 'desc']"""
 
         return self._inp.symbols
 
@@ -902,7 +901,7 @@ class Input:
 
     @property
     def labels(self) -> sc.Labels:
-        "()['Xcoord', 'Ycoord', 'Label', 'Anchor', 'Font', 'Size', 'Bold', 'Italic', 'desc']"
+        """()['Xcoord', 'Ycoord', 'Label', 'Anchor', 'Font', 'Size', 'Bold', 'Italic', 'desc']"""
 
         return self._inp.labels
 
@@ -912,7 +911,7 @@ class Input:
 
     @property
     def backdrop(self) -> sc.Backdrop:
-        "String class to hold backdrop section text."
+        """String class to hold backdrop section text."""
 
         return self._inp.backdrop
 
@@ -922,7 +921,7 @@ class Input:
 
     @property
     def profile(self) -> sc.Profile:
-        "String class to hold profile section text"
+        """String class to hold profile section text"""
 
         return self._inp.profile
 

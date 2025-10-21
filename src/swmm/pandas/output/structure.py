@@ -1,10 +1,11 @@
 from __future__ import annotations
+
 from collections.abc import Sequence
 
 import numpy as np
-from pandas.core.api import DataFrame
-from pandas._libs.missing import NA
 
+from pandas._libs.missing import NA
+from pandas.core.api import DataFrame
 from swmm.pandas.output.tools import arrayish
 
 volumeConstants = {
@@ -71,7 +72,7 @@ class Structure:
             pass
         else:
             self._floodFrame = self.out.node_series(
-                self.node, "flooding_losses", columns="elem"
+                self.node, "flooding_losses", columns="elem",
             )
 
         return self._floodFrame
@@ -91,7 +92,7 @@ class Structure:
             pass
         else:
             self._flowFrame = self.out.link_series(
-                self.link, "flow_rate", columns="elem"
+                self.link, "flow_rate", columns="elem",
             )
 
         return self._flowFrame
@@ -147,7 +148,7 @@ class Structure:
             reverse = -1 if reverse else 1
         else:
             raise ValueError(
-                f"invert must be either bool or sequence of bool, given {type(reverse)}"
+                f"invert must be either bool or sequence of bool, given {type(reverse)}",
             )
         df = df * reverse
 
@@ -162,7 +163,7 @@ class Structure:
                     df.loc[df[col] < 0, col] = 0
         else:
             raise ValueError(
-                f"useNegative must be either bool or sequence of bool, given {type(useNegative)}"
+                f"useNegative must be either bool or sequence of bool, given {type(useNegative)}",
             )
 
         # return aggregated df according to given aggFunc
@@ -203,7 +204,7 @@ class Structure:
 
         # put series in DataFrame, and add event_num column
         q = DataFrame(
-            series[series > thresholdFlow], columns=["flow_rate"]
+            series[series > thresholdFlow], columns=["flow_rate"],
         ).reset_index()
         q["event_num"] = NA
         # initialize first event

@@ -1,34 +1,42 @@
 from __future__ import annotations
 
-from aenum import EnumMeta
 import os.path
+import struct
 import warnings
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 from functools import wraps
-from typing import Callable
-from collections.abc import Sequence
-from itertools import product
 from io import SEEK_END
-import struct
+from itertools import product
+from typing import Callable
 
-from aenum import Enum, EnumMeta, extend_enum
-from numpy import asarray, atleast_1d, atleast_2d, concatenate, datetime64
-from numpy import integer as npint
-from numpy import ndarray, stack, tile, vstack
 import numpy.core.records
+from aenum import Enum, EnumMeta, extend_enum
+from numpy import (
+    asarray,
+    atleast_1d,
+    atleast_2d,
+    concatenate,
+    datetime64,
+    ndarray,
+    stack,
+    tile,
+    vstack,
+)
+from numpy import integer as npint
+from swmm.toolkit import output, shared_enum
+
 from pandas.core.api import (
     DataFrame,
     DatetimeIndex,
     Index,
+    IndexSlice,
     MultiIndex,
     Timestamp,
     to_datetime,
-    IndexSlice,
 )
-from swmm.toolkit import output, shared_enum
-
 from swmm.pandas.output.structure import Structure
-from swmm.pandas.output.tools import arrayish, _enum_get, _enum_keys
+from swmm.pandas.output.tools import _enum_get, _enum_keys, arrayish
 
 
 def output_open_handler(func):
@@ -201,7 +209,7 @@ class Output:
 
     @staticmethod
     def _elementIndex(
-        elementID: str | int | None, indexSquence: Sequence[str], elementType: str
+        elementID: str | int | None, indexSquence: Sequence[str], elementType: str,
     ) -> int:
         """Validate the index of a model element passed to Output methods. Used to
         convert model element names to their index in the out file.
@@ -240,7 +248,7 @@ class Output:
         # before starting a potentially lengthy data pull
         except ValueError:
             raise ValueError(
-                f"{elementType} ID: {elementID} does not exist in model output."
+                f"{elementType} ID: {elementID} does not exist in model output.",
             )
 
     @staticmethod
@@ -296,12 +304,12 @@ class Output:
                 index = _enum_get(validAttributes, attrib)
                 if index is None:
                     raise ValueError(
-                        f"Attribute {attrib} not in valid attribute list: {_enum_keys(validAttributes)}"
+                        f"Attribute {attrib} not in valid attribute list: {_enum_keys(validAttributes)}",
                     )
                 attributeIndexArray.append(index)
             else:
                 raise TypeError(
-                    f"Input type: {type(attrib)} not valid. Must be one of int, str, or Enum"
+                    f"Input type: {type(attrib)} not valid. Must be one of int, str, or Enum",
                 )
 
         # attributeIndexArray = [validAttributes.get(atr, -1) for atr in attributeArray]
@@ -360,7 +368,7 @@ class Output:
                 elemNameArray.append(elem)
             else:
                 raise TypeError(
-                    f"Input type {type(elem)} not valid. Must be one of int, str"
+                    f"Input type {type(elem)} not valid. Must be one of int, str",
                 )
 
         return elemNameArray, elementIndexArray
@@ -371,7 +379,7 @@ class Output:
         days = swmm_datetime - remaining_days
         seconds = remaining_days * 86400
         dt = datetime(year=1899, month=12, day=30) + timedelta(
-            days=days, seconds=seconds
+            days=days, seconds=seconds,
         )
         return dt
 
@@ -405,7 +413,7 @@ class Output:
 
         if len(elems) > 0:
             warnings.warn(
-                f"Pollutent {name} is a duplicate of existing {','.join(elems)} attribute, renaming to pol_{name}"
+                f"Pollutent {name} is a duplicate of existing {','.join(elems)} attribute, renaming to pol_{name}",
             )
             return f"pol_{name}"
 
@@ -443,7 +451,7 @@ class Output:
                 total = self.project_size[4]
                 self._pollutants = tuple(
                     self._checkPollutantName(
-                        self._objectName(shared_enum.ElementType.POLLUT, index).lower()
+                        self._objectName(shared_enum.ElementType.POLLUT, index).lower(),
                     )
                     for index in range(total)
                 )
@@ -463,21 +471,21 @@ class Output:
                     ["sub"],
                     range(len(self.subcatchments)),
                     range(len(self.subcatch_attributes)),
-                )
+                ),
             )
             nodes = list(
                 product(
                     ["node"],
                     range(len(self.nodes)),
                     range(len(self.node_attributes)),
-                )
+                ),
             )
             links = list(
                 product(
                     ["link"],
                     range(len(self.links)),
                     range(len(self.link_attributes)),
-                )
+                ),
             )
             system = list(product(["sys"], ["sys"], range(len(self.system_attributes))))
 
@@ -762,12 +770,12 @@ class Output:
             [
                 self._start + timedelta(seconds=self._report) * step
                 for step in range(1, self._period + 1)
-            ]
+            ],
         )
 
     ##### model element setters and getters #####
     def _subcatchmentIndex(
-        self, subcatchment: str | int | Sequence[str | int] | None
+        self, subcatchment: str | int | Sequence[str | int] | None,
     ) -> list[int] | int:
         """Get the swmm index for subcatchment.
 
@@ -819,7 +827,7 @@ class Output:
         )
 
     def _nodeIndex(
-        self, node: str | int | Sequence[str | int] | None
+        self, node: str | int | Sequence[str | int] | None,
     ) -> list[int] | int:
         """Get the swmm index for node.
 
@@ -870,7 +878,7 @@ class Output:
         )
 
     def _linkIndex(
-        self, link: str | int | Sequence[str | int] | None
+        self, link: str | int | Sequence[str | int] | None,
     ) -> list[int] | int:
         """Get the swmm index for link.
 
@@ -925,7 +933,7 @@ class Output:
         if elemType == "sys":
 
             def getter(  # type: ignore
-                _handle, Attr: EnumMeta, startIndex: int, endIndex: int
+                _handle, Attr: EnumMeta, startIndex: int, endIndex: int,
             ) -> ndarray:
                 # col = f"{type};{type};{Attr.value}"
                 # return self.data[col][startIndex:endIndex]
@@ -937,12 +945,12 @@ class Output:
         else:
 
             def getter(  # type: ignore
-                _handle, elemIdx: int, Attr: EnumMeta, startIndex: int, endIndex: int
+                _handle, elemIdx: int, Attr: EnumMeta, startIndex: int, endIndex: int,
             ) -> ndarray:
                 # col = f"{type};{elemIdx};{Attr.value}"
                 # return self.data[col][startIndex:endIndex]
                 return self.data.loc[
-                    startIndex : endIndex - 1, IndexSlice[elemType, elemIdx, Attr.value]  # type: ignore
+                    startIndex : endIndex - 1, IndexSlice[elemType, elemIdx, Attr.value],  # type: ignore
                 ].to_numpy()
 
         return getter
@@ -1000,7 +1008,7 @@ class Output:
 
         if columns not in ("elem", "attr", None):
             raise ValueError(
-                f"columns must be one of 'elem','attr', or None. {columns} was given"
+                f"columns must be one of 'elem','attr', or None. {columns} was given",
             )
 
         if columns is None:
@@ -1009,7 +1017,7 @@ class Output:
                     concatenate(
                         [
                             getterFunc(
-                                self._handle, elemIdx, Attr, startIndex, endIndex
+                                self._handle, elemIdx, Attr, startIndex, endIndex,
                             )
                             for Attr in attributeIndexArray
                         ],
@@ -1026,7 +1034,7 @@ class Output:
                     stack(
                         [
                             getterFunc(
-                                self._handle, elemIdx, Attr, startIndex, endIndex
+                                self._handle, elemIdx, Attr, startIndex, endIndex,
                             )
                             for Attr in attributeIndexArray
                         ],
@@ -1043,7 +1051,7 @@ class Output:
                     stack(
                         [
                             getterFunc(
-                                self._handle, elemIdx, Attr, startIndex, endIndex
+                                self._handle, elemIdx, Attr, startIndex, endIndex,
                             )
                             for elemIdx in elementIndexArray
                         ],
@@ -1102,7 +1110,7 @@ class Output:
 
         if columns not in ("elem", "attr", None):
             raise ValueError(
-                f"columns must be one of 'elem','attr', or None. {columns} was given"
+                f"columns must be one of 'elem','attr', or None. {columns} was given",
             )
 
         if columns is None:
@@ -1116,15 +1124,15 @@ class Output:
             if len(elementArray) > 1:
                 indexArrays.append(
                     asarray(elementArray).repeat(
-                        (endIndex - startIndex) * len(attributeArray)
-                    )
+                        (endIndex - startIndex) * len(attributeArray),
+                    ),
                 )
                 names.append("element")
             if len(attributeArray) > 1:
                 indexArrays.append(
                     tile(asarray(attributeArray), len(elementArray)).repeat(
-                        endIndex - startIndex
-                    )
+                        endIndex - startIndex,
+                    ),
                 )
                 names.append("attribute")
 
@@ -1145,7 +1153,7 @@ class Output:
 
             if len(attributeArray) > 1:
                 indexArrays.append(
-                    asarray(attributeArray).repeat(endIndex - startIndex)
+                    asarray(attributeArray).repeat(endIndex - startIndex),
                 )
                 names.append("attribute")
         index = (
@@ -1228,8 +1236,7 @@ class Output:
             date range and subcatchments.
 
         Examples
-        ---------
-
+        --------
         Pull single time series for a single subcatchment
 
         >>> from swmm.pandas import Output,example_out_path
@@ -1323,11 +1330,11 @@ class Output:
 
         """
         subcatchementArray, subcatchmentIndexArray = self._validateElement(
-            subcatchment, self.subcatchments
+            subcatchment, self.subcatchments,
         )
 
         attributeArray, attributeIndexArray = self._validateAttribute(
-            attribute, self.subcatch_attributes
+            attribute, self.subcatch_attributes,
         )
 
         startIndex = self._time2step(start, 0)[0]
@@ -1352,7 +1359,7 @@ class Output:
             return values
 
         dfIndex, cols = self._model_series_index(
-            subcatchementArray, attributeArray, startIndex, endIndex, columns
+            subcatchementArray, attributeArray, startIndex, endIndex, columns,
         )
         return DataFrame(values, index=dfIndex, columns=cols)
 
@@ -1424,8 +1431,7 @@ class Output:
             date range and nodes.
 
         Examples
-        ---------
-
+        --------
         Pull single time series for a single node
 
         >>> from swmm.pandas import Output,example_out_path
@@ -1521,7 +1527,7 @@ class Output:
         nodeArray, nodeIndexArray = self._validateElement(node, self.nodes)
 
         attributeArray, attributeIndexArray = self._validateAttribute(
-            attribute, self.node_attributes
+            attribute, self.node_attributes,
         )
 
         startIndex = self._time2step(start, 0)[0]
@@ -1546,7 +1552,7 @@ class Output:
             return values
 
         dfIndex, cols = self._model_series_index(
-            nodeArray, attributeArray, startIndex, endIndex, columns
+            nodeArray, attributeArray, startIndex, endIndex, columns,
         )
 
         return DataFrame(values, index=dfIndex, columns=cols)
@@ -1618,8 +1624,7 @@ class Output:
             date range and links.
 
         Examples
-        ---------
-
+        --------
         Pull flow rate for two conduits
 
         >>> from swmm.pandas import Output,example_out_path
@@ -1718,7 +1723,7 @@ class Output:
         linkArray, linkIndexArray = self._validateElement(link, self.links)
 
         attributeArray, attributeIndexArray = self._validateAttribute(
-            attribute, self.link_attributes
+            attribute, self.link_attributes,
         )
 
         startIndex = self._time2step(start, 0)[0]
@@ -1743,7 +1748,7 @@ class Output:
             return values
 
         dfIndex, cols = self._model_series_index(
-            linkArray, attributeArray, startIndex, endIndex, columns
+            linkArray, attributeArray, startIndex, endIndex, columns,
         )
 
         return DataFrame(values, index=dfIndex, columns=cols)
@@ -1796,8 +1801,7 @@ class Output:
             DataFrame or ndarray of attribute values in each column for request date range
 
         Examples
-        ---------
-
+        --------
         Pull two system attribute time series
 
         >>> from swmm.pandas import Output,example_out_path
@@ -1821,7 +1825,7 @@ class Output:
         """
 
         attributeArray, attributeIndexArray = self._validateAttribute(
-            attribute, self.system_attributes
+            attribute, self.system_attributes,
         )
 
         startIndex = self._time2step(start, 0)[0]
@@ -1891,7 +1895,7 @@ class Output:
             A DataFrame or ndarray of attribute values in each column for requested simulation time.
 
         Examples
-        ---------
+        --------
         Pull rainfall for all catchments at start of simulation
 
         >>> from swmm.pandas import Output,example_out_path
@@ -1905,7 +1909,7 @@ class Output:
         """
 
         attributeArray, attributeIndexArray = self._validateAttribute(
-            attribute, self.subcatch_attributes
+            attribute, self.subcatch_attributes,
         )
 
         timeIndex = self._time2step([time])[0]
@@ -1967,7 +1971,7 @@ class Output:
             A DataFrame or ndarray of attribute values in each column for requested simulation time.
 
         Examples
-        ---------
+        --------
         Pull all attributes from middle of simulation
 
         >>> from swmm.pandas import Output,example_out_path
@@ -1987,7 +1991,7 @@ class Output:
             [9 rows x 9 columns]
         """
         attributeArray, attributeIndexArray = self._validateAttribute(
-            attribute, self.node_attributes
+            attribute, self.node_attributes,
         )
 
         timeIndex = self._time2step([time])[0]
@@ -2048,7 +2052,7 @@ class Output:
             A DataFrame of attribute values in each column for requested simulation time.
 
         Examples
-        ---------
+        --------
         Pull depth. flooding, and total inflow attributes from end of simulation
 
         >>> from swmm.pandas import Output,example_out_path
@@ -2067,7 +2071,7 @@ class Output:
             STOR1     18.282972         0.000000      9.048394
         """
         attributeArray, attributeIndexArray = self._validateAttribute(
-            attribute, self.link_attributes
+            attribute, self.link_attributes,
         )
 
         timeIndex = self._time2step([time])[0]
@@ -2126,8 +2130,7 @@ class Output:
             A DataFrame of attribute values in each column for requested simulation time.
 
         Examples
-        ---------
-
+        --------
         Pull all system attributes for the 10th time step
 
         >>> from swmm.pandas import Output,example_out_path
@@ -2153,7 +2156,7 @@ class Output:
         """
 
         attributeArray, attributeIndexArray = self._validateAttribute(
-            attribute, self.system_attributes
+            attribute, self.system_attributes,
         )
 
         timeIndex = self._time2step([time])[0]
@@ -2162,7 +2165,7 @@ class Output:
             [
                 output.get_system_attribute(self._handle, timeIndex, sysAttr)
                 for sysAttr in attributeIndexArray
-            ]
+            ],
         )
 
         if not asframe:
@@ -2202,8 +2205,7 @@ class Output:
             A DataFrame or ndarray of all attribute values subcatchment(s) at given time(s).
 
         Examples
-        ---------
-
+        --------
         Pull all attributes at start, middle, and end time steps for a single catchment
 
         >>> from swmm.pandas import Output,example_out_path
@@ -2241,7 +2243,7 @@ class Output:
                 [
                     output.get_subcatch_result(self._handle, timeIndex, idx)
                     for idx in indices
-                ]
+                ],
             )
 
         else:
@@ -2259,8 +2261,8 @@ class Output:
                     [
                         output.get_subcatch_result(self._handle, idx, subcatchmentIndex)
                         for idx in indices
-                    ]
-                )
+                    ],
+                ),
             )
 
         if not asframe:
@@ -2269,7 +2271,7 @@ class Output:
         dfIndex = Index(labels, name=label)
 
         return DataFrame(
-            values, index=dfIndex, columns=_enum_keys(self.subcatch_attributes)
+            values, index=dfIndex, columns=_enum_keys(self.subcatch_attributes),
         )
 
     @output_open_handler
@@ -2300,8 +2302,7 @@ class Output:
             A DataFrame or ndarray of all attribute values nodes(s) at given time(s).
 
         Examples
-        ---------
-
+        --------
         Pull all attributes at start, middle, and end time steps for a single node
 
         >>> from swmm.pandas import Output,example_out_path
@@ -2342,7 +2343,7 @@ class Output:
                 [
                     output.get_node_result(self._handle, timeIndex, idx)
                     for idx in indices
-                ]
+                ],
             )
 
         else:
@@ -2360,8 +2361,8 @@ class Output:
                     [
                         output.get_node_result(self._handle, idx, nodeIndex)
                         for idx in indices
-                    ]
-                )
+                    ],
+                ),
             )
 
         if not asframe:
@@ -2370,7 +2371,7 @@ class Output:
         dfIndex = Index(labels, name=label)
 
         return DataFrame(
-            values, index=dfIndex, columns=_enum_keys(self.node_attributes)
+            values, index=dfIndex, columns=_enum_keys(self.node_attributes),
         )
 
     @output_open_handler
@@ -2401,8 +2402,7 @@ class Output:
             A DataFrame or ndarray of all attribute values link(s) at given time(s).
 
         Examples
-        ---------
-
+        --------
         Pull all attributes at start, middle, and end time steps for a single link
 
         >>> from swmm.pandas import Output,example_out_path
@@ -2442,7 +2442,7 @@ class Output:
                 [
                     output.get_link_result(self._handle, timeIndex, idx)
                     for idx in indices
-                ]
+                ],
             )
 
         else:
@@ -2460,8 +2460,8 @@ class Output:
                     [
                         output.get_link_result(self._handle, idx, linkIndex)
                         for idx in indices
-                    ]
-                )
+                    ],
+                ),
             )
 
         if not asframe:
@@ -2470,7 +2470,7 @@ class Output:
         dfIndex = Index(labels, name=label)
 
         return DataFrame(
-            values, index=dfIndex, columns=_enum_keys(self.link_attributes)
+            values, index=dfIndex, columns=_enum_keys(self.link_attributes),
         )
 
     @output_open_handler
@@ -2495,8 +2495,7 @@ class Output:
             A DataFrame of attribute values in each row for requested simulation time.
 
         Examples
-        ---------
-
+        --------
         Pull all attributes at start of simulation
 
         >>> from swmm.pandas import Output,example_out_path
@@ -2576,9 +2575,9 @@ class Output:
         self._close()
 
     def open(self):
-        "open the output file"
+        """Open the output file"""
         self._open()
 
     def close(self):
-        "close the output file"
+        """Close the output file"""
         self._close()

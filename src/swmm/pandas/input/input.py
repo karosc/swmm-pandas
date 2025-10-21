@@ -3,28 +3,37 @@
 #   - high level api for loading, inspecting, changing, and
 #     altering a SWMM input file using pandas dataframes
 from __future__ import annotations
-from tokenize import String
-from venv import logger
 
-from swmm.pandas.input._section_classes import SectionBase, _sections
-import swmm.pandas.input._section_classes as sc
 import pathlib
 import re
 import warnings
 from io import StringIO
+from tokenize import String
 from typing import TYPE_CHECKING
+from venv import logger
+
+import pandas as pd
+import swmm.pandas.input._section_classes as sc
+from swmm.pandas.input._section_classes import SectionBase, _sections
 
 if TYPE_CHECKING:
-    from swmm.pandas.input.model import Input
     from typing import Optional, Self
+
+    from geopandas import GeoDataFrame, GeoSeries
+
+    from swmm.pandas.input.model import Input
 
 
 class InputFile:
     _section_re = re.compile(R"^\[[\s\S]*?(?=^\[|\Z)", re.MULTILINE)
     _section_keys = tuple(_sections.keys())
 
-    def __init__(self, inpfile: Optional[str | pathlib.Path | StringIO] = None):
-        """Base class for a SWMM input file.
+    def __init__(
+        self,
+        inpfile: Optional[str | pathlib.Path | StringIO] = None,
+        crs: str | None = None,
+    ) -> None:
+        """# noqa: E501Base class for a SWMM input file.
 
         The input object provides an attribute for each section supported the SWMM inp file. The
         section properties are created dynamically at runtime to keep source code dry and concise, but
@@ -80,10 +89,11 @@ class InputFile:
         ----------
         inpfile: str
             model inp file path
-        """
+        """  # noqa: E501
         if inpfile is not None:
             self._inpfile = inpfile
             self._load_inp_file()
+        self.crs = crs
         # for sect in _sections.keys():
         #     # print(sect)
         #     self._set_section_prop(sect)
@@ -97,7 +107,7 @@ class InputFile:
             self.text: str = self._inpfile.read()
         else:
             raise TypeError(
-                f"InputFile class expected string, path, or StringIO, got {type(self._inpfile)}"
+                f"InputFile class expected string, path, or StringIO, got {type(self._inpfile)}",
             )
         self._sections: dict[str, SectionBase] = {}
         self._section_texts: dict[str, str] = {}
@@ -183,7 +193,7 @@ class InputFile:
 
     @property
     def option(self) -> sc.Option:
-        "('Option')['Value', 'desc']"
+        """# noqa: E501('Option')['Value', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_option"):
             self._option = self._get_section("OPTION")
@@ -196,7 +206,7 @@ class InputFile:
 
     @property
     def files(self) -> sc.Files:
-        "String to hold files section"
+        """# noqa: E501String to hold files section"""  # noqa: E501
 
         if not hasattr(self, "_files"):
             self._files = self._get_section("FILE")
@@ -209,7 +219,7 @@ class InputFile:
 
     @property
     def raingage(self) -> sc.Raingage:
-        "('Name')['Format', 'Interval', 'SCF', 'Source_Type', 'Source', 'Station', 'Units', 'desc']"
+        """# noqa: E501('Name')['Format', 'Interval', 'SCF', 'Source_Type', 'Source', 'Station', 'Units', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_raingage"):
             self._raingage = self._get_section("RAINGAGE")
@@ -222,7 +232,7 @@ class InputFile:
 
     @property
     def evap(self) -> sc.Evap:
-        "('Type')['param1', 'param2', 'param3', 'param4', 'param5', 'param6', 'param7', 'param8', 'param9', 'param10', 'param11', 'param12', 'desc']"
+        """# noqa: E501('Type')['param1', 'param2', 'param3', 'param4', 'param5', 'param6', 'param7', 'param8', 'param9', 'param10', 'param11', 'param12', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_evap"):
             self._evap = self._get_section("EVAP")
@@ -235,7 +245,7 @@ class InputFile:
 
     @property
     def temperature(self) -> sc.Temperature:
-        "('Option')['param1', 'param2', 'param3', 'param4', 'param5', 'param6', 'param7', 'param8', 'param9', 'param10', 'param11', 'param12', 'param13', 'desc']"
+        """# noqa: E501('Option')['param1', 'param2', 'param3', 'param4', 'param5', 'param6', 'param7', 'param8', 'param9', 'param10', 'param11', 'param12', 'param13', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_temperature"):
             self._temperature = self._get_section("TEMPERATURE")
@@ -248,7 +258,7 @@ class InputFile:
 
     @property
     def subcatchment(self) -> sc.Subcatchment:
-        "('Name')['RainGage', 'Outlet', 'Area', 'PctImp', 'Width', 'Slope', 'CurbLeng', 'SnowPack', 'desc']"
+        """# noqa: E501('Name')['RainGage', 'Outlet', 'Area', 'PctImp', 'Width', 'Slope', 'CurbLeng', 'SnowPack', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_subcatchment"):
             self._subcatchment = self._get_section("SUBCATCHMENT")
@@ -261,7 +271,7 @@ class InputFile:
 
     @property
     def subarea(self) -> sc.Subarea:
-        "('Subcatchment')['Nimp', 'Nperv', 'Simp', 'Sperv', 'PctZero', 'RouteTo', 'PctRouted', 'desc']"
+        """# noqa: E501('Subcatchment')['Nimp', 'Nperv', 'Simp', 'Sperv', 'PctZero', 'RouteTo', 'PctRouted', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_subarea"):
             self._subarea = self._get_section("SUBAREA")
@@ -274,7 +284,7 @@ class InputFile:
 
     @property
     def infil(self) -> sc.Infil:
-        "('Subcatchment')['param1', 'param2', 'param3', 'param4', 'param5', 'Method', 'desc']"
+        """# noqa: E501('Subcatchment')['param1', 'param2', 'param3', 'param4', 'param5', 'Method', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_infil"):
             self._infil = self._get_section("INFIL")
@@ -287,7 +297,7 @@ class InputFile:
 
     @property
     def lid_control(self) -> sc.LID_Control:
-        "('Name')['Type', 'param1', 'param2', 'param3', 'param4', 'param5', 'param6', 'param7', 'desc']"
+        """# noqa: E501('Name')['Type', 'param1', 'param2', 'param3', 'param4', 'param5', 'param6', 'param7', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_lid_control"):
             self._lid_control = self._get_section("LID_CONTROL")
@@ -300,7 +310,7 @@ class InputFile:
 
     @property
     def lid_usage(self) -> sc.LID_Usage:
-        "('Subcatchment', 'LIDProcess')['Number', 'Area', 'Width', 'InitSat', 'FromImp', 'ToPerv', 'RptFile', 'DrainTo', 'FromPerv', 'desc']"
+        """# noqa: E501('Subcatchment', 'LIDProcess')['Number', 'Area', 'Width', 'InitSat', 'FromImp', 'ToPerv', 'RptFile', 'DrainTo', 'FromPerv', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_lid_usage"):
             self._lid_usage = self._get_section("LID_USAGE")
@@ -313,7 +323,7 @@ class InputFile:
 
     @property
     def aquifer(self) -> sc.Aquifer:
-        "('Name')['Por', 'WP', 'FC', 'Ksat', 'Kslope', 'Tslope', 'ETu', 'ETs', 'Seep', 'Ebot', 'Egw', 'Umc', 'ETupat', 'desc']"
+        """# noqa: E501('Name')['Por', 'WP', 'FC', 'Ksat', 'Kslope', 'Tslope', 'ETu', 'ETs', 'Seep', 'Ebot', 'Egw', 'Umc', 'ETupat', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_aquifer"):
             self._aquifer = self._get_section("AQUIFER")
@@ -326,7 +336,7 @@ class InputFile:
 
     @property
     def groundwater(self) -> sc.Groundwater:
-        "('Subcatchment')['Aquifer', 'Node', 'Esurf', 'A1', 'B1', 'A2', 'B2', 'A3', 'Dsw', 'Egwt', 'Ebot', 'Wgr', 'Umc', 'desc']"
+        """# noqa: E501('Subcatchment')['Aquifer', 'Node', 'Esurf', 'A1', 'B1', 'A2', 'B2', 'A3', 'Dsw', 'Egwt', 'Ebot', 'Wgr', 'Umc', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_groundwater"):
             self._groundwater = self._get_section("GROUNDWATER")
@@ -339,7 +349,7 @@ class InputFile:
 
     @property
     def gwf(self) -> sc.GWF:
-        "('Subcatch', 'Type')['Expr', 'desc']"
+        """# noqa: E501('Subcatch', 'Type')['Expr', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_gwf"):
             self._gwf = self._get_section("GWF")
@@ -352,7 +362,7 @@ class InputFile:
 
     @property
     def snowpack(self) -> sc.Snowpack:
-        "('Name', 'Surface')['param1', 'param2', 'param3', 'param4', 'param5', 'param6', 'param7', 'desc']"
+        """# noqa: E501('Name', 'Surface')['param1', 'param2', 'param3', 'param4', 'param5', 'param6', 'param7', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_snowpack"):
             self._snowpack = self._get_section("SNOWPACK")
@@ -365,7 +375,7 @@ class InputFile:
 
     @property
     def junc(self) -> sc.Junc:
-        "('Name')['Elevation', 'MaxDepth', 'InitDepth', 'SurDepth', 'Aponded', 'desc']"
+        """# noqa: E501('Name')['Elevation', 'MaxDepth', 'InitDepth', 'SurDepth', 'Aponded', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_junc"):
             self._junc = self._get_section("JUNC")
@@ -378,7 +388,7 @@ class InputFile:
 
     @property
     def outfall(self) -> sc.Outfall:
-        "('Name')['Elevation', 'Type', 'StageData', 'Gated', 'RouteTo', 'desc']"
+        """# noqa: E501('Name')['Elevation', 'Type', 'StageData', 'Gated', 'RouteTo', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_outfall"):
             self._outfall = self._get_section("OUTFALL")
@@ -391,7 +401,7 @@ class InputFile:
 
     @property
     def divider(self) -> sc.Divider:
-        "('Name')['Elevation', 'DivLink', 'DivType', 'DivCurve', 'Qmin', 'Height', 'Cd', 'Ymax', 'Y0', 'Ysur', 'Apond', 'desc']"
+        """# noqa: E501('Name')['Elevation', 'DivLink', 'DivType', 'DivCurve', 'Qmin', 'Height', 'Cd', 'Ymax', 'Y0', 'Ysur', 'Apond', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_divider"):
             self._divider = self._get_section("DIVIDER")
@@ -404,7 +414,7 @@ class InputFile:
 
     @property
     def storage(self) -> sc.Storage:
-        "('Name')['Elev', 'MaxDepth', 'InitDepth', 'Shape', 'CurveName', 'A1_L', 'A2_W', 'A0_Z', 'SurDepth', 'Fevap', 'Psi', 'Ksat', 'IMD', 'desc']"
+        """# noqa: E501('Name')['Elev', 'MaxDepth', 'InitDepth', 'Shape', 'CurveName', 'A1_L', 'A2_W', 'A0_Z', 'SurDepth', 'Fevap', 'Psi', 'Ksat', 'IMD', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_storage"):
             self._storage = self._get_section("STORAGE")
@@ -417,7 +427,7 @@ class InputFile:
 
     @property
     def conduit(self) -> sc.Conduit:
-        "('Name')['FromNode', 'ToNode', 'Length', 'Roughness', 'InOffset', 'OutOffset', 'InitFlow', 'MaxFlow', 'desc']"
+        """# noqa: E501('Name')['FromNode', 'ToNode', 'Length', 'Roughness', 'InOffset', 'OutOffset', 'InitFlow', 'MaxFlow', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_conduit"):
             self._conduit = self._get_section("CONDUIT")
@@ -430,7 +440,7 @@ class InputFile:
 
     @property
     def pump(self) -> sc.Pump:
-        "('Name')['FromNode', 'ToNode', 'PumpCurve', 'Status', 'Startup', 'Shutoff', 'desc']"
+        """# noqa: E501('Name')['FromNode', 'ToNode', 'PumpCurve', 'Status', 'Startup', 'Shutoff', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_pump"):
             self._pump = self._get_section("PUMP")
@@ -443,7 +453,7 @@ class InputFile:
 
     @property
     def orifice(self) -> sc.Orifice:
-        "('Name')['FromNode', 'ToNode', 'Type', 'Offset', 'Qcoeff', 'Gated', 'CloseTime', 'desc']"
+        """# noqa: E501('Name')['FromNode', 'ToNode', 'Type', 'Offset', 'Qcoeff', 'Gated', 'CloseTime', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_orifice"):
             self._orifice = self._get_section("ORIFICE")
@@ -456,7 +466,7 @@ class InputFile:
 
     @property
     def weir(self) -> sc.Weir:
-        "('Name')['FromNode', 'ToNode', 'Type', 'CrestHt', 'Qcoeff', 'Gated', 'EndCon', 'EndCoeff', 'Surcharge', 'RoadWidth', 'RoadSurf', 'CoeffCurve', 'desc']"
+        """# noqa: E501('Name')['FromNode', 'ToNode', 'Type', 'CrestHt', 'Qcoeff', 'Gated', 'EndCon', 'EndCoeff', 'Surcharge', 'RoadWidth', 'RoadSurf', 'CoeffCurve', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_weir"):
             self._weir = self._get_section("WEIR")
@@ -469,7 +479,7 @@ class InputFile:
 
     @property
     def outlet(self) -> sc.Outlet:
-        "('Name')['FromNode', 'ToNode', 'Offset', 'Type', 'CurveName', 'Qcoeff', 'Qexpon', 'Gated', 'desc']"
+        """# noqa: E501('Name')['FromNode', 'ToNode', 'Offset', 'Type', 'CurveName', 'Qcoeff', 'Qexpon', 'Gated', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_outlet"):
             self._outlet = self._get_section("OUTLET")
@@ -482,7 +492,7 @@ class InputFile:
 
     @property
     def xsections(self) -> sc.Xsections:
-        "('Link')['Shape', 'Geom1', 'Curve', 'Geom2', 'Geom3', 'Geom4', 'Barrels', 'Culvert', 'desc']"
+        """# noqa: E501('Link')['Shape', 'Geom1', 'Curve', 'Geom2', 'Geom3', 'Geom4', 'Barrels', 'Culvert', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_xsections"):
             self._xsections = self._get_section("XSECT")
@@ -495,7 +505,7 @@ class InputFile:
 
     @property
     def transects(self) -> sc.Transects:
-        "String to hold transects section."
+        """# noqa: E501String to hold transects section."""  # noqa: E501
 
         if not hasattr(self, "_transects"):
             self._transects = self._get_section("TRANSECT")
@@ -508,7 +518,7 @@ class InputFile:
 
     @property
     def street(self) -> sc.Street:
-        "('Name')['Tcrown', 'Hcurb', 'Sroad', 'nRoad', 'Hdep', 'Wdep', 'Sides', 'Wback', 'Sback', 'nBack', 'desc']"
+        """# noqa: E501('Name')['Tcrown', 'Hcurb', 'Sroad', 'nRoad', 'Hdep', 'Wdep', 'Sides', 'Wback', 'Sback', 'nBack', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_street"):
             self._street = self._get_section("STREETS")
@@ -521,7 +531,7 @@ class InputFile:
 
     @property
     def inlet_usage(self) -> sc.Inlet_Usage:
-        "('Conduit')['Inlet', 'Node', 'Number', '%Clogged', 'MaxFlow', 'hDStore', 'wDStore', 'Placement', 'desc']"
+        """# noqa: E501('Conduit')['Inlet', 'Node', 'Number', '%Clogged', 'MaxFlow', 'hDStore', 'wDStore', 'Placement', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_inlet_usage"):
             self._inlet_usage = self._get_section("INLET_USAGE")
@@ -534,7 +544,7 @@ class InputFile:
 
     @property
     def inlet(self) -> sc.Inlet:
-        "('Name', 'Type')['param1', 'param2', 'param3', 'param4', 'param5', 'desc']"
+        """# noqa: E501('Name', 'Type')['param1', 'param2', 'param3', 'param4', 'param5', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_inlet"):
             self._inlet = self._get_section("INLET")
@@ -547,7 +557,7 @@ class InputFile:
 
     @property
     def losses(self) -> sc.Losses:
-        "('Link')['Kentry', 'Kexit', 'Kavg', 'FlapGate', 'Seepage', 'desc']"
+        """# noqa: E501('Link')['Kentry', 'Kexit', 'Kavg', 'FlapGate', 'Seepage', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_losses"):
             self._losses = self._get_section("LOSS")
@@ -560,7 +570,7 @@ class InputFile:
 
     @property
     def controls(self) -> sc.Controls:
-        "Dict of control rules stored as text."
+        """# noqa: E501Dict of control rules stored as text."""  # noqa: E501
 
         if not hasattr(self, "_controls"):
             self._controls = self._get_section("CONTROL")
@@ -573,7 +583,7 @@ class InputFile:
 
     @property
     def pollutants(self) -> sc.Pollutants:
-        "('Name')['Units', 'Crain', 'Cgw', 'Crdii', 'Kdecay', 'SnowOnly', 'CoPollutant', 'CoFrac', 'Cdwf', 'Cinit', 'desc']"
+        """# noqa: E501('Name')['Units', 'Crain', 'Cgw', 'Crdii', 'Kdecay', 'SnowOnly', 'CoPollutant', 'CoFrac', 'Cdwf', 'Cinit', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_pollutants"):
             self._pollutants = self._get_section("POLLUT")
@@ -586,7 +596,7 @@ class InputFile:
 
     @property
     def landuse(self) -> sc.LandUse:
-        "('Name')['SweepInterval', 'Availability', 'LastSweep', 'desc']"
+        """# noqa: E501('Name')['SweepInterval', 'Availability', 'LastSweep', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_landuse"):
             self._landuse = self._get_section("LANDUSE")
@@ -599,7 +609,7 @@ class InputFile:
 
     @property
     def coverage(self) -> sc.Coverage:
-        "('Subcatchment', 'LandUse')['Percent', 'desc']"
+        """# noqa: E501('Subcatchment', 'LandUse')['Percent', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_coverage"):
             self._coverage = self._get_section("COVERAGE")
@@ -612,7 +622,7 @@ class InputFile:
 
     @property
     def loading(self) -> sc.Loading:
-        "('Subcatchment', 'Pollutant')['InitBuildup', 'desc']"
+        """# noqa: E501('Subcatchment', 'Pollutant')['InitBuildup', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_loading"):
             self._loading = self._get_section("LOADING")
@@ -625,7 +635,7 @@ class InputFile:
 
     @property
     def buildup(self) -> sc.Buildup:
-        "('Landuse', 'Pollutant')['FuncType', 'C1', 'C2', 'C3', 'PerUnit', 'desc']"
+        """# noqa: E501('Landuse', 'Pollutant')['FuncType', 'C1', 'C2', 'C3', 'PerUnit', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_buildup"):
             self._buildup = self._get_section("BUILDUP")
@@ -638,7 +648,7 @@ class InputFile:
 
     @property
     def washoff(self) -> sc.Washoff:
-        "('Landuse', 'Pollutant')['FuncType', 'C1', 'C2', 'SweepRmvl', 'BmpRmvl', 'desc']"
+        """# noqa: E501('Landuse', 'Pollutant')['FuncType', 'C1', 'C2', 'SweepRmvl', 'BmpRmvl', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_washoff"):
             self._washoff = self._get_section("WASHOFF")
@@ -651,7 +661,7 @@ class InputFile:
 
     @property
     def treatment(self) -> sc.Treatment:
-        "('Node', 'Pollutant')['Func', 'desc']"
+        """# noqa: E501('Node', 'Pollutant')['Func', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_treatment"):
             self._treatment = self._get_section("TREATMENT")
@@ -664,7 +674,7 @@ class InputFile:
 
     @property
     def inflow(self) -> sc.Inflow:
-        "('Node', 'Constituent')['TimeSeries', 'InflowType', 'Mfactor', 'Sfactor', 'Baseline', 'Pattern', 'desc']"
+        """# noqa: E501('Node', 'Constituent')['TimeSeries', 'InflowType', 'Mfactor', 'Sfactor', 'Baseline', 'Pattern', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_inflow"):
             self._inflow = self._get_section("INFLOW")
@@ -677,7 +687,7 @@ class InputFile:
 
     @property
     def dwf(self) -> sc.DWF:
-        "('Node', 'Constituent')['AvgValue', 'Pat1', 'Pat2', 'Pat3', 'Pat4', 'desc']"
+        """# noqa: E501('Node', 'Constituent')['AvgValue', 'Pat1', 'Pat2', 'Pat3', 'Pat4', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_dwf"):
             self._dwf = self._get_section("DWF")
@@ -690,7 +700,7 @@ class InputFile:
 
     @property
     def rdii(self) -> sc.RDII:
-        "('Node')['UHgroup', 'SewerArea', 'desc']"
+        """# noqa: E501('Node')['UHgroup', 'SewerArea', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_rdii"):
             self._rdii = self._get_section("RDII")
@@ -703,7 +713,7 @@ class InputFile:
 
     @property
     def hydrographs(self) -> sc.Hydrographs:
-        "('Name', 'Month_RG', 'Response')['R', 'T', 'K', 'IA_max', 'IA_rec', 'IA_ini', 'desc']"
+        """# noqa: E501('Name', 'Month_RG', 'Response')['R', 'T', 'K', 'IA_max', 'IA_rec', 'IA_ini', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_hydrographs"):
             self._hydrographs = self._get_section("HYDROGRAPH")
@@ -716,7 +726,7 @@ class InputFile:
 
     @property
     def curves(self) -> sc.Curves:
-        "('Name')['Type', 'X_Value', 'Y_Value', 'desc']"
+        """# noqa: E501('Name')['Type', 'X_Value', 'Y_Value', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_curves"):
             self._curves = self._get_section("CURVE")
@@ -729,7 +739,7 @@ class InputFile:
 
     @property
     def timeseries(self) -> sc.Timeseries:
-        "Dict of dataframes or TimeseriesFile dataclass."
+        """# noqa: E501Dict of dataframes or TimeseriesFile dataclass."""  # noqa: E501
 
         if not hasattr(self, "_timeseries"):
             self._timeseries = self._get_section("TIMESERIES")
@@ -742,7 +752,7 @@ class InputFile:
 
     @property
     def patterns(self) -> sc.Patterns:
-        "('Name')['Type', 'Multiplier', 'desc']"
+        """# noqa: E501('Name')['Type', 'Multiplier', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_patterns"):
             self._patterns = self._get_section("PATTERN")
@@ -755,7 +765,7 @@ class InputFile:
 
     @property
     def report(self) -> sc.Report:
-        "Data class with attribute for each report option."
+        """# noqa: E501Data class with attribute for each report option."""  # noqa: E501
 
         if not hasattr(self, "_report"):
             self._report = self._get_section("REPORT")
@@ -768,7 +778,7 @@ class InputFile:
 
     @property
     def adjustments(self) -> sc.Adjustments:
-        "('Parameter')['Subcatchment', 'Pattern', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'desc']"
+        """# noqa: E501('Parameter')['Subcatchment', 'Pattern', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_adjustments"):
             self._adjustments = self._get_section("ADJUSTMENT")
@@ -781,7 +791,7 @@ class InputFile:
 
     @property
     def event(self) -> sc.Event:
-        "()['Start', 'End', 'desc']"
+        """# noqa: E501()['Start', 'End', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_event"):
             self._event = self._get_section("EVENT")
@@ -794,7 +804,7 @@ class InputFile:
 
     @property
     def tags(self) -> sc.Tags:
-        "('Element', 'Name')['Tag', 'desc']"
+        """# noqa: E501('Element', 'Name')['Tag', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_tags"):
             self._tags = self._get_section("TAG")
@@ -807,7 +817,7 @@ class InputFile:
 
     @property
     def map(self) -> sc.Map:
-        "String class to hold map section text."
+        """# noqa: E501String class to hold map section text."""  # noqa: E501
 
         if not hasattr(self, "_map"):
             self._map = self._get_section("MAP")
@@ -820,7 +830,7 @@ class InputFile:
 
     @property
     def coordinates(self) -> sc.Coordinates:
-        "('Node')['X', 'Y', 'desc']"
+        """# noqa: E501('Node')['X', 'Y', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_coordinates"):
             self._coordinates = self._get_section("COORDINATE")
@@ -833,7 +843,7 @@ class InputFile:
 
     @property
     def vertices(self) -> sc.Vertices:
-        "('Link')['X', 'Y', 'desc']"
+        """# noqa: E501('Link')['X', 'Y', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_vertices"):
             self._vertices = self._get_section("VERTICES")
@@ -846,7 +856,7 @@ class InputFile:
 
     @property
     def polygons(self) -> sc.Polygons:
-        "('Elem')['X', 'Y', 'desc']"
+        """# noqa: E501('Elem')['X', 'Y', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_polygons"):
             self._polygons = self._get_section("POLYGON")
@@ -859,7 +869,7 @@ class InputFile:
 
     @property
     def symbols(self) -> sc.Symbols:
-        "('Gage')['X', 'Y', 'desc']"
+        """# noqa: E501('Gage')['X', 'Y', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_symbols"):
             self._symbols = self._get_section("SYMBOL")
@@ -872,7 +882,7 @@ class InputFile:
 
     @property
     def labels(self) -> sc.Labels:
-        "()['Xcoord', 'Ycoord', 'Label', 'Anchor', 'Font', 'Size', 'Bold', 'Italic', 'desc']"
+        """# noqa: E501()['Xcoord', 'Ycoord', 'Label', 'Anchor', 'Font', 'Size', 'Bold', 'Italic', 'desc']"""  # noqa: E501
 
         if not hasattr(self, "_labels"):
             self._labels = self._get_section("LABEL")
@@ -885,7 +895,7 @@ class InputFile:
 
     @property
     def backdrop(self) -> sc.Backdrop:
-        "String class to hold backdrop section text."
+        """# noqa: E501String class to hold backdrop section text."""  # noqa: E501
 
         if not hasattr(self, "_backdrop"):
             self._backdrop = self._get_section("BACKDROP")
@@ -898,7 +908,7 @@ class InputFile:
 
     @property
     def profile(self) -> sc.Profile:
-        "String class to hold profile section text"
+        """# noqa: E501String class to hold profile section text"""  # noqa: E501
 
         if not hasattr(self, "_profile"):
             self._profile = self._get_section("PROFILE")
@@ -908,3 +918,73 @@ class InputFile:
     @profile.setter
     def profile(self, obj) -> None:
         self._profile = sc.Profile._newobj(obj)
+
+    @property
+    def _node_points(self) -> GeoSeries:
+        import geopandas as gpd
+
+        if not hasattr(self, "_node_point_gdf"):
+            self._node_point_gdf = gpd.GeoSeries.from_xy(
+                self.coordinates["X"],
+                self.coordinates["Y"],
+                crs=self.crs,
+            )
+
+        return self._node_point_gdf
+
+    @property
+    def _verticy_points(self) -> GeoSeries:
+        import geopandas as gpd
+        from shapely.geometry import LineString
+
+        if not hasattr(self, "_verticy_gdf"):
+            self._verticy_gdf = gpd.GeoSeries.from_xy(
+                self.vertices["X"],
+                self.vertices["Y"],
+                crs=self.crs,
+            )
+        return self._verticy_gdf
+
+    @property
+    def _link_geoms(self) -> GeoSeries:
+        import geopandas as gpd
+        from shapely.geometry import LineString, Point
+
+        if not hasattr(self, "_link_gdf"):
+
+            def _generate_link_geometry(row):
+                from_node = str(row["FromNode"])
+                to_node = str(row["ToNode"])
+                from_point = self._node_points.loc[from_node]
+                to_point = self._node_points.loc[to_node]
+                try:
+                    vertices = self._verticy_points.loc[row.name]
+                    if isinstance(vertices, Point):
+                        vertices = [vertices]
+                    elif isinstance(vertices, pd.Series):
+                        vertices = vertices.tolist()
+                    else:
+                        raise TypeError(
+                            f"Unexpected type for vertices : {type(vertices)}"
+                        )
+                    # print("found")
+                except KeyError:
+                    vertices = []
+                return LineString([from_point, *vertices, to_point])
+
+            links = pd.concat(
+                [
+                    self.conduit[["FromNode", "ToNode"]],
+                    self.pump[["FromNode", "ToNode"]],
+                    self.orifice[["FromNode", "ToNode"]],
+                    self.weir[["FromNode", "ToNode"]],
+                    self.outlet[["FromNode", "ToNode"]],
+                ],
+            )
+
+            self._link_gdf = gpd.GeoSeries(
+                links.apply(_generate_link_geometry, axis=1),
+                crs=self.crs,
+            )
+
+        return self._link_gdf

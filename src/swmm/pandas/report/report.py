@@ -1,8 +1,9 @@
 from __future__ import annotations
+
 import re
 from io import StringIO
 
-from pandas.core.api import DataFrame, Timestamp, to_datetime, to_timedelta, Series
+from pandas.core.api import DataFrame, Series, Timestamp, to_datetime, to_timedelta
 from pandas.io.parsers import read_csv, read_fwf
 
 
@@ -54,6 +55,7 @@ class Report:
         ----------
         rpt_text: str
             Text content of the report file
+
         Returns
         -------
         List[str]
@@ -63,7 +65,7 @@ class Report:
         section_pattern = R"^\s+$\s+(?=\*|A)"
         section_comp = re.compile(section_pattern, re.MULTILINE)
         return list(
-            map(lambda x: x.replace("\n  ", "\n"), section_comp.split(rpt_text)[2:-1])
+            map(lambda x: x.replace("\n  ", "\n"), section_comp.split(rpt_text)[2:-1]),
         )
 
     @staticmethod
@@ -171,7 +173,7 @@ class Report:
         header = [
             re.sub(R"(?<=\w)[^\S\r\n](?=\w)", "_", field[1].dropna().str.cat(sep="_"))
             for field in read_fwf(
-                StringIO(re.sub(R"\*|-", " ", header)), header=None
+                StringIO(re.sub(R"\*|-", " ", header)), header=None,
             ).items()
         ]
 
@@ -186,7 +188,7 @@ class Report:
 
     @staticmethod
     def _parse_table(
-        header: list[str], data: str, sep: str = R"\s{2,}|\s:\s", index_col: int = 0
+        header: list[str], data: str, sep: str = R"\s{2,}|\s:\s", index_col: int = 0,
     ) -> DataFrame:
         r"""
         Function to parse data string produced from _split_section into pandas DataFrame
@@ -226,9 +228,9 @@ class Report:
         if "Time_of_Max" in df.columns:
             # convert time of max to timedelta
             df["Time_of_Max"] = to_timedelta(
-                df.pop("days").astype(int), unit="D"
+                df.pop("days").astype(int), unit="D",
             ) + to_timedelta(
-                df["Time_of_Max"] + ":00"
+                df["Time_of_Max"] + ":00",
             )  # type: ignore
         return df
 
@@ -264,7 +266,7 @@ class Report:
         """
         if not hasattr(self, "_runoff_quantity_continuity"):
             header, data = self._split_section(
-                self._sections["Runoff Quantity Continuity"]
+                self._sections["Runoff Quantity Continuity"],
             )
             # substitute spaces between words with underscore so read_fwf works
             # had to use some regex to not also match new lines
@@ -286,7 +288,7 @@ class Report:
         """
         if not hasattr(self, "_runoff_quality_continuity"):
             header, data = self._split_section(
-                self._sections["Runoff Quality Continuity"]
+                self._sections["Runoff Quality Continuity"],
             )
             # substitute spaces between words with underscore so read_fwf works
             # had to use some  regex to not also match new lines
@@ -328,7 +330,7 @@ class Report:
         """
         if not hasattr(self, "_flow_routing_continuity"):
             header, data = self._split_section(
-                self._sections["Flow Routing Continuity"]
+                self._sections["Flow Routing Continuity"],
             )
             # substitute spaces between words with underscore so read_fwf works
             # had to use some  regex to not also match new lines
@@ -350,7 +352,7 @@ class Report:
         """
         if not hasattr(self, "_quality_routing_continuity"):
             header, data = self._split_section(
-                self._sections["Quality Routing Continuity"]
+                self._sections["Quality Routing Continuity"],
             )
             # substitute spaces between words with underscore so read_fwf works
             # had to use some  regex to not also match new lines
@@ -372,10 +374,10 @@ class Report:
         """
         if not hasattr(self, "_highest_errors"):
             header, data = self._split_section(
-                self._sections["Highest Continuity Errors"]
+                self._sections["Highest Continuity Errors"],
             )
             df = self._parse_table(
-                ["object_type", "name", "percent_error"], data, sep=R"\s+", index_col=1
+                ["object_type", "name", "percent_error"], data, sep=R"\s+", index_col=1,
             )
             df["percent_error"] = df["percent_error"].str.strip("()%").astype(float)
             self._highest_errors = df
@@ -396,10 +398,10 @@ class Report:
 
         if not hasattr(self, "_ts_critical"):
             header, data = self._split_section(
-                self._sections["Time-Step Critical Elements"]
+                self._sections["Time-Step Critical Elements"],
             )
             df = self._parse_table(
-                ["object_type", "name", "percent"], data, sep=R"\s+", index_col=1
+                ["object_type", "name", "percent"], data, sep=R"\s+", index_col=1,
             )
             df["percent"] = df["percent"].str.strip("()%").astype(float)
             self._ts_critical = df
@@ -419,12 +421,12 @@ class Report:
         """
         if not hasattr(self, "_highest_flow_instability_indexes"):
             header, data = self._split_section(
-                self._sections["Highest Flow Instability Indexes"]
+                self._sections["Highest Flow Instability Indexes"],
             )
             if "All links are stable" in data:
                 data = ""
             df = self._parse_table(
-                ["object_type", "name", "index"], data, sep=R"\s+", index_col=1
+                ["object_type", "name", "index"], data, sep=R"\s+", index_col=1,
             )
             df["index"] = df["index"].str.strip("()").astype(int)
             self._highest_flow_instability_indexes = df
@@ -443,10 +445,10 @@ class Report:
         """
         if not hasattr(self, "_routing_time_step_summary"):
             header, data = self._split_section(
-                self._sections["Routing Time Step Summary"]
+                self._sections["Routing Time Step Summary"],
             )
             self._routing_time_step_summary = self._parse_table(
-                self._parse_header(header), data, sep=R"\s+:\s+"
+                self._parse_header(header), data, sep=R"\s+:\s+",
             )
         return self._routing_time_step_summary
 
@@ -463,7 +465,7 @@ class Report:
         """
         if not hasattr(self, "_runoff_summary"):
             header, data = self._split_section(
-                self._sections["Subcatchment Runoff Summary"]
+                self._sections["Subcatchment Runoff Summary"],
             )
             self._runoff_summary = self._parse_table(self._parse_header(header), data)
         return self._runoff_summary
@@ -482,7 +484,7 @@ class Report:
         if not hasattr(self, "_groundwater_summary"):
             header, data = self._split_section(self._sections["Groundwater Summary"])
             self._groundwater_summary = self._parse_table(
-                self._parse_header(header), data
+                self._parse_header(header), data,
             )
         return self._groundwater_summary
 
@@ -499,7 +501,7 @@ class Report:
         """
         if not hasattr(self, "_washoff_summary"):
             header, data = self._split_section(
-                self._sections["Subcatchment Washoff Summary"]
+                self._sections["Subcatchment Washoff Summary"],
             )
             self._washoff_summary = self._parse_table(self._parse_header(header), data)
         return self._washoff_summary
@@ -518,7 +520,7 @@ class Report:
         if not hasattr(self, "_node_depth_summary"):
             header, data = self._split_section(self._sections["Node Depth Summary"])
             self._node_depth_summary = self._parse_table(
-                self._parse_header(header), data, sep=R"\s{1,}|\s:\s"
+                self._parse_header(header), data, sep=R"\s{1,}|\s:\s",
             )
         return self._node_depth_summary
 
@@ -537,7 +539,7 @@ class Report:
             header, data = self._split_section(self._sections["Node Inflow Summary"])
 
             self._node_inflow_summary = self._parse_table(
-                self._parse_header(header), data
+                self._parse_header(header), data,
             )
         return self._node_inflow_summary
 
@@ -556,7 +558,7 @@ class Report:
             header, data = self._split_section(self._sections["Node Surcharge Summary"])
 
             self._node_surcharge_summary = self._parse_table(
-                self._parse_header(header), data
+                self._parse_header(header), data,
             )
         return self._node_surcharge_summary
 
@@ -575,7 +577,7 @@ class Report:
             header, data = self._split_section(self._sections["Node Flooding Summary"])
 
             self._node_flooding_summary = self._parse_table(
-                self._parse_header(header), data
+                self._parse_header(header), data,
             )
         return self._node_flooding_summary
 
@@ -594,7 +596,7 @@ class Report:
             header, data = self._split_section(self._sections["Storage Volume Summary"])
             header = header.replace("Storage Unit", "Storage     ")
             self._storage_volume_summary = self._parse_table(
-                self._parse_header(header), data
+                self._parse_header(header), data,
             )
         return self._storage_volume_summary
 
@@ -611,11 +613,11 @@ class Report:
         """
         if not hasattr(self, "_outfall_loading_summary"):
             header, data = self._split_section(
-                self._sections["Outfall Loading Summary"]
+                self._sections["Outfall Loading Summary"],
             )
             header = header.replace("Outfall Node", "Outfall     ")
             self._outfall_loading_summary = self._parse_table(
-                self._parse_header(header), data
+                self._parse_header(header), data,
             )
         return self._outfall_loading_summary
 
@@ -633,7 +635,7 @@ class Report:
             header, data = self._split_section(self._sections["Link Flow Summary"])
             header = header.replace("|", " ")
             self._link_flow_summary = self._parse_table(
-                self._parse_header(header), data, sep=R"\s{1,}|\s:\s"
+                self._parse_header(header), data, sep=R"\s{1,}|\s:\s",
             )
         return self._link_flow_summary
 
@@ -651,13 +653,13 @@ class Report:
         """
         if not hasattr(self, "_flow_classification_summary"):
             header, data = self._split_section(
-                self._sections["Flow Classification Summary"]
+                self._sections["Flow Classification Summary"],
             )
             to_remove = "---------- Fraction of Time in Flow Class ----------"
             to_replace = "                                                    "
             header = header.replace(to_remove, to_replace)
             self._flow_classification_summary = self._parse_table(
-                self._parse_header(header), data
+                self._parse_header(header), data,
             )
         return self._flow_classification_summary
 
@@ -674,13 +676,13 @@ class Report:
         """
         if not hasattr(self, "_conduit_surcharge_summary"):
             header, data = self._split_section(
-                self._sections["Conduit Surcharge Summary"]
+                self._sections["Conduit Surcharge Summary"],
             )
             to_remove = "--------- Hours Full --------"
             to_replace = "HrsFull   HoursFull  HrsFull "
             header = header.replace(to_remove, to_replace)
             self._conduit_surcharge_summary = self._parse_table(
-                self._parse_header(header), data
+                self._parse_header(header), data,
             )
         return self._conduit_surcharge_summary
 
@@ -716,11 +718,11 @@ class Report:
         """
         if not hasattr(self, "_link_pollutant_load_summary"):
             header, data = self._split_section(
-                self._sections["Link Pollutant Load Summary"]
+                self._sections["Link Pollutant Load Summary"],
             )
 
             self._link_pollutant_load_summary = self._parse_table(
-                self._parse_header(header), data
+                self._parse_header(header), data,
             )
         return self._link_pollutant_load_summary
 
