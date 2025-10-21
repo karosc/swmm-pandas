@@ -975,7 +975,7 @@ class Input:
                                     offset: '50%',
                                     repeat: 0,
                                     symbol: L.Symbol.arrowHead({
-                                        pixelSize: 5,
+                                        pixelSize: {{ size|default(5) }},
                                         polygon: true,
                                         pathOptions: {color: '{{ color }}', fillOpacity: 1}
                                     })
@@ -993,109 +993,118 @@ class Input:
         m.get_root().html.add_child(
             folium.Element(f'<script src="{plugin_js}"></script>'), index=-1
         )
-
         # links
-        m = self.conduit.explore(
-            m=m,
-            # color="yellow",  # use red color on all points
-            style_kwds={
-                "style_function": lambda x: dict(
-                    weight=round(
-                        float(x["properties"]["Geom1"]) / self.conduit.Geom1.max() * 5,
-                        0,
+        if len(self.conduit) > 0:
+            self.conduit.explore(
+                m=m,
+                # color="yellow",  # use red color on all points
+                style_kwds={
+                    "style_function": lambda x: dict(
+                        weight=round(
+                            float(x["properties"]["Geom1"])
+                            / self.conduit.Geom1.max()
+                            * 5,
+                            0,
+                        ),
+                    ),
+                },
+                # tiles="CartoDB positron",
+                name="conduits",
+            )
+
+            geojson_name = list(m._children.values())[-1].get_name()
+            m.get_root().html.add_child(
+                folium.Element(
+                    arrow_js.render(
+                        geojson_name=geojson_name,
+                        map_name=m.get_name(),
+                        color="#5983f7",
                     ),
                 ),
-            },
-            # tiles="CartoDB positron",
-            name="conduits",
-        )
+            )
 
-        # geojson_name = list(m._children.values())[-1].get_name()
-        # m.get_root().html.add_child(
-        #     folium.Element(
-        #         arrow_js.render(
-        #             geojson_name=geojson_name,
-        #             map_name=m.get_name(),
-        #             color="#5983f7",
-        #         ),
-        #     ),
-        # )
+        if len(self.weir) > 0:
+            self.weir.explore(
+                m=m,
+                color="#3af4e8",
+                # weight=8,
+                style_kwds={"weight": 5},
+                name="weir",
+            )
 
-        self.weir.explore(
-            m=m,
-            color="#3af4e8",
-            # weight=8,
-            style_kwds={"weight": 5},
-            name="weir",
-        )
+            geojson_name = list(m._children.values())[-1].get_name()
+            m.get_root().html.add_child(
+                folium.Element(
+                    arrow_js.render(
+                        geojson_name=geojson_name,
+                        map_name=m.get_name(),
+                        color="#3af4e8",
+                        size=10,
+                    ),
+                ),
+            )
 
-        # geojson_name = list(m._children.values())[-1].get_name()
-        # m.get_root().html.add_child(
-        #     folium.Element(
-        #         arrow_js.render(
-        #             geojson_name=geojson_name,
-        #             map_name=m.get_name(),
-        #             color="#3af4e8",
-        #         ),
-        #     ),
-        # )
+        if len(self.orifice) > 0:
+            self.orifice.explore(
+                m=m,
+                color="#fd9e9e",
+                # weight=8,
+                style_kwds={"weight": 5},
+                name="orifice",
+            )
 
-        self.orifice.explore(
-            m=m,
-            color="#fd9e9e",
-            # weight=8,
-            style_kwds={"weight": 5},
-            name="orifice",
-        )
+            geojson_name = list(m._children.values())[-1].get_name()
+            m.get_root().html.add_child(
+                folium.Element(
+                    arrow_js.render(
+                        geojson_name=geojson_name,
+                        map_name=m.get_name(),
+                        color="#fd9e9e",
+                        size=10,
+                    ),
+                ),
+            )
 
-        # geojson_name = list(m._children.values())[-1].get_name()
-        # m.get_root().html.add_child(
-        #     folium.Element(
-        #         arrow_js.render(
-        #             geojson_name=geojson_name,
-        #             map_name=m.get_name(),
-        #             color="#fd9e9e",
-        #         ),
-        #     ),
-        # )
+        if len(self.pump) > 0:
+            self.pump.explore(
+                m=m,
+                color="#ffb222",
+                # weight=8,
+                style_kwds={"weight": 5},
+                name="pump",
+            )
 
-        self.pump.explore(
-            m=m,
-            color="#ffb222",
-            # weight=8,
-            style_kwds={"weight": 5},
-            name="pump",
-        )
+            geojson_name = list(m._children.values())[-1].get_name()
+            m.get_root().html.add_child(
+                folium.Element(
+                    arrow_js.render(
+                        geojson_name=geojson_name,
+                        map_name=m.get_name(),
+                        color="#ffb222",
+                        size=10,
+                    ),
+                ),
+            )
 
-        # geojson_name = list(m._children.values())[-1].get_name()
-        # m.get_root().html.add_child(
-        #     folium.Element(
-        #         arrow_js.render(
-        #             geojson_name=geojson_name,
-        #             map_name=m.get_name(),
-        #             color="#ffb222",
-        #         ),
-        #     ),
-        # )
+        if len(self.outlet) > 0:
+            self.outlet.explore(
+                m=m,
+                color="#dd8ed6",
+                # weight=8,
+                style_kwds={"weight": 5},
+                name="outlet",
+            )
 
-        self.outlet.explore(
-            m=m,
-            color="#dd8ed6",
-            # weight=8,
-            style_kwds={"weight": 5},
-            name="outlet",
-        )
-
-        # geojson_name = list(m._children.values())[-1].get_name()
-        # m.get_root().html.add_child(
-        #     folium.Element(
-        #         arrow_js.render(
-        #             geojson_name=geojson_name,
-        #             map_name=m.get_name(),
-        #             color="#dd8ed6",
-        #         ),
-        #     ),
-        # )
+            geojson_name = list(m._children.values())[-1].get_name()
+            m.get_root().html.add_child(
+                folium.Element(
+                    arrow_js.render(
+                        geojson_name=geojson_name,
+                        map_name=m.get_name(),
+                        color="#dd8ed6",
+                    ),
+                ),
+            )
 
         self.junc.explore(
             m=m,
