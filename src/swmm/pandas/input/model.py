@@ -9,12 +9,16 @@ import copy
 import pathlib
 import re
 import warnings
-from typing import Any, Callable, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar
 
 import pandas as pd
 import swmm.pandas.input._section_classes as sc
 from swmm.pandas.input._section_classes import SectionBase, SectionDf, _sections
 from swmm.pandas.input.input import InputFile
+
+if TYPE_CHECKING:
+    import geopandas as gpd
+    from networkx import MultiDiGraph
 
 T = TypeVar("T")
 
@@ -60,19 +64,28 @@ def no_setter_property(func: Callable[[Any], T]) -> property:
 
 class Input:
 
-    def __init__(self, inpfile: Optional[str | InputFile] = None):
+    def __init__(
+        self,
+        inpfile: Optional[str | InputFile] = None,
+        crs: str | None = None,
+    ):
         if isinstance(inpfile, InputFile):
             self._inp = inpfile
         elif isinstance(inpfile, str | pathlib.Path):
-            self._inp = InputFile(inpfile)
+            self._inp = InputFile(inpfile, crs=crs)
 
     ##########################################################
     # region General df constructors and destructors #########
     ##########################################################
+    @property
+    def _geo(self) -> bool:
+        return self._inp.crs is not None
 
     # destructors
     def _general_destructor(
-        self, inp_frames: list[pd.DataFrame], output_frame: SectionDf,
+        self,
+        inp_frames: list[pd.DataFrame],
+        output_frame: SectionDf,
     ) -> None:
 
         inp_dfs = []
@@ -202,8 +215,8 @@ class Input:
     # region Generalized NODES #####
     ################################
 
-    def _node_constructor(self, inp_df: SectionDf) -> pd.DataFrame:
-        return self._general_constructor(
+    def _node_constructor(self, inp_df: SectionDf) -> pd.DataFrame | gpd.GeoDataFrame:
+        df = self._general_constructor(
             [
                 inp_df,
                 self._inp.dwf.loc[(slice(None), slice("FLOW", "FLOW")), :].droplevel(
@@ -216,11 +229,47 @@ class Input:
                 self._inp.tags.sort_index()
                 .loc[slice("Node", "Node"), slice(None)]
                 .droplevel("Element"),
-                self._inp.coordinates,
+                # self._inp.coordinates,
+                (
+                    self._inp.node_geoms.to_frame()
+                    if self._geo
+                    else self._inp.coordinates
+                ),
             ],
         )
+        if self._geo:
+            from geopandas.geodataframe import GeoDataFrame
 
-    # endregion NODES and LINKS ######
+            df = GeoDataFrame(df, geometry="geometry")
+
+        return df
+
+    def _link_constructor(
+        self,
+        inp_df: SectionDf,
+        *args: SectionDf,
+    ) -> pd.DataFrame | gpd.GeoDataFrame:
+        dfs = [
+            inp_df,
+            *args,
+            self._inp.tags.sort_index()
+            .loc[slice("Link", "Link"), slice(None)]
+            .droplevel("Element"),
+        ]
+
+        if self._geo:
+            dfs.append(self._inp.link_geoms.to_frame())
+
+        df = self._general_constructor(dfs)
+
+        if self._geo:
+            from geopandas.geodataframe import GeoDataFrame
+
+            df = GeoDataFrame(df, geometry="geometry")
+
+        return df
+
+    # endregion NODES   ############
 
     # %% ###########################
     # region MAIN TABLES ###########
@@ -283,15 +332,10 @@ class Input:
     def conduit(self) -> pd.DataFrame:
         """('Name')['FromNode', 'ToNode', 'Length', 'Roughness', 'InOffset', 'OutOffset', 'InitFlow', 'MaxFlow', 'Kentry', 'Kexit', 'Kavg', 'FlapGate', 'Seepage', 'Shape', 'Geom1', 'Curve', 'Geom2', 'Geom3', 'Geom4', 'Barrels', 'Culvert', 'Tag']"""
         if not hasattr(self, "_conduit_full"):
-            self._conduit_full = self._general_constructor(
-                [
-                    self._inp.conduit,
-                    self._inp.losses,
-                    self._inp.xsections,
-                    self._inp.tags.sort_index()
-                    .loc[slice("Link", "Link"), slice(None)]
-                    .droplevel(0),
-                ],
+            self._conduit_full = self._link_constructor(
+                self._inp.conduit,
+                self._inp.losses,
+                self._inp.xsections,
             )
 
         return self._conduit_full
@@ -306,13 +350,8 @@ class Input:
     def pump(self) -> pd.DataFrame:
         """('Name')['FromNode', 'ToNode', 'PumpCurve', 'Status', 'Startup', 'Shutoff', 'Tag']"""
         if not hasattr(self, "_pump_full"):
-            self._pump_full = self._general_constructor(
-                [
-                    self._inp.pump,
-                    self._inp.tags.sort_index()
-                    .loc[slice("Link", "Link"), slice(None)]
-                    .droplevel(0),
-                ],
+            self._pump_full = self._link_constructor(
+                self._inp.pump,
             )
 
         return self._pump_full
@@ -326,14 +365,9 @@ class Input:
     def weir(self) -> pd.DataFrame:
         """('Name')['FromNode', 'ToNode', 'Type', 'CrestHt', 'Qcoeff', 'Gated', 'EndCon', 'EndCoeff', 'Surcharge', 'RoadWidth', 'RoadSurf', 'CoeffCurve', 'Shape', 'Geom1', 'Curve', 'Geom2', 'Geom3', 'Geom4', 'Barrels', 'Culvert', 'Tag']"""
         if not hasattr(self, "_weir_full"):
-            self._weir_full = self._general_constructor(
-                [
-                    self._inp.weir,
-                    self._inp.xsections,
-                    self._inp.tags.sort_index()
-                    .loc[slice("Link", "Link"), slice(None)]
-                    .droplevel(0),
-                ],
+            self._weir_full = self._link_constructor(
+                self._inp.weir,
+                self._inp.xsections,
             )
 
         return self._weir_full
@@ -351,14 +385,9 @@ class Input:
         """('Name')['FromNode', 'ToNode', 'Type', 'Offset', 'Qcoeff', 'Gated', 'CloseTime', 'Shape', 'Geom1', 'Curve', 'Geom2', 'Geom3', 'Geom4', 'Barrels', 'Culvert', 'Tag']"""
 
         if not hasattr(self, "_orifice_full"):
-            self._orifice_full = self._general_constructor(
-                [
-                    self._inp.orifice,
-                    self._inp.xsections,
-                    self._inp.tags.sort_index()
-                    .loc[slice("Link", "Link"), slice(None)]
-                    .droplevel(0),
-                ],
+            self._orifice_full = self._link_constructor(
+                self._inp.orifice,
+                self._inp.xsections,
             )
 
         return self._orifice_full
@@ -370,19 +399,15 @@ class Input:
                 self._inp.orifice,
             )
 
-    ######## OULETS #########
+    ######## OUTLETS #########
     @no_setter_property
     def outlet(self) -> pd.DataFrame:
         """('Name')['FromNode', 'ToNode', 'Offset', 'Type', 'CurveName', 'Qcoeff', 'Qexpon', 'Gated', 'Tag']"""
 
         if not hasattr(self, "_outlet_full"):
-            self._outlet_full = self._general_constructor(
-                [
-                    self._inp.outlet,
-                    self._inp.tags.sort_index()
-                    .loc[slice("Link", "Link"), slice(None)]
-                    .droplevel(0),
-                ],
+            self._outlet_full = self._link_constructor(
+                self._inp.outlet,
+                self._inp.tags.sort_index(),
             )
 
         return self._outlet_full
@@ -930,3 +955,273 @@ class Input:
         self._inp.profile = obj
 
     # endregion non-component sections
+
+    def explore(self) -> None:
+
+        if not self._geo:
+            raise ValueError("Input data does not have geometries.")
+        import folium
+        from jinja2 import Template
+
+        arrow_js = Template(
+            """
+            <script>
+            document.addEventListener('DOMContentLoaded', function() {
+            {{ geojson_name }}.eachLayer(function(layer){
+                    if(layer instanceof L.Polyline){
+                        L.polylineDecorator(layer, {
+                            patterns: [
+                                {
+                                    offset: '50%',
+                                    repeat: 0,
+                                    symbol: L.Symbol.arrowHead({
+                                        pixelSize: 5,
+                                        polygon: true,
+                                        pathOptions: {color: '{{ color }}', fillOpacity: 1}
+                                    })
+                                }
+                            ]
+                        }).addTo({{map_name}}); // replace 'window.map' with your map variable
+                    }
+                });
+            });
+            </script>
+            """
+        )
+        plugin_js = "https://cdn.jsdelivr.net/npm/leaflet-polylinedecorator@1.6.0/dist/leaflet.polylineDecorator.min.js"
+        m = folium.Map()
+        m.get_root().html.add_child(
+            folium.Element(f'<script src="{plugin_js}"></script>'), index=-1
+        )
+
+        # links
+        m = self.conduit.explore(
+            m=m,
+            # color="yellow",  # use red color on all points
+            style_kwds={
+                "style_function": lambda x: dict(
+                    weight=round(
+                        float(x["properties"]["Geom1"]) / self.conduit.Geom1.max() * 5,
+                        0,
+                    ),
+                ),
+            },
+            # tiles="CartoDB positron",
+            name="conduits",
+        )
+
+        # geojson_name = list(m._children.values())[-1].get_name()
+        # m.get_root().html.add_child(
+        #     folium.Element(
+        #         arrow_js.render(
+        #             geojson_name=geojson_name,
+        #             map_name=m.get_name(),
+        #             color="#5983f7",
+        #         ),
+        #     ),
+        # )
+
+        self.weir.explore(
+            m=m,
+            color="#3af4e8",
+            # weight=8,
+            style_kwds={"weight": 5},
+            name="weir",
+        )
+
+        # geojson_name = list(m._children.values())[-1].get_name()
+        # m.get_root().html.add_child(
+        #     folium.Element(
+        #         arrow_js.render(
+        #             geojson_name=geojson_name,
+        #             map_name=m.get_name(),
+        #             color="#3af4e8",
+        #         ),
+        #     ),
+        # )
+
+        self.orifice.explore(
+            m=m,
+            color="#fd9e9e",
+            # weight=8,
+            style_kwds={"weight": 5},
+            name="orifice",
+        )
+
+        # geojson_name = list(m._children.values())[-1].get_name()
+        # m.get_root().html.add_child(
+        #     folium.Element(
+        #         arrow_js.render(
+        #             geojson_name=geojson_name,
+        #             map_name=m.get_name(),
+        #             color="#fd9e9e",
+        #         ),
+        #     ),
+        # )
+
+        self.pump.explore(
+            m=m,
+            color="#ffb222",
+            # weight=8,
+            style_kwds={"weight": 5},
+            name="pump",
+        )
+
+        # geojson_name = list(m._children.values())[-1].get_name()
+        # m.get_root().html.add_child(
+        #     folium.Element(
+        #         arrow_js.render(
+        #             geojson_name=geojson_name,
+        #             map_name=m.get_name(),
+        #             color="#ffb222",
+        #         ),
+        #     ),
+        # )
+
+        self.outlet.explore(
+            m=m,
+            color="#dd8ed6",
+            # weight=8,
+            style_kwds={"weight": 5},
+            name="outlet",
+        )
+
+        # geojson_name = list(m._children.values())[-1].get_name()
+        # m.get_root().html.add_child(
+        #     folium.Element(
+        #         arrow_js.render(
+        #             geojson_name=geojson_name,
+        #             map_name=m.get_name(),
+        #             color="#dd8ed6",
+        #         ),
+        #     ),
+        # )
+
+        self.junc.explore(
+            m=m,
+            marker_type="marker",
+            marker_kwds=dict(
+                icon=folium.DivIcon(
+                    html="""
+                        <svg 
+                            width="10" 
+                            height="10" 
+                            viewBox="0 0 10 10" 
+                            style="transform: translate(0px, -2.5px);"
+                        >
+                        <circle cx="5" cy="5" r="4.5" 
+                                fill="yellow" 
+                                stroke="black" 
+                                stroke-width="1"/>
+                        </svg>
+
+                    """,
+                ),
+            ),
+            name="junctions",
+        )
+
+        self.storage.explore(
+            m=m,
+            marker_type="marker",
+            marker_kwds=dict(
+                icon=folium.DivIcon(
+                    html="""
+                        <svg 
+                            width="13" 
+                            height="13" 
+                            viewBox="0 0 13 13" 
+                            style="transform: translate(-3px, -3px);"
+                        >
+                            <rect x="0" y="0" width="13" height="13"
+                                    fill="#28fc59"
+                                    stroke="black"
+                                    stroke-width="2"/>
+                        </svg>
+
+                    """,
+                ),
+            ),
+            name="storages",
+        )
+
+        self.outfall.explore(
+            m=m,
+            marker_type="marker",
+            marker_kwds=dict(
+                icon=folium.DivIcon(
+                    html="""
+                            <svg width="14" height="14" viewBox="0 0 24 24"
+                                style="transform: translate(-3px, -3px);">
+                                <polygon points="12,2 22,22 2,22"
+                                        fill="red"
+                                        stroke="black"
+                                        stroke-width="2"/>
+                            </svg>
+                        """,
+                ),
+            ),
+            name="outfalls",
+        )
+
+        self.divider.explore(
+            m=m,
+            marker_type="marker",
+            marker_kwds=dict(
+                icon=folium.DivIcon(
+                    html="""
+                            <svg 
+                                width="13" 
+                                height="13" 
+                                viewBox="0 0 16 16" 
+                                style="transform: 
+                                translate(-3px, -3px);"
+                            >
+                            <polygon points="8,0 16,8 8,16 0,8"
+                                    fill="purple"
+                                    stroke="black"
+                                    stroke-width="2"/>
+                            </svg>
+
+                        """,
+                ),
+            ),
+            name="dividers",
+        )
+
+        folium.TileLayer("CartoDB positron", show=False).add_to(m)
+        folium.LayerControl().add_to(m)
+
+        return m
+
+    def to_graph(self) -> MultiDiGraph:
+        """Convert the input data to a NetworkX MultiDiGraph object.
+
+        Returns:
+            nx.MultiDiGraph: A directed graph representing the network.
+        """
+        import networkx as nx
+
+        G = nx.MultiDiGraph()
+
+        nodes = [
+            (k, v)
+            for node_df in [self.junc, self.outfall, self.storage, self.divider]
+            for k, v in node_df.to_dict(orient="index").items()
+        ]
+        edges = [
+            (rec["FromNode"], rec["ToNode"], rec)
+            for link_df in [
+                self.conduit,
+                self.pump,
+                self.orifice,
+                self.weir,
+                self.outlet,
+            ]
+            for rec in link_df.reset_index().to_dict(orient="records")
+        ]
+
+        G.add_nodes_from(nodes)
+        G.add_edges_from(edges)
+
+        return G

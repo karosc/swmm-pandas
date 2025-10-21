@@ -920,7 +920,7 @@ class InputFile:
         self._profile = sc.Profile._newobj(obj)
 
     @property
-    def _node_points(self) -> GeoSeries:
+    def node_geoms(self) -> GeoSeries:
         import geopandas as gpd
 
         if not hasattr(self, "_node_point_gdf"):
@@ -928,6 +928,7 @@ class InputFile:
                 self.coordinates["X"],
                 self.coordinates["Y"],
                 crs=self.crs,
+                name="geometry",
             )
 
         return self._node_point_gdf
@@ -946,7 +947,7 @@ class InputFile:
         return self._verticy_gdf
 
     @property
-    def _link_geoms(self) -> GeoSeries:
+    def link_geoms(self) -> GeoSeries:
         import geopandas as gpd
         from shapely.geometry import LineString, Point
 
@@ -955,8 +956,8 @@ class InputFile:
             def _generate_link_geometry(row):
                 from_node = str(row["FromNode"])
                 to_node = str(row["ToNode"])
-                from_point = self._node_points.loc[from_node]
-                to_point = self._node_points.loc[to_node]
+                from_point = self.node_geoms.loc[from_node]
+                to_point = self.node_geoms.loc[to_node]
                 try:
                     vertices = self._verticy_points.loc[row.name]
                     if isinstance(vertices, Point):
@@ -985,6 +986,7 @@ class InputFile:
             self._link_gdf = gpd.GeoSeries(
                 links.apply(_generate_link_geometry, axis=1),
                 crs=self.crs,
+                name="geometry",
             )
 
         return self._link_gdf

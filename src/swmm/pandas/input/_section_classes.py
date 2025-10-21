@@ -1654,7 +1654,8 @@ class Timeseries(SectionBase):
 
                 if len(current_time_series_data) > 0:
                     df = pd.DataFrame(
-                        current_time_series_data, columns=["time", "value", "desc"],
+                        current_time_series_data,
+                        columns=["time", "value", "desc"],
                     ).set_index("time")
                     df.attrs["desc"] = ts_comment
                     timeseries[current_time_series_name] = df
@@ -1666,7 +1667,9 @@ class Timeseries(SectionBase):
 
                 if str(split_data[0]).upper() == "FILE" and len(split_data) == 2:
                     timeseries[ts_name] = cls.TimeseriesFile(
-                        name=ts_name, Fname=str(split_data[1]), desc=line_comment,
+                        name=ts_name,
+                        Fname=str(split_data[1]),
+                        desc=line_comment,
                     )
                     continue
             time: pd.Timedelta | pd.Timestamp
@@ -1726,7 +1729,9 @@ class Timeseries(SectionBase):
 
     def add_file_timeseries(self, name: str, Fname: str, comment: str = "") -> Self:
         self._timeseries[name] = self.TimeseriesFile(
-            name=name, Fname=Fname, desc=comment,
+            name=name,
+            Fname=Fname,
+            desc=comment,
         )
         return self
 
@@ -1993,7 +1998,9 @@ class Controls(SectionBase):
                 rule_name = mat.group().split()[1]
                 rule_text = rule.split(rule_name)[1]
                 rules[rule_name] = Controls.Control(
-                    name=rule_name, control_text=rule_text, desc=desc,
+                    name=rule_name,
+                    control_text=rule_text,
+                    desc=desc,
                 )
 
             start_char = end_char
@@ -2254,7 +2261,10 @@ class Inflow(SectionDf):
 
     @classmethod
     def _tabulate(cls, line: list[str | float | int]) -> TRow | list[TRow]:
-        return [v.replace('"', "") if isinstance(v, str) else v for v in line]
+        out = [v.replace('"', "") if isinstance(v, str) else v for v in line]
+        for i in range(cls._ncol - len(out)):
+            out.append(None)
+        return out
 
     def to_swmm_string(self) -> str:
         with pd.option_context("future.no_silent_downcasting", True):
@@ -2405,7 +2415,9 @@ class Hydrographs(SectionDf):
         for name in self.index.get_level_values("Name").unique():
             try:
                 _temp.add_element(
-                    Name=name, Month_RG=self.rain_gauges[name], Response="",
+                    Name=name,
+                    Month_RG=self.rain_gauges[name],
+                    Response="",
                 )
             except KeyError:
                 raise KeyError(
@@ -2521,7 +2533,11 @@ class Curves(SectionDf):
         return super(Curves, df).to_swmm_string()
 
     def add_curve(
-        self, name: str, curve_type: str, x_values: list[float], y_values: list[float],
+        self,
+        name: str,
+        curve_type: str,
+        x_values: list[float],
+        y_values: list[float],
     ) -> None:
         if curve_type.upper() not in self._valid_types:
             raise ValueError(f"{curve_type!r} is not a value swmm curve type.")
@@ -2562,7 +2578,8 @@ class Curves(SectionDf):
             self.attrs = attrs
 
     def _drop(
-        self, drop: pd.Index | list[str] | list[tuple[str, ...]] | str = None,
+        self,
+        drop: pd.Index | list[str] | list[tuple[str, ...]] | str = None,
     ) -> None:
         if isinstance(drop, Curves):
             drop = drop.index
