@@ -981,7 +981,7 @@ class Input:
                                     })
                                 }
                             ]
-                        }).addTo({{map_name}}); // replace 'window.map' with your map variable
+                        }).addTo({{ geojson_name }});
                     }
                 });
             });
@@ -993,20 +993,27 @@ class Input:
         m.get_root().html.add_child(
             folium.Element(f'<script src="{plugin_js}"></script>'), index=-1
         )
+
+        def _link_style_function(x: dict) -> dict:
+            try:
+                weight = round(
+                    (float(x["properties"]["Geom1"]) / self.conduit.Geom1.max() * 5)
+                    + 2,
+                    0,
+                )
+            except Exception:
+                weight = 2
+            return {
+                "weight": weight,
+            }
+
         # links
         if len(self.conduit) > 0:
             self.conduit.explore(
                 m=m,
                 # color="yellow",  # use red color on all points
                 style_kwds={
-                    "style_function": lambda x: dict(
-                        weight=round(
-                            float(x["properties"]["Geom1"])
-                            / self.conduit.Geom1.max()
-                            * 5,
-                            0,
-                        ),
-                    ),
+                    "style_function": _link_style_function,
                 },
                 # tiles="CartoDB positron",
                 name="conduits",
@@ -1199,6 +1206,8 @@ class Input:
         )
 
         folium.TileLayer("CartoDB positron", show=False).add_to(m)
+
+        folium.FitOverlays().add_to(m)
         folium.LayerControl().add_to(m)
 
         return m
