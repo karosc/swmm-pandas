@@ -24,13 +24,9 @@ jobs:
         uses: actions/configure-pages@v5
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v7
         with:
-          version: "0.4.4"
-
-      - name: Install swmm-pandas
-        run: |
-          uv sync --all-extras -p 3.12
+          version: "0.9.12"
 
       - name: Sphinx build
         run: uv run sphinx-build docs/ docs/build
