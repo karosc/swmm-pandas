@@ -8,7 +8,6 @@ lint.select = [
   "I",   # isort
 ]
 
-# extend-exclude = ["tests", "aqueduct/eventanalysis", "docs", "aqueduct/hermes"]
 
 # Allow lines to be as long as 100 characters.
 line-length = 100
