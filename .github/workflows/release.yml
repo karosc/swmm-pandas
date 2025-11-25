@@ -1,0 +1,41 @@
+name: Release on tag
+
+on:
+  push:
+    tags:
+      - "v*"
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  build_and_release:
+    name: Build artifacts
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/swmm-pandas
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Build distributions
+        run: uv build
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: github.ref_type == 'tag'
+        with:
+          generate_release_notes: true
+          files: |
+            dist/**
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # - name: Publish distribution 📦 to PyPI
+      #   uses: pypa/gh-action-pypi-publish@release/v1
