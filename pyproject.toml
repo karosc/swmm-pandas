@@ -1,6 +1,10 @@
+[build-system]
+requires = ["uv_build>=0.9.6,<0.10.0"]
+build-backend = "uv_build"
+
 [project]
 name = "swmm-pandas"
-dynamic = ["version"]
+version = "0.11.0"
 description = "Pandorable interface to SWMM5 input and output files"
 authors = [
     { name = "Constantine Karos", email = "ckaros@outlook.com" },
@@ -32,24 +36,19 @@ Homepage = "https://github.com/karosc/swmm-pandas"
 [project.optional-dependencies]
 geo = ["geopandas>=1.0.1"]
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
 
-[tool.hatch.version]
-path = "src/swmm/pandas/__init__.py"
+[tool.uv.sources]
+swmm-toolkit = { index = "pypi" }
 
-[tool.hatch.metadata]
-allow-dynamic = ["version"]
-readme = "README.md"
-license = { text = "CC BY 4.0" }
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple"
 
-[tool.hatch.build.targets.sdist]
-exclude = ["/scripts", "/tests", "/docs"]
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/swmm"]
-
+[tool.uv.build-backend]
+source-exclude = ["/scripts", "/tests", "/docs"]
+module-name = "swmm/pandas"
+namespace = true
 
 [tool.mypy]
 allow_redefinition = true
@@ -62,6 +61,7 @@ mypy_path = "src"
 
 [dependency-groups]
 dev = [
+    "black>=25.11.0",
     "coverage>=7.6.4",
     "furo>=2024.8.6",
     "ipython>=8.18.1",

@@ -72,7 +72,9 @@ class Structure:
             pass
         else:
             self._floodFrame = self.out.node_series(
-                self.node, "flooding_losses", columns="elem",
+                self.node,
+                "flooding_losses",
+                columns="elem",
             )
 
         return self._floodFrame
@@ -92,7 +94,9 @@ class Structure:
             pass
         else:
             self._flowFrame = self.out.link_series(
-                self.link, "flow_rate", columns="elem",
+                self.link,
+                "flow_rate",
+                columns="elem",
             )
 
         return self._flowFrame
@@ -204,7 +208,8 @@ class Structure:
 
         # put series in DataFrame, and add event_num column
         q = DataFrame(
-            series[series > thresholdFlow], columns=["flow_rate"],
+            series[series > thresholdFlow],
+            columns=["flow_rate"],
         ).reset_index()
         q["event_num"] = NA
         # initialize first event

@@ -279,11 +279,11 @@ class Output:
         # not sure if this is the best way, but it felt a bit DRYer to
         # put it into a funciton
         attributeArray: list[EnumMeta | str | int]
-        if isinstance(attribute, (type(None), EnumMeta, Enum)):
+        if isinstance(attribute, (type(None), EnumMeta)):
             attributeArray = list(_enum_keys(validAttributes))
         elif isinstance(attribute, arrayish):
             attributeArray = list(attribute)
-        elif isinstance(attribute, (int, str)):
+        elif isinstance(attribute, (int, str, Enum)):
             attributeArray = [attribute]
         else:
             raise ValueError(f"Error validating attribute {attribute!r}")
@@ -530,7 +530,7 @@ class Output:
     ###### outfile property getters ######
     @property
     @output_open_handler
-    def period_end_index(self) ->int:
+    def period_end_index(self) -> int:
         """Return the last reporting timestep index in the binary output file.
 
         Returns
@@ -541,7 +541,6 @@ class Output:
         """
         return self._period - 1
 
-    
     @property
     def _output_position(self):
         if not hasattr(self, "__output_position"):
@@ -961,7 +960,7 @@ class Output:
                 # col = f"{type};{type};{Attr.value}"
                 # return self.data[col][startIndex:endIndex]
                 return self.data.loc[
-                    startIndex : endIndex,  # type: ignore
+                    startIndex:endIndex,  # type: ignore
                     IndexSlice[elemType, elemType, Attr.value],  # type: ignore
                 ].to_numpy()
 
@@ -977,7 +976,7 @@ class Output:
                 # col = f"{type};{elemIdx};{Attr.value}"
                 # return self.data[col][startIndex:endIndex]
                 return self.data.loc[
-                    startIndex : endIndex,
+                    startIndex:endIndex,
                     IndexSlice[elemType, elemIdx, Attr.value],  # type: ignore
                 ].to_numpy()
 
@@ -1152,8 +1151,8 @@ class Output:
             raise ValueError(
                 f"columns must be one of 'elem','attr', or None. {columns} was given",
             )
-        
-        endIndex+=1  # make end index inclusive
+
+        endIndex += 1  # make end index inclusive
 
         if columns is None:
             dtIndex = tile(
@@ -1907,7 +1906,7 @@ class Output:
         if not asframe:
             return values
 
-        dfIndex = Index(self.timeIndex[startIndex:endIndex], name="datetime")
+        dfIndex = Index(self.timeIndex[startIndex : endIndex + 1], name="datetime")
         return DataFrame(values, index=dfIndex, columns=attributeArray)
 
     ####### attribute getters #######
