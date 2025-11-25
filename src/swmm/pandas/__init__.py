@@ -1,6 +1,6 @@
 """Top-level package for swmm.pandas"""
 
-__version__ = "0.10.0"
+__version__ = "0.11.0"
 
 from swmm.pandas.constants import example_out_path, example_rpt_path
 from swmm.pandas.input import Input, InputFile

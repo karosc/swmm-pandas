@@ -209,7 +209,9 @@ class Output:
 
     @staticmethod
     def _elementIndex(
-        elementID: str | int | None, indexSquence: Sequence[str], elementType: str,
+        elementID: str | int | None,
+        indexSquence: Sequence[str],
+        elementType: str,
     ) -> int:
         """Validate the index of a model element passed to Output methods. Used to
         convert model element names to their index in the out file.
@@ -277,7 +279,7 @@ class Output:
         # not sure if this is the best way, but it felt a bit DRYer to
         # put it into a funciton
         attributeArray: list[EnumMeta | str | int]
-        if isinstance(attribute, (type(None), EnumMeta)):
+        if isinstance(attribute, (type(None), EnumMeta, Enum)):
             attributeArray = list(_enum_keys(validAttributes))
         elif isinstance(attribute, arrayish):
             attributeArray = list(attribute)
@@ -379,7 +381,8 @@ class Output:
         days = swmm_datetime - remaining_days
         seconds = remaining_days * 86400
         dt = datetime(year=1899, month=12, day=30) + timedelta(
-            days=days, seconds=seconds,
+            days=days,
+            seconds=seconds,
         )
         return dt
 
@@ -525,6 +528,20 @@ class Output:
         return True
 
     ###### outfile property getters ######
+    @property
+    @output_open_handler
+    def period_end_index(self) ->int:
+        """Return the last reporting timestep index in the binary output file.
+
+        Returns
+        -------
+        int
+            The last reporting timestep index.
+
+        """
+        return self._period - 1
+
+    
     @property
     def _output_position(self):
         if not hasattr(self, "__output_position"):
@@ -775,7 +792,8 @@ class Output:
 
     ##### model element setters and getters #####
     def _subcatchmentIndex(
-        self, subcatchment: str | int | Sequence[str | int] | None,
+        self,
+        subcatchment: str | int | Sequence[str | int] | None,
     ) -> list[int] | int:
         """Get the swmm index for subcatchment.
 
@@ -827,7 +845,8 @@ class Output:
         )
 
     def _nodeIndex(
-        self, node: str | int | Sequence[str | int] | None,
+        self,
+        node: str | int | Sequence[str | int] | None,
     ) -> list[int] | int:
         """Get the swmm index for node.
 
@@ -878,7 +897,8 @@ class Output:
         )
 
     def _linkIndex(
-        self, link: str | int | Sequence[str | int] | None,
+        self,
+        link: str | int | Sequence[str | int] | None,
     ) -> list[int] | int:
         """Get the swmm index for link.
 
@@ -933,24 +953,32 @@ class Output:
         if elemType == "sys":
 
             def getter(  # type: ignore
-                _handle, Attr: EnumMeta, startIndex: int, endIndex: int,
+                _handle,
+                Attr: EnumMeta,
+                startIndex: int,
+                endIndex: int,
             ) -> ndarray:
                 # col = f"{type};{type};{Attr.value}"
                 # return self.data[col][startIndex:endIndex]
                 return self.data.loc[
-                    startIndex : endIndex - 1,  # type: ignore
+                    startIndex : endIndex,  # type: ignore
                     IndexSlice[elemType, elemType, Attr.value],  # type: ignore
                 ].to_numpy()
 
         else:
 
             def getter(  # type: ignore
-                _handle, elemIdx: int, Attr: EnumMeta, startIndex: int, endIndex: int,
+                _handle,
+                elemIdx: int,
+                Attr: EnumMeta,
+                startIndex: int,
+                endIndex: int,
             ) -> ndarray:
                 # col = f"{type};{elemIdx};{Attr.value}"
                 # return self.data[col][startIndex:endIndex]
                 return self.data.loc[
-                    startIndex : endIndex - 1, IndexSlice[elemType, elemIdx, Attr.value],  # type: ignore
+                    startIndex : endIndex,
+                    IndexSlice[elemType, elemIdx, Attr.value],  # type: ignore
                 ].to_numpy()
 
         return getter
@@ -1017,7 +1045,11 @@ class Output:
                     concatenate(
                         [
                             getterFunc(
-                                self._handle, elemIdx, Attr, startIndex, endIndex,
+                                self._handle,
+                                elemIdx,
+                                Attr,
+                                startIndex,
+                                endIndex,
                             )
                             for Attr in attributeIndexArray
                         ],
@@ -1034,7 +1066,11 @@ class Output:
                     stack(
                         [
                             getterFunc(
-                                self._handle, elemIdx, Attr, startIndex, endIndex,
+                                self._handle,
+                                elemIdx,
+                                Attr,
+                                startIndex,
+                                endIndex,
                             )
                             for Attr in attributeIndexArray
                         ],
@@ -1051,7 +1087,11 @@ class Output:
                     stack(
                         [
                             getterFunc(
-                                self._handle, elemIdx, Attr, startIndex, endIndex,
+                                self._handle,
+                                elemIdx,
+                                Attr,
+                                startIndex,
+                                endIndex,
                             )
                             for elemIdx in elementIndexArray
                         ],
@@ -1112,6 +1152,8 @@ class Output:
             raise ValueError(
                 f"columns must be one of 'elem','attr', or None. {columns} was given",
             )
+        
+        endIndex+=1  # make end index inclusive
 
         if columns is None:
             dtIndex = tile(
@@ -1330,15 +1372,17 @@ class Output:
 
         """
         subcatchementArray, subcatchmentIndexArray = self._validateElement(
-            subcatchment, self.subcatchments,
+            subcatchment,
+            self.subcatchments,
         )
 
         attributeArray, attributeIndexArray = self._validateAttribute(
-            attribute, self.subcatch_attributes,
+            attribute,
+            self.subcatch_attributes,
         )
 
         startIndex = self._time2step(start, 0)[0]
-        endIndex = self._time2step(end, self._period)[0]
+        endIndex = self._time2step(end, self.period_end_index)[0]
 
         getter = (
             self._memory_series_getter("sub")
@@ -1359,7 +1403,11 @@ class Output:
             return values
 
         dfIndex, cols = self._model_series_index(
-            subcatchementArray, attributeArray, startIndex, endIndex, columns,
+            subcatchementArray,
+            attributeArray,
+            startIndex,
+            endIndex,
+            columns,
         )
         return DataFrame(values, index=dfIndex, columns=cols)
 
@@ -1527,11 +1575,12 @@ class Output:
         nodeArray, nodeIndexArray = self._validateElement(node, self.nodes)
 
         attributeArray, attributeIndexArray = self._validateAttribute(
-            attribute, self.node_attributes,
+            attribute,
+            self.node_attributes,
         )
 
         startIndex = self._time2step(start, 0)[0]
-        endIndex = self._time2step(end, self._period)[0]
+        endIndex = self._time2step(end, self.period_end_index)[0]
 
         getter = (
             self._memory_series_getter("node")
@@ -1552,7 +1601,11 @@ class Output:
             return values
 
         dfIndex, cols = self._model_series_index(
-            nodeArray, attributeArray, startIndex, endIndex, columns,
+            nodeArray,
+            attributeArray,
+            startIndex,
+            endIndex,
+            columns,
         )
 
         return DataFrame(values, index=dfIndex, columns=cols)
@@ -1723,11 +1776,12 @@ class Output:
         linkArray, linkIndexArray = self._validateElement(link, self.links)
 
         attributeArray, attributeIndexArray = self._validateAttribute(
-            attribute, self.link_attributes,
+            attribute,
+            self.link_attributes,
         )
 
         startIndex = self._time2step(start, 0)[0]
-        endIndex = self._time2step(end, self._period)[0]
+        endIndex = self._time2step(end, self.period_end_index)[0]
 
         getter = (
             self._memory_series_getter("link")
@@ -1748,7 +1802,11 @@ class Output:
             return values
 
         dfIndex, cols = self._model_series_index(
-            linkArray, attributeArray, startIndex, endIndex, columns,
+            linkArray,
+            attributeArray,
+            startIndex,
+            endIndex,
+            columns,
         )
 
         return DataFrame(values, index=dfIndex, columns=cols)
@@ -1825,11 +1883,12 @@ class Output:
         """
 
         attributeArray, attributeIndexArray = self._validateAttribute(
-            attribute, self.system_attributes,
+            attribute,
+            self.system_attributes,
         )
 
         startIndex = self._time2step(start, 0)[0]
-        endIndex = self._time2step(end, self._period)[0]
+        endIndex = self._time2step(end, self.period_end_index)[0]
 
         getter = (
             self._memory_series_getter("sys")
@@ -1909,7 +1968,8 @@ class Output:
         """
 
         attributeArray, attributeIndexArray = self._validateAttribute(
-            attribute, self.subcatch_attributes,
+            attribute,
+            self.subcatch_attributes,
         )
 
         timeIndex = self._time2step([time])[0]
@@ -1991,7 +2051,8 @@ class Output:
             [9 rows x 9 columns]
         """
         attributeArray, attributeIndexArray = self._validateAttribute(
-            attribute, self.node_attributes,
+            attribute,
+            self.node_attributes,
         )
 
         timeIndex = self._time2step([time])[0]
@@ -2071,7 +2132,8 @@ class Output:
             STOR1     18.282972         0.000000      9.048394
         """
         attributeArray, attributeIndexArray = self._validateAttribute(
-            attribute, self.link_attributes,
+            attribute,
+            self.link_attributes,
         )
 
         timeIndex = self._time2step([time])[0]
@@ -2156,7 +2218,8 @@ class Output:
         """
 
         attributeArray, attributeIndexArray = self._validateAttribute(
-            attribute, self.system_attributes,
+            attribute,
+            self.system_attributes,
         )
 
         timeIndex = self._time2step([time])[0]
@@ -2271,7 +2334,9 @@ class Output:
         dfIndex = Index(labels, name=label)
 
         return DataFrame(
-            values, index=dfIndex, columns=_enum_keys(self.subcatch_attributes),
+            values,
+            index=dfIndex,
+            columns=_enum_keys(self.subcatch_attributes),
         )
 
     @output_open_handler
@@ -2371,7 +2436,9 @@ class Output:
         dfIndex = Index(labels, name=label)
 
         return DataFrame(
-            values, index=dfIndex, columns=_enum_keys(self.node_attributes),
+            values,
+            index=dfIndex,
+            columns=_enum_keys(self.node_attributes),
         )
 
     @output_open_handler
@@ -2470,7 +2537,9 @@ class Output:
         dfIndex = Index(labels, name=label)
 
         return DataFrame(
-            values, index=dfIndex, columns=_enum_keys(self.link_attributes),
+            values,
+            index=dfIndex,
+            columns=_enum_keys(self.link_attributes),
         )
 
     @output_open_handler

@@ -6,7 +6,7 @@ authors = [
     { name = "Constantine Karos", email = "ckaros@outlook.com" },
     { name = "See README.md" },
 ]
-dependencies = ["julian", "pandas>=2.1", "swmm-toolkit>=0.8.1"]
+dependencies = ["julian", "pandas>=2.1", "swmm-toolkit>=0.16.0"]
 requires-python = ">=3.9"
 readme = "README.md"
 license = { text = "CC BY 4.0" }
@@ -30,9 +30,7 @@ classifiers = [
 Homepage = "https://github.com/karosc/swmm-pandas"
 
 [project.optional-dependencies]
-geo = [
-    "geopandas>=1.0.1",
-]
+geo = ["geopandas>=1.0.1"]
 
 [build-system]
 requires = ["hatchling"]
@@ -77,6 +75,4 @@ dev = [
     "sphinx>=7.4.7",
     "sphinx-autobuild>=2024.10.3",
 ]
-geo = [
-    "geopandas>=1.0.1",
-]
+geo = ["geopandas>=1.0.1"]
