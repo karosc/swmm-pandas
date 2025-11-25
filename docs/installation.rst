@@ -32,13 +32,13 @@ You can either clone the public repository:
 
 .. code-block:: console
 
-    $ git clone git://github.com/karosc/swmm-python
+    $ git clone git://github.com/karosc/swmm-pandas
 
 Or download the `tarball`_:
 
 .. code-block:: console
 
-    $ curl -OJL https://github.com/karosc/swmm-python/tarball/master
+    $ curl -OJL https://github.com/karosc/swmm-pandas/tarball/main
 
 Once you have a copy of the source, you can install it with:
 
@@ -48,5 +48,5 @@ Once you have a copy of the source, you can install it with:
     $ python setup.py install
 
 
-.. _Github repo: https://github.com/karosc/swmm-python
-.. _tarball: https://github.com/karosc/swmm-python/tarball/master
+.. _Github repo: https://github.com/karosc/swmm-pandas
+.. _tarball: https://github.com/karosc/swmm-pandas/tarball/master
