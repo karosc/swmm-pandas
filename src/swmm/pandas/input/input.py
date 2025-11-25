@@ -90,6 +90,7 @@ class InputFile:
         inpfile: str
             model inp file path
         """  # noqa: E501
+        self.text: str
         if inpfile is not None:
             self._inpfile = inpfile
             self._load_inp_file()
@@ -102,9 +103,9 @@ class InputFile:
 
         if isinstance(self._inpfile, (str, pathlib.Path)):
             with open(self._inpfile) as inp:
-                self.text: str = inp.read()
+                self.text = inp.read()
         elif isinstance(self._inpfile, StringIO):
-            self.text: str = self._inpfile.read()
+            self.text = self._inpfile.read()
         else:
             raise TypeError(
                 f"InputFile class expected string, path, or StringIO, got {type(self._inpfile)}",

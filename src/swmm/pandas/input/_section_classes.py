@@ -18,9 +18,10 @@ from pandas._libs.missing import NAType
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
-    from typing import Any, Optional, Self, Type, TypeGuard
+    from typing import Any, Optional, Self, Type, TypeGuard, Union
 
-    TRow = list[str | float | int | pd.Timestamp | pd.Timedelta | NAType]
+    TRowTypes = Union[str, float, int, pd.Timestamp, pd.Timedelta, NAType, None]
+    TRow = list[TRowTypes]
 
 _logger = logging.getLogger(__name__)
 
@@ -155,9 +156,6 @@ class SectionBase(ABC):
 
     @classmethod
     @abstractmethod
-    def _from_section_text(cls, text: str, *args, **kwargs) -> Self: ...
-    @classmethod
-    @abstractmethod
     def _new_empty(cls) -> Self: ...
 
     @classmethod
@@ -236,7 +234,7 @@ class SectionDf(SectionBase, pd.DataFrame):
         # self._validate_headings()
 
     @classmethod
-    def _section_dtype(cls, i: int) -> Type:
+    def _section_dtype(cls, i: int) -> Type | None:
         return None
 
     @classmethod
@@ -1977,7 +1975,7 @@ class Controls(SectionBase):
         # RULE\s+   - Match "RULE" followed by whitespace
         # \S+       - Match the rule name (non-whitespace characters)
         rule_line_pattern = R"(?m)^\s*RULE\s+\S+"
-        rules: dict[str : Controls.Control] = {}
+        rules: dict[str, Controls.Control] = {}
         rule_start_pattern = R"(?m)(?:^;+.*\n)*^RULE.*"
         matches = list(re.finditer(rule_start_pattern, text))
         start_char = 0
@@ -2011,9 +2009,6 @@ class Controls(SectionBase):
         return len(self._controls)
 
     @classmethod
-    def _from_section_text(cls, text: str, *args, **kwargs) -> Self: ...
-
-    @classmethod
     def _new_empty(cls) -> Self:
         return cls({})
 
@@ -2039,7 +2034,7 @@ class Controls(SectionBase):
 
     def _drop(self, obj: Self | str | list[str]) -> None:
         if isinstance(obj, Controls):
-            to_drop = obj._controls.keys()
+            to_drop = list(obj._controls.keys())
         elif isinstance(obj, str):
             to_drop = [obj]
         elif isinstance(obj, list):
@@ -2261,7 +2256,7 @@ class Inflow(SectionDf):
 
     @classmethod
     def _tabulate(cls, line: list[str | float | int]) -> TRow | list[TRow]:
-        out = [v.replace('"', "") if isinstance(v, str) else v for v in line]
+        out: TRow = [v.replace('"', "") if isinstance(v, str) else v for v in line]
         for i in range(cls._ncol - len(out)):
             out.append(None)
         return out
@@ -2306,7 +2301,8 @@ class DWF(SectionDf):
 
     @classmethod
     def _tabulate(cls, line: list[str | float | int]) -> TRow | list[TRow]:
-        return [v.replace('"', "") if isinstance(v, str) else v for v in line]
+        out: TRow = [v.replace('"', "") if isinstance(v, str) else v for v in line]
+        return out
 
     def to_swmm_string(self) -> str:
         with pd.option_context("future.no_silent_downcasting", True):
@@ -2623,7 +2619,7 @@ class Vertices(SectionDf):
             _to_add = obj.index.get_level_values("Link").unique()
             self.drop(_to_add, errors="ignore", inplace=True)
             df = pd.concat([self, obj], axis=0)
-            attrs = {**self.attrs, **obj.attrs}
+            attrs = {**self.attrs, **obj.attrs}  # type: ignore
             Vertices.__init__(self, df)
             self.attrs = attrs
 
@@ -2650,7 +2646,7 @@ class Polygons(SectionDf):
             _to_add = obj.index.get_level_values("Elem").unique()
             self.drop(_to_add, errors="ignore", inplace=True)
             df = pd.concat([self, obj], axis=0)
-            attrs = {**self.attrs, **obj.attrs}
+            attrs = {**self.attrs, **obj.attrs}  # type: ignore
             Polygons.__init__(self, df)
             self.attrs = attrs
 
