@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 from io import SEEK_END
 from itertools import product
-from typing import Callable
+from typing import Any, Callable, Self, TypeVar, cast
 
 import numpy.core.records
 from aenum import Enum, EnumMeta, extend_enum
@@ -38,8 +38,10 @@ from pandas.core.api import (
 from swmm.pandas.output.structure import Structure
 from swmm.pandas.output.tools import _enum_get, _enum_keys, arrayish
 
+T = TypeVar("T")
 
-def output_open_handler(func):
+
+def output_open_handler(func: Callable[..., T]) -> Callable[..., T]:
     """Checks if output file is open before running function.
 
     Parameters
@@ -49,7 +51,7 @@ def output_open_handler(func):
     """
 
     @wraps(func)
-    def inner_function(self, *args, **kwargs):
+    def inner_function(self: Output, *args: Any, **kwargs: Any) -> T:
         if not self._loaded:
             self._open()
 
@@ -257,7 +259,7 @@ class Output:
     def _validateAttribute(
         attribute: int | str | Sequence[int | str] | None,
         validAttributes: EnumMeta,
-    ) -> tuple[list, list]:
+    ) -> tuple[list[str], list[int | EnumMeta | None]]:
         """
         Function to validate attribute arguments of element_series, element_attribute,
         and element_result functions.
@@ -271,7 +273,7 @@ class Output:
 
         Returns
         -------
-        Tuple[list, list]
+        Tuple[list[str], list[int | EnumMeta | None]]
             Two arrays, one of attribute names and one of attribute indicies.
 
         """
@@ -290,16 +292,17 @@ class Output:
 
         # allow mixed input of attributes
         # accept string names, integers, or enums values in the same list
-        attributeIndexArray = []
+        attributeIndexArray: list[int | EnumMeta | None] = []
+        attributeNameArray: list[str] = []
         for i, attrib in enumerate(attributeArray):
             if isinstance(attrib, Enum):
-                attributeArray[i] = attrib.name.lower()
+                attributeNameArray.append(str(attrib.name.lower()))
                 attributeIndexArray.append(attrib)
 
             elif isinstance(attrib, (int, npint)):
                 # will raise index error if not in range
                 attribName = _enum_keys(validAttributes)[attrib]
-                attributeArray[i] = attribName
+                attributeNameArray.append(attribName)
                 attributeIndexArray.append(_enum_get(validAttributes, attribName))
 
             elif isinstance(attrib, str):
@@ -308,6 +311,7 @@ class Output:
                     raise ValueError(
                         f"Attribute {attrib} not in valid attribute list: {_enum_keys(validAttributes)}",
                     )
+                attributeNameArray.append(attrib)
                 attributeIndexArray.append(index)
             else:
                 raise TypeError(
@@ -316,7 +320,7 @@ class Output:
 
         # attributeIndexArray = [validAttributes.get(atr, -1) for atr in attributeArray]
 
-        return attributeArray, attributeIndexArray
+        return attributeNameArray, attributeIndexArray
 
     @staticmethod
     def _validateElement(
@@ -376,7 +380,7 @@ class Output:
         return elemNameArray, elementIndexArray
 
     @staticmethod
-    def _datetime_from_swmm(swmm_datetime):
+    def _datetime_from_swmm(swmm_datetime: int) -> datetime:
         remaining_days = swmm_datetime % 1
         days = swmm_datetime - remaining_days
         seconds = remaining_days * 86400
@@ -542,15 +546,15 @@ class Output:
         return self._period - 1
 
     @property
-    def _output_position(self):
+    def _output_position(self) -> int:
         if not hasattr(self, "__output_position"):
             with open(self._binfile, "rb") as fil:
                 fil.seek(-4 * 4, SEEK_END)
-                self.__output_position = struct.unpack("i", fil.read(4))[0]
+                self.__output_position = int(struct.unpack("i", fil.read(4))[0])
 
         return self.__output_position
 
-    @property  # type: ignore
+    @property
     @output_open_handler
     def report(self) -> int:
         """Return the reporting timestep in seconds.
@@ -563,7 +567,7 @@ class Output:
         """
         return self._report
 
-    @property  # type: ignore
+    @property
     @output_open_handler
     def start(self) -> datetime:
         """Return the reporting start datetime.
@@ -576,7 +580,7 @@ class Output:
         """
         return self._start
 
-    @property  # type: ignore
+    @property
     @output_open_handler
     def end(self) -> datetime:
         """Return the reporting end datetime.
@@ -588,7 +592,7 @@ class Output:
         """
         return self._end
 
-    @property  # type: ignore
+    @property
     @output_open_handler
     def period(self) -> int:
         """Return the number of reporting timesteps in the binary output file.
@@ -600,7 +604,7 @@ class Output:
         """
         return self._period
 
-    @property  # type: ignore
+    @property
     def project_size(self) -> list[int]:
         """Returns the number of each model element type available in out binary output file
         in the following order:
@@ -646,9 +650,9 @@ class Output:
 
         return self._pollutants
 
-    @property  # type: ignore
+    @property
     @output_open_handler
-    def _unit(self) -> tuple[int]:
+    def _unit(self) -> tuple[int, ...]:
         """Return SWMM binary output file unit type from `swmm.toolkit.shared_enum.UnitSystem`.
 
         Returns
@@ -657,7 +661,7 @@ class Output:
             Tuple of integers indicating system units, flow units, and units for each pollutant.
 
         """
-        return tuple(output.get_units(self._handle))  # type: ignore
+        return tuple(output.get_units(self._handle))
 
     @property
     def units(self) -> list[str]:
@@ -679,7 +683,7 @@ class Output:
             shared_enum.FlowUnits(self._unit[1]).name,
         ] + [shared_enum.ConcUnits(i).name for i in self._unit[2:]]
 
-    @property  # type: ignore
+    @property
     @output_open_handler
     def _version(self) -> int:
         """Return SWMM version used to generate SWMM binary output file results.
@@ -690,7 +694,7 @@ class Output:
             Integer representation of SWMM version used to make output file.
 
         """
-        return output.get_version(self._handle)
+        return cast(int, output.get_version(self._handle))
 
     @output_open_handler
     def _objectName(self, object_type: int, index: int) -> str:
@@ -709,7 +713,14 @@ class Output:
             object name
 
         """
-        return output.get_elem_name(self._handle, object_type, index)
+        return cast(
+            str,
+            output.get_elem_name(
+                self._handle,
+                object_type,
+                index,
+            ),
+        )
 
     ##### timestep setters and getters #####
     def _time2step(
@@ -761,7 +772,10 @@ class Output:
 
         # ensure datetime value
         dt = to_datetime(dt)
-        return self.timeIndex.get_indexer(dt, method=method).tolist()
+        return cast(
+            list[int],
+            self.timeIndex.get_indexer(dt, method=method).tolist(),
+        )
 
     @property
     def timeIndex(self) -> DatetimeIndex:
@@ -948,26 +962,29 @@ class Output:
 
     ####### series getters #######
 
-    def _memory_series_getter(self, elemType: str) -> Callable:
+    def _memory_series_getter(self, elemType: str) -> Callable[..., ndarray]:
         if elemType == "sys":
 
-            def getter(  # type: ignore
-                _handle,
+            def getter(
+                _handle: Any,
                 Attr: EnumMeta,
                 startIndex: int,
                 endIndex: int,
             ) -> ndarray:
                 # col = f"{type};{type};{Attr.value}"
                 # return self.data[col][startIndex:endIndex]
-                return self.data.loc[
-                    startIndex:endIndex,  # type: ignore
-                    IndexSlice[elemType, elemType, Attr.value],  # type: ignore
-                ].to_numpy()
+                return cast(
+                    ndarray,
+                    self.data.loc[
+                        startIndex:endIndex,
+                        IndexSlice[elemType, elemType, Attr.value],
+                    ].to_numpy(),
+                )
 
         else:
 
-            def getter(  # type: ignore
-                _handle,
+            def getter(  # type: ignore[misc]
+                _handle: Any,
                 elemIdx: int,
                 Attr: EnumMeta,
                 startIndex: int,
@@ -975,10 +992,13 @@ class Output:
             ) -> ndarray:
                 # col = f"{type};{elemIdx};{Attr.value}"
                 # return self.data[col][startIndex:endIndex]
-                return self.data.loc[
-                    startIndex:endIndex,
-                    IndexSlice[elemType, elemIdx, Attr.value],  # type: ignore
-                ].to_numpy()
+                return cast(
+                    ndarray,
+                    self.data.loc[
+                        startIndex:endIndex,
+                        IndexSlice[elemType, elemIdx, Attr.value],
+                    ].to_numpy(),
+                )
 
         return getter
 
@@ -989,7 +1009,7 @@ class Output:
         startIndex: int,
         endIndex: int,
         columns: str | None,
-        getterFunc: Callable,
+        getterFunc: Callable[..., ndarray],
     ) -> ndarray:
         """
         Base series getter for any attribute. The function consilidates the logic
@@ -1110,7 +1130,7 @@ class Output:
         startIndex: int,
         endIndex: int,
         columns: str | None,
-    ) -> tuple:
+    ) -> tuple[Index, list[str]]:
         """
         Base dataframe index getter for model timeseries. The function consilidates the logic
         necessary to build a data frame index for long or wide dataframes built with time series
@@ -2157,7 +2177,7 @@ class Output:
         self,
         time: str | int | datetime,
         attribute: int | str | EnumMeta | Sequence[int | str | EnumMeta] | None = None,
-        asframe=True,
+        asframe: bool = True,
     ) -> DataFrame | ndarray:
         """For all nodes at given time, get a one or more attributes.
 
@@ -2169,7 +2189,7 @@ class Output:
         attribute: Union[int, str, Sequence[Union[int, str]], None]
             The attribute index or name.
 
-            On of:
+            One of:
 
             **air_temp, rainfall, snow_depth, evap_infil_loss, runoff_flow,
             dry_weather_inflow, gw_inflow, rdii_inflow, direct_inflow, total_lateral_inflow,
@@ -2299,7 +2319,7 @@ class Output:
         elif isinstance(subcatchment, arrayish):
             label = "subcatchment"
             labels, indices = self._validateElement(subcatchment, self.subcatchments)
-            timeIndex = self._time2step([time])[0]  # type: ignore
+            timeIndex = self._time2step([time])[0]
 
             values = vstack(
                 [
@@ -2545,7 +2565,7 @@ class Output:
     def system_result(
         self,
         time: str | int | datetime,
-        asframe=True,
+        asframe: bool = True,
     ) -> DataFrame | ndarray:
         """For a given time, get all system attributes.
 
@@ -2599,15 +2619,19 @@ class Output:
 
         return DataFrame(values, index=dfIndex, columns=["result"])
 
-    def getStructure(self, link, node):
+    def getStructure(
+        self,
+        link: str | Sequence[str],
+        node: str | Sequence[str],
+    ) -> Structure:
         """
         Return a structure object for a given list of links and nodes.
 
         Parameters
         ----------
-        link: Union[str, Sequence[str]]
+        link: str | Sequence[str]
             The list of links that belong to the structure.
-        node: Union[str, Sequence[str]]
+        node: str | Sequence[str]
             The list of nodes that below to the structure.
 
         Returns
@@ -2634,18 +2658,18 @@ class Output:
         self._close()
 
     # method used for context manager with statement
-    def __enter__(self):
+    def __enter__(self) -> Self:
         self._open()
         return self
 
     # method used for context manager with statement
-    def __exit__(self, *arg) -> None:
+    def __exit__(self, *args: Any) -> None:
         self._close()
 
-    def open(self):
+    def open(self) -> None:
         """Open the output file"""
         self._open()
 
-    def close(self):
+    def close(self) -> None:
         """Close the output file"""
         self._close()

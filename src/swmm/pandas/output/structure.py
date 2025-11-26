@@ -265,11 +265,12 @@ class Structure:
         Bins flooding data into discrete events based on an inter-event period and threshold flooding rate.
         Maximum flooding rates and duration of each flooding event are returned in a DataFrame.
 
-        TODO: add in ponded depth when inp file is integrated. Ponded volume from out file is tough to interpret alone.
+        TODO: add in ponded depth when inp file is integrated. Ponded volume from out file is tough
+        to interpret alone.
 
         Parameters
         ----------
-        inter_event_period: float, optionalep
+        inter_event_period: float, optional
             The period in hours of flooding less than or equal to thresholdFlood that demarks
             flow events, default to 6
         thresholdFood: float, optional
