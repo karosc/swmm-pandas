@@ -41,6 +41,9 @@ geo = ["geopandas>=1.0.1"]
 swmm-toolkit = { index = "pypi" }
 
 [[tool.uv.index]]
+url = "https://pkgs.dev.azure.com/HydroDigital/9fe28d25-c564-4451-bdc8-6b97a98625f8/_packaging/HydroInformatics-Artifacts-Feed/pypi/simple"
+
+[[tool.uv.index]]
 name = "pypi"
 url = "https://pypi.org/simple"
 
@@ -74,5 +77,6 @@ dev = [
     "ruff>=0.7.1",
     "sphinx>=7.4.7",
     "sphinx-autobuild>=2024.10.3",
+    "types-pyyaml>=6.0.12.20250915",
 ]
 geo = ["geopandas>=1.0.1"]
