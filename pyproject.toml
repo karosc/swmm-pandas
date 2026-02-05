@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "swmm-pandas"
-version = "0.11.0"
+version = "0.11.1"
 description = "Pandorable interface to SWMM5 input and output files"
 authors = [
     { name = "Constantine Karos", email = "ckaros@outlook.com" },
