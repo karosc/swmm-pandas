@@ -407,7 +407,6 @@ class Input:
         if not hasattr(self, "_outlet_full"):
             self._outlet_full = self._link_constructor(
                 self._inp.outlet,
-                self._inp.tags.sort_index(),
             )
 
         return self._outlet_full
