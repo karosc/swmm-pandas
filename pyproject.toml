@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "swmm-pandas"
-version = "0.11.0"
+version = "0.11.1"
 description = "Pandorable interface to SWMM5 input and output files"
 authors = [
     { name = "Constantine Karos", email = "ckaros@outlook.com" },
@@ -74,5 +74,6 @@ dev = [
     "ruff>=0.7.1",
     "sphinx>=7.4.7",
     "sphinx-autobuild>=2024.10.3",
+    "types-pyyaml>=6.0.12.20250915",
 ]
 geo = ["geopandas>=1.0.1"]

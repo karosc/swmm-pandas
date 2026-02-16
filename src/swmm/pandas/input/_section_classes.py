@@ -67,6 +67,11 @@ class classproperty:
 def _coerce_numeric(data: str, dtype: Type | None = None) -> str | float | int:
     if dtype is not None:
         return dtype(data)
+    if "_" in str(data):
+        # don't try to coerce strings with underscores
+        # they could coerce to numerics, but certainly don't
+        # intend to be numerics in SWMM files
+        return data
     try:
         number = float(data)
         number = int(number) if number.is_integer() and "." not in data else number
@@ -1982,7 +1987,7 @@ class Controls(SectionBase):
         end_char = 0
         for imatch in range(len(matches)):
             if imatch == len(matches) - 1:
-                end_char = -1
+                end_char = None
             else:
                 end_char = matches[imatch + 1].start()
 
@@ -1994,7 +1999,7 @@ class Controls(SectionBase):
                 desc, rule = re.split(rule_line_pattern, rule_block)
                 rule = f"{mat.group()}{rule}"
                 rule_name = mat.group().split()[1]
-                rule_text = rule.split(rule_name)[1]
+                rule_text = rule.split(rule_name, 1)[1]
                 rules[rule_name] = Controls.Control(
                     name=rule_name,
                     control_text=rule_text,
@@ -2301,7 +2306,8 @@ class DWF(SectionDf):
 
     @classmethod
     def _tabulate(cls, line: list[str | float | int]) -> TRow | list[TRow]:
-        out: TRow = [v.replace('"', "") if isinstance(v, str) else v for v in line]
+        out = super()._tabulate(line)
+        out: TRow = [v.replace('"', "") if isinstance(v, str) else v for v in out]
         return out
 
     def to_swmm_string(self) -> str:
@@ -2311,8 +2317,12 @@ class DWF(SectionDf):
 
             for ipat in range(1, 5):
                 col = f"Pat{ipat}"
+                # stip out any existing double quotes
                 df[col] = df[col].fillna("").str.replace('"', "")
+                # add in fresh double quotes
                 df[col] = '"' + df[col].astype(str) + '"'
+                # remove quotes for empty strings
+                df.loc[df[col] == '""', col] = ""
 
             return super(DWF, df).to_swmm_string()
 
@@ -2685,6 +2695,21 @@ class Labels(SectionDf):
         "Bold",
         "Italic",
     ]
+
+    @classmethod
+    def _tabulate(cls, line: list[str | float | int]) -> TRow | list[TRow]:
+        out = [""] * cls._ncol
+        tok_index = 0
+        for tok in line:
+            out[tok_index] += f" {tok}"
+
+            # if token starts with a quote but doesn't end with one, keep adding to it
+            if str(tok).startswith('"') and not str(tok).endswith('"'):
+                continue
+
+            tok_index += 1
+
+        return [_coerce_numeric(v.strip()) for v in out]
 
 
 class Tags(SectionDf):
