@@ -1101,10 +1101,10 @@ class InputFileTest(unittest.TestCase):
                     ;;Node  Constituent  AvgValue  Pat1      Pat2  Pat3      Pat4       
                     ;;----  -----------  --------  --------  ----  --------  ---------  
                     ;added second pattern
-                    JUNC2   FLOW         0.2       "HOURLY"  ""    ""        "HOURLY2"  
-                    JUNC4   FLOW         0.7       "HOURLY"  ""    ""        ""         
+                    JUNC2   FLOW         0.2       "HOURLY"                  "HOURLY2"  
+                    JUNC4   FLOW         0.7       "HOURLY"                             
                     ;testing a pattern addition
-                    JUNC1   FLOW         1         ""        ""    "HOURLY"  ""         
+                    JUNC1   FLOW         1                         "HOURLY"             
                 """
             ),
         )
