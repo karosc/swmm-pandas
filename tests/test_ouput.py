@@ -1,5 +1,6 @@
 """Tests for `swmm-pandas` package."""
 
+import importlib
 import os
 from datetime import datetime
 import pathlib
@@ -7,6 +8,7 @@ import pathlib
 import numpy as np
 import pandas as pd
 import pytest
+from pandas.testing import assert_frame_equal
 
 from swmm.toolkit.shared_enum import SubcatchAttribute
 from swmm.pandas import Output
@@ -20,6 +22,22 @@ def outfile():
     out = Output(example_out_path)
     yield out
     out._close()
+
+
+@pytest.fixture(scope="module")
+def preloaded_outfile():
+    out = Output(example_out_path, preload=True)
+    yield out
+    out._close()
+
+
+def _sorted_export_df(path):
+    df = pd.read_parquet(path)
+    return df.sort_values(list(df.columns)).reset_index(drop=True)
+
+
+def _dataset_files(path):
+    return sorted(file.relative_to(path).as_posix() for file in path.rglob("*.parquet"))
 
 
 def test_open_warning(outfile):
@@ -382,6 +400,208 @@ def test_validateElement(
     )
     assert elementArray == expectedElement
     assert elementIndexArray == expectedElementIndex
+
+
+def test_to_parquet_streamed_full_export(outfile, tmp_path):
+    path = tmp_path / "streamed.parquet"
+    returned_path = outfile.to_parquet(path)
+    assert returned_path == str(path)
+
+    df = _sorted_export_df(path)
+    assert df.shape == (55584, 5)
+    assert df.columns.tolist() == ["datetime", "kind", "name", "attribute", "value"]
+
+    first_row = df.iloc[0]
+    assert first_row["datetime"] == pd.Timestamp("1900-01-01 00:05:00")
+    assert first_row["kind"] == "link"
+    assert first_row["name"] == "COND1"
+    assert first_row["attribute"] == "capacity"
+
+
+def test_to_parquet_preloaded_matches_streamed(outfile, preloaded_outfile, tmp_path):
+    streamed_path = tmp_path / "streamed.parquet"
+    preloaded_path = tmp_path / "preloaded.parquet"
+
+    outfile.to_parquet(streamed_path, row_batch_size=17)
+    preloaded_outfile.to_parquet(preloaded_path, row_batch_size=17)
+
+    streamed = _sorted_export_df(streamed_path)
+    preloaded = _sorted_export_df(preloaded_path)
+    assert_frame_equal(streamed, preloaded)
+
+
+def test_to_parquet_filtered_export(outfile, tmp_path):
+    path = tmp_path / "filtered.parquet"
+    outfile.to_parquet(
+        path,
+        link_attributes=["flow_rate", "flow_depth"],
+        links=["COND4"],
+        node_attributes=[],
+        subcatchment_attributes=[],
+        system_attributes=[],
+    )
+
+    df = _sorted_export_df(path)
+    assert df["kind"].unique().tolist() == ["link"]
+    assert df["name"].unique().tolist() == ["COND4"]
+    assert set(df["attribute"].unique()) == {"flow_rate", "flow_depth"}
+    assert len(df) == 288 * 2
+
+
+def test_to_parquet_empty_export(outfile, tmp_path):
+    path = tmp_path / "empty.parquet"
+    outfile.to_parquet(
+        path,
+        link_attributes=[],
+        node_attributes=[],
+        subcatchment_attributes=[],
+        system_attributes=[],
+    )
+
+    df = pd.read_parquet(path)
+    assert df.empty
+    assert df.columns.tolist() == ["datetime", "kind", "name", "attribute", "value"]
+
+
+def test_to_parquet_row_batch_size_one(outfile, tmp_path):
+    path = tmp_path / "batch-one.parquet"
+    outfile.to_parquet(
+        path,
+        node_attributes=["invert_depth"],
+        nodes=["JUNC3"],
+        link_attributes=[],
+        subcatchment_attributes=[],
+        system_attributes=[],
+        row_batch_size=1,
+    )
+
+    df = _sorted_export_df(path)
+    assert len(df) == 288
+    assert df["attribute"].unique().tolist() == ["invert_depth"]
+    assert df["name"].unique().tolist() == ["JUNC3"]
+
+
+@pytest.mark.parametrize(
+    "partition_freq,expected_columns",
+    [
+        ("D", ["year", "month", "day"]),
+        ("MS", ["year", "month"]),
+        ("H", ["year", "month", "day", "hour"]),
+    ],
+)
+def test_to_parquet_partition_columns(outfile, tmp_path, partition_freq, expected_columns):
+    path = tmp_path / f"partition-{partition_freq.lower()}"
+    outfile.to_parquet(
+        path,
+        node_attributes=["invert_depth"],
+        nodes=["JUNC3"],
+        link_attributes=[],
+        subcatchment_attributes=[],
+        system_attributes=[],
+        partition_freq=partition_freq,
+    )
+
+    df = _sorted_export_df(path)
+    assert df.columns.tolist() == [
+        "datetime",
+        "kind",
+        "name",
+        "attribute",
+        "value",
+        *expected_columns,
+    ]
+
+    files = _dataset_files(path)
+    assert files
+    assert all(file.split("/")[-1].count("_") == 1 for file in files)
+    assert all(file.endswith(".parquet") for file in files)
+
+
+def test_to_parquet_partitioned_filenames_and_overwrite(outfile, tmp_path):
+    path = tmp_path / "overwrite-daily"
+
+    outfile.to_parquet(
+        path,
+        node_attributes=["invert_depth"],
+        nodes=["JUNC3"],
+        link_attributes=[],
+        subcatchment_attributes=[],
+        system_attributes=[],
+        partition_freq="D",
+        row_batch_size=100,
+    )
+    first_files = _dataset_files(path)
+
+    outfile.to_parquet(
+        path,
+        node_attributes=["invert_depth"],
+        nodes=["JUNC3"],
+        link_attributes=[],
+        subcatchment_attributes=[],
+        system_attributes=[],
+        partition_freq="D",
+        row_batch_size=100,
+    )
+    second_files = _dataset_files(path)
+
+    assert second_files == first_files
+    assert first_files == [
+        "year=1900/month=1/day=1/19000101000500_19000101082500.parquet",
+        "year=1900/month=1/day=1/19000101082500_19000101164500.parquet",
+        "year=1900/month=1/day=1/19000101164500_19000102000000.parquet",
+        "year=1900/month=1/day=2/19000102000000_19000102000500.parquet",
+    ]
+
+
+def test_to_parquet_partitioned_preloaded_matches_streamed(
+    outfile,
+    preloaded_outfile,
+    tmp_path,
+):
+    streamed_path = tmp_path / "streamed-daily"
+    preloaded_path = tmp_path / "preloaded-daily"
+
+    outfile.to_parquet(
+        streamed_path,
+        link_attributes=["flow_rate", "flow_depth"],
+        links=["COND4"],
+        node_attributes=[],
+        subcatchment_attributes=[],
+        system_attributes=[],
+        partition_freq="D",
+        row_batch_size=13,
+    )
+    preloaded_outfile.to_parquet(
+        preloaded_path,
+        link_attributes=["flow_rate", "flow_depth"],
+        links=["COND4"],
+        node_attributes=[],
+        subcatchment_attributes=[],
+        system_attributes=[],
+        partition_freq="D",
+        row_batch_size=13,
+    )
+
+    assert_frame_equal(_sorted_export_df(streamed_path), _sorted_export_df(preloaded_path))
+
+
+def test_to_parquet_invalid_partition_freq(outfile, tmp_path):
+    with pytest.raises(ValueError, match="partition_freq"):
+        outfile.to_parquet(tmp_path / "invalid", partition_freq="6H")
+
+
+def test_to_parquet_missing_pyarrow(outfile, tmp_path, monkeypatch):
+    original_import_module = importlib.import_module
+
+    def _raise_for_pyarrow(name, package=None):
+        if name.startswith("pyarrow"):
+            raise ImportError("missing pyarrow")
+        return original_import_module(name, package)
+
+    monkeypatch.setattr(importlib, "import_module", _raise_for_pyarrow)
+
+    with pytest.raises(ImportError, match="pyarrow is required"):
+        outfile.to_parquet(tmp_path / "missing.parquet")
 
 
 # def test_elementIndex(

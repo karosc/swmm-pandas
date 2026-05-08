@@ -1,16 +1,20 @@
 from __future__ import annotations
 
+import importlib
+import logging
+import os
 import os.path
 import struct
 import warnings
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from functools import wraps
 from io import SEEK_END
 from itertools import product
 from typing import Any, Callable, Self, TypeVar, cast
 
-import numpy.core.records
+import numpy as np
 from aenum import Enum, EnumMeta, extend_enum
 from numpy import (
     asarray,
@@ -38,7 +42,17 @@ from pandas.core.api import (
 from swmm.pandas.output.structure import Structure
 from swmm.pandas.output.tools import _enum_get, _enum_keys, arrayish
 
+logger = logging.getLogger(__name__)
+
 T = TypeVar("T")
+
+
+@dataclass(frozen=True)
+class _ExportColumn:
+    kind: str
+    name: str
+    attribute: str
+    value_index: int
 
 
 def output_open_handler(func: Callable[..., T]) -> Callable[..., T]:
@@ -383,7 +397,7 @@ class Output:
     def _datetime_from_swmm(swmm_datetime: int) -> datetime:
         remaining_days = swmm_datetime % 1
         days = swmm_datetime - remaining_days
-        seconds = remaining_days * 86400
+        seconds = round(remaining_days * 86400, 0)
         dt = datetime(year=1899, month=12, day=30) + timedelta(
             days=days,
             seconds=seconds,
@@ -504,7 +518,7 @@ class Output:
 
             with open(self._binfile, "rb") as fil:
                 fil.seek(self._output_position, 0)
-                dat = numpy.core.records.fromfile(fil, formats=fmts)
+                dat = np.rec.fromfile(fil, formats=fmts, shape=self._period)
             self.data = DataFrame(dat)
             self.data.columns = idx
 
@@ -553,6 +567,349 @@ class Output:
                 self.__output_position = int(struct.unpack("i", fil.read(4))[0])
 
         return self.__output_position
+
+    @property
+    @output_open_handler
+    def _result_columns(self) -> tuple[_ExportColumn, ...]:
+        if not hasattr(self, "__result_columns"):
+            columns: list[_ExportColumn] = []
+            value_index = 0
+            category_defs = (
+                ("sub", self.subcatchments, _enum_keys(self.subcatch_attributes)),
+                ("node", self.nodes, _enum_keys(self.node_attributes)),
+                ("link", self.links, _enum_keys(self.link_attributes)),
+                ("sys", ("sys",), _enum_keys(self.system_attributes)),
+            )
+
+            for kind, names, attributes in category_defs:
+                for name in names:
+                    for attribute in attributes:
+                        columns.append(
+                            _ExportColumn(
+                                kind=kind,
+                                name=name,
+                                attribute=attribute,
+                                value_index=value_index,
+                            ),
+                        )
+                        value_index += 1
+
+            self.__result_columns = tuple(columns)
+
+        return self.__result_columns
+
+    @property
+    @output_open_handler
+    def _result_record_dtype(self) -> np.dtype[Any]:
+        if not hasattr(self, "__result_record_dtype"):
+            self.__result_record_dtype = np.dtype(
+                [
+                    ("datetime", "<f8"),
+                    ("values", "<f4", (len(self._result_columns),)),
+                ],
+            )
+
+        return self.__result_record_dtype
+
+    def _build_export_plan(
+        self,
+        link_attributes: list[str | shared_enum.LinkAttribute] | None = None,
+        node_attributes: list[str | shared_enum.NodeAttribute] | None = None,
+        subcatchment_attributes: (
+            list[str | shared_enum.SubcatchAttribute] | None
+        ) = None,
+        system_attributes: list[str | shared_enum.SystemAttribute] | None = None,
+        links: list[str] | None = None,
+        nodes: list[str] | None = None,
+        subcatchments: list[str] | None = None,
+        system: bool = True,
+    ) -> tuple[_ExportColumn, ...]:
+        selected_subcatchments = set(
+            self._validateElement(subcatchments, self.subcatchments)[0],
+        )
+        selected_nodes = set(self._validateElement(nodes, self.nodes)[0])
+        selected_links = set(self._validateElement(links, self.links)[0])
+
+        selected_subcatch_attributes = set(
+            self._validateAttribute(
+                subcatchment_attributes,
+                self.subcatch_attributes,
+            )[0],
+        )
+        selected_node_attributes = set(
+            self._validateAttribute(node_attributes, self.node_attributes)[0],
+        )
+        selected_link_attributes = set(
+            self._validateAttribute(link_attributes, self.link_attributes)[0],
+        )
+        selected_system_attributes = set(
+            self._validateAttribute(system_attributes, self.system_attributes)[0],
+        )
+
+        selected_columns: list[_ExportColumn] = []
+        for column in self._result_columns:
+            if column.kind == "sub":
+                include = (
+                    column.name in selected_subcatchments
+                    and column.attribute in selected_subcatch_attributes
+                )
+            elif column.kind == "node":
+                include = (
+                    column.name in selected_nodes
+                    and column.attribute in selected_node_attributes
+                )
+            elif column.kind == "link":
+                include = (
+                    column.name in selected_links
+                    and column.attribute in selected_link_attributes
+                )
+            elif column.kind == "sys":
+                include = system and column.attribute in selected_system_attributes
+            else:
+                logger.warning(f"Unknown column kind: {column.kind}")
+                include = False
+            if include:
+                selected_columns.append(column)
+
+        return tuple(selected_columns)
+
+    @staticmethod
+    def _normalize_partition_freq(partition_freq: str | None) -> str | None:
+        if partition_freq is None:
+            return None
+
+        if not isinstance(partition_freq, str):
+            raise TypeError("partition_freq must be a pandas frequency string or None")
+
+        normalized = partition_freq.upper()
+        partition_modes = {
+            "A": "year",
+            "Y": "year",
+            "YE": "year",
+            "YS": "year",
+            "M": "month",
+            "MS": "month",
+            "D": "day",
+            "H": "hour",
+            "YEAR": "year",
+            "MONTH": "month",
+            "DAY": "day",
+            "HOUR": "hour",
+        }
+
+        if normalized not in partition_modes:
+            raise ValueError(
+                "partition_freq must be one of A, Y, YE, YS, M, MS, D, H, or h",
+            )
+
+        return partition_modes[normalized]
+
+    @staticmethod
+    def _partition_columns(partition_mode: str) -> list[str]:
+        partition_columns = {
+            "year": ["year"],
+            "month": ["year", "month"],
+            "day": ["year", "month", "day"],
+            "hour": ["year", "month", "day", "hour"],
+        }
+        return partition_columns[partition_mode]
+
+    def _empty_export_frame(self) -> DataFrame:
+        return DataFrame(
+            {
+                "datetime": asarray([], dtype="datetime64[ns]"),
+                "kind": asarray([], dtype=object),
+                "name": asarray([], dtype=object),
+                "attribute": asarray([], dtype=object),
+                "value": asarray([], dtype="float32"),
+            },
+        )
+
+    def _build_long_frame(
+        self,
+        export_columns: Sequence[_ExportColumn],
+        swmm_datetimes: ndarray,
+        value_chunk: ndarray,
+    ) -> DataFrame:
+        if len(export_columns) == 0 or len(swmm_datetimes) == 0:
+            return self._empty_export_frame()
+
+        datetime_values = asarray(
+            [self._datetime_from_swmm(value) for value in swmm_datetimes],
+            dtype="datetime64[ns]",
+        )
+
+        kind_values = asarray([column.kind for column in export_columns], dtype=object)
+        name_values = asarray([column.name for column in export_columns], dtype=object)
+        attribute_values = asarray(
+            [column.attribute for column in export_columns],
+            dtype=object,
+        )
+
+        row_count, column_count = value_chunk.shape
+        return DataFrame(
+            {
+                "datetime": tile(datetime_values, column_count),
+                "kind": kind_values.repeat(row_count),
+                "name": name_values.repeat(row_count),
+                "attribute": attribute_values.repeat(row_count),
+                "value": asarray(value_chunk).reshape(-1, order="F"),
+            },
+        )
+
+    def _iter_long_frame_batches(
+        self,
+        export_columns: Sequence[_ExportColumn],
+        row_batch_size: int,
+    ) -> Iterator[DataFrame]:
+        if row_batch_size < 1:
+            raise ValueError("row_batch_size must be greater than 0")
+
+        if len(export_columns) == 0 or self._period == 0:
+            yield self._empty_export_frame()
+            return
+
+        selected_value_indices = [column.value_index for column in export_columns]
+
+        if self._preload:
+            data_column_indices = [index + 1 for index in selected_value_indices]
+            for start in range(0, self._period, row_batch_size):
+                stop = min(start + row_batch_size, self._period)
+                swmm_datetimes = self.data.iloc[start:stop, 0].to_numpy(copy=False)
+                value_chunk = self.data.iloc[
+                    start:stop,
+                    data_column_indices,
+                ].to_numpy(copy=False)
+                yield self._build_long_frame(
+                    export_columns, swmm_datetimes, value_chunk
+                )
+            return
+
+        record_dtype = self._result_record_dtype
+        record_size = record_dtype.itemsize
+        with open(self._binfile, "rb") as fil:
+            for start in range(0, self._period, row_batch_size):
+                count = min(row_batch_size, self._period - start)
+                fil.seek(self._output_position + start * record_size, 0)
+                chunk = np.fromfile(fil, dtype=record_dtype, count=count)
+                swmm_datetimes = chunk["datetime"]
+                value_chunk = chunk["values"][:, selected_value_indices]
+                yield self._build_long_frame(
+                    export_columns, swmm_datetimes, value_chunk
+                )
+
+    @staticmethod
+    def _pyarrow_modules() -> tuple[Any, Any, Any]:
+        try:
+            pyarrow = importlib.import_module("pyarrow")
+            dataset = importlib.import_module("pyarrow.dataset")
+            parquet = importlib.import_module("pyarrow.parquet")
+        except ImportError as exc:
+            raise ImportError(
+                "pyarrow is required for Output.to_parquet(). Install it in your uv environment first.",
+            ) from exc
+
+        return pyarrow, dataset, parquet
+
+    def _write_parquet_file(
+        self,
+        path: str | os.PathLike[str],
+        batches: Iterator[DataFrame],
+    ) -> str:
+        pyarrow, _, parquet = self._pyarrow_modules()
+        path_str = os.fspath(path)
+        parent = os.path.dirname(path_str)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+
+        writer = None
+        try:
+            for batch in batches:
+                table = pyarrow.Table.from_pandas(batch, preserve_index=False)
+                if writer is None:
+                    writer = parquet.ParquetWriter(path_str, table.schema)
+                writer.write_table(table)
+        finally:
+            if writer is not None:
+                writer.close()
+
+        return path_str
+
+    def _add_partition_columns(
+        self,
+        batch: DataFrame,
+        partition_mode: str,
+    ) -> DataFrame:
+        partitioned = batch.copy()
+        datetime_parts = partitioned["datetime"].dt
+        partitioned["year"] = datetime_parts.year
+        if partition_mode in ("month", "day", "hour"):
+            partitioned["month"] = datetime_parts.month
+        if partition_mode in ("day", "hour"):
+            partitioned["day"] = datetime_parts.day
+        if partition_mode == "hour":
+            partitioned["hour"] = datetime_parts.hour
+        return partitioned
+
+    @staticmethod
+    def _format_partition_timestamp(timestamp: Timestamp | datetime) -> str:
+        return Timestamp(timestamp).strftime("%Y%m%d%H%M%S")
+
+    def _partition_file_name(self, batch: DataFrame) -> str:
+        start = cast(Timestamp, batch["datetime"].min())
+        end = cast(Timestamp, batch["datetime"].max()) + timedelta(seconds=self._report)
+        return (
+            f"{self._format_partition_timestamp(start)}_"
+            f"{self._format_partition_timestamp(end)}.parquet"
+        )
+
+    def _write_parquet_dataset(
+        self,
+        path: str | os.PathLike[str],
+        batches: Iterator[DataFrame],
+        partition_mode: str,
+    ) -> str:
+        pyarrow, _, parquet = self._pyarrow_modules()
+        path_str = os.fspath(path)
+
+        if os.path.exists(path_str):
+            if not os.path.isdir(path_str):
+                raise FileExistsError(
+                    f"Partitioned parquet path '{path_str}' already exists and is not a directory.",
+                )
+        else:
+            os.makedirs(path_str, exist_ok=True)
+
+        partition_columns = self._partition_columns(partition_mode)
+
+        for batch in batches:
+            partitioned = self._add_partition_columns(batch, partition_mode)
+            if partitioned.empty:
+                continue
+
+            for _, group in partitioned.groupby(partition_columns, sort=True):
+                if group.empty:
+                    continue
+
+                partition_values = group.iloc[0]
+                partition_path = os.path.join(
+                    path_str,
+                    *[
+                        f"{column}={int(partition_values[column])}"
+                        for column in partition_columns
+                    ],
+                )
+                os.makedirs(partition_path, exist_ok=True)
+
+                file_name = self._partition_file_name(group)
+                file_path = os.path.join(partition_path, file_name)
+                table = pyarrow.Table.from_pandas(
+                    group.drop(columns=partition_columns),
+                    preserve_index=False,
+                )
+                parquet.write_table(table, file_path)
+
+        return path_str
 
     @property
     @output_open_handler
@@ -2618,6 +2975,67 @@ class Output:
         dfIndex = Index(_enum_keys(self.system_attributes), name="attribute")
 
         return DataFrame(values, index=dfIndex, columns=["result"])
+
+    @output_open_handler
+    def to_parquet(
+        self,
+        path: str | os.PathLike[str],
+        link_attributes: list[str | shared_enum.LinkAttribute] | None = None,
+        node_attributes: list[str | shared_enum.NodeAttribute] | None = None,
+        subcatchment_attributes: (
+            list[str | shared_enum.SubcatchAttribute] | None
+        ) = None,
+        system_attributes: list[str | shared_enum.SystemAttribute] | None = None,
+        links: list[str] | None = None,
+        nodes: list[str] | None = None,
+        subcatchments: list[str] | None = None,
+        row_batch_size: int = 100,
+        partition_freq: str | None = None,
+    ) -> str:
+        """Export output results to a long-format parquet file or dataset.
+
+        Parameters
+        ----------
+        path: str | os.PathLike[str]
+            Destination parquet path. When `partition_freq` is provided, this is
+            treated as a dataset root directory.
+        link_attributes, node_attributes, subcatchment_attributes, system_attributes:
+            Attribute filters for each result category. `None` exports all
+            attributes for the category and `[]` exports none.
+        links, nodes, subcatchments:
+            Element filters for each result category. `None` exports all elements
+            for the category and `[]` exports none.
+        row_batch_size: int
+            Number of SWMM reporting timesteps to load and export per batch.
+        partition_freq: str | None
+            Optional pandas-style partition frequency alias. Supported values are
+            yearly (`A`, `Y`, `YE`, `YS`), monthly (`M`, `MS`), daily (`D`),
+            and hourly (`H`, `h`).
+
+        Returns
+        -------
+        str
+            The parquet path that was written.
+        """
+        if not isinstance(row_batch_size, (int, npint)) or row_batch_size < 1:
+            raise ValueError("row_batch_size must be a positive integer")
+
+        export_plan = self._build_export_plan(
+            link_attributes=link_attributes,
+            node_attributes=node_attributes,
+            subcatchment_attributes=subcatchment_attributes,
+            system_attributes=system_attributes,
+            links=links,
+            nodes=nodes,
+            subcatchments=subcatchments,
+        )
+        batches = self._iter_long_frame_batches(export_plan, int(row_batch_size))
+        partition_mode = self._normalize_partition_freq(partition_freq)
+
+        if partition_mode is None:
+            return self._write_parquet_file(path, batches)
+
+        return self._write_parquet_dataset(path, batches, partition_mode)
 
     def getStructure(
         self,
