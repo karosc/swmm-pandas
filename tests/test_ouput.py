@@ -41,7 +41,13 @@ def _sorted_export_df_fs(path, filesystem):
     import pyarrow.parquet as pq
 
     arrow_fs = pafs.PyFileSystem(pafs.FSSpecHandler(filesystem))
-    df = pq.read_table(path, filesystem=arrow_fs).to_pandas()
+    arrow_path = (
+        f"/{path}"
+        if getattr(filesystem, "protocol", None) == "memory"
+        and not str(path).startswith("/")
+        else path
+    )
+    df = pq.read_table(arrow_path, filesystem=arrow_fs).to_pandas()
     return df.sort_values(list(df.columns)).reset_index(drop=True)
 
 
@@ -418,12 +424,18 @@ def test_to_parquet_streamed_full_export(outfile, tmp_path):
 
     df = _sorted_export_df(path)
     assert df.shape == (55584, 5)
-    assert df.columns.tolist() == ["datetime", "kind", "name", "attribute", "value"]
+    assert df.columns.tolist() == [
+        "time",
+        "element_type",
+        "element_name",
+        "attribute",
+        "value",
+    ]
 
     first_row = df.iloc[0]
-    assert first_row["datetime"] == pd.Timestamp("1900-01-01 00:05:00")
-    assert first_row["kind"] == "link"
-    assert first_row["name"] == "COND1"
+    assert first_row["time"] == pd.Timestamp("1900-01-01 00:05:00")
+    assert first_row["element_type"] == "link"
+    assert first_row["element_name"] == "COND1"
     assert first_row["attribute"] == "capacity"
 
 
@@ -451,8 +463,8 @@ def test_to_parquet_filtered_export(outfile, tmp_path):
     )
 
     df = _sorted_export_df(path)
-    assert df["kind"].unique().tolist() == ["link"]
-    assert df["name"].unique().tolist() == ["COND4"]
+    assert df["element_type"].unique().tolist() == ["link"]
+    assert df["element_name"].unique().tolist() == ["COND4"]
     assert set(df["attribute"].unique()) == {"flow_rate", "flow_depth"}
     assert len(df) == 288 * 2
 
@@ -469,7 +481,13 @@ def test_to_parquet_empty_export(outfile, tmp_path):
 
     df = pd.read_parquet(path)
     assert df.empty
-    assert df.columns.tolist() == ["datetime", "kind", "name", "attribute", "value"]
+    assert df.columns.tolist() == [
+        "time",
+        "element_type",
+        "element_name",
+        "attribute",
+        "value",
+    ]
 
 
 def test_to_parquet_row_batch_size_one(outfile, tmp_path):
@@ -487,7 +505,7 @@ def test_to_parquet_row_batch_size_one(outfile, tmp_path):
     df = _sorted_export_df(path)
     assert len(df) == 288
     assert df["attribute"].unique().tolist() == ["invert_depth"]
-    assert df["name"].unique().tolist() == ["JUNC3"]
+    assert df["element_name"].unique().tolist() == ["JUNC3"]
 
 
 def test_to_parquet_with_fsspec_filesystem(outfile):
@@ -502,7 +520,13 @@ def test_to_parquet_with_fsspec_filesystem(outfile):
 
     df = _sorted_export_df_fs(path, filesystem)
     assert df.shape == (55584, 5)
-    assert df.columns.tolist() == ["datetime", "kind", "name", "attribute", "value"]
+    assert df.columns.tolist() == [
+        "time",
+        "element_type",
+        "element_name",
+        "attribute",
+        "value",
+    ]
 
 
 @pytest.mark.parametrize(
@@ -527,9 +551,9 @@ def test_to_parquet_partition_columns(outfile, tmp_path, partition_freq, expecte
 
     df = _sorted_export_df(path)
     assert df.columns.tolist() == [
-        "datetime",
-        "kind",
-        "name",
+        "time",
+        "element_type",
+        "element_name",
         "attribute",
         "value",
         *expected_columns,
@@ -559,7 +583,11 @@ def test_to_parquet_partitioned_with_fsspec_filesystem(outfile):
     )
 
     assert returned_path == path
-    files = sorted(file for file in filesystem.find(path) if file.endswith(".parquet"))
+    files = sorted(
+        file.lstrip("/")
+        for file in filesystem.find(path)
+        if file.endswith(".parquet")
+    )
     assert files == [
         "container/partitioned/year=1900/month=1/day=1/19000101000500_19000101082500.parquet",
         "container/partitioned/year=1900/month=1/day=1/19000101082500_19000101164500.parquet",
@@ -569,9 +597,9 @@ def test_to_parquet_partitioned_with_fsspec_filesystem(outfile):
 
     df = _sorted_export_df_fs(path, filesystem)
     assert df.columns.tolist() == [
-        "datetime",
-        "kind",
-        "name",
+        "time",
+        "element_type",
+        "element_name",
         "attribute",
         "value",
         "year",

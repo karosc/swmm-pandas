@@ -181,9 +181,9 @@ class _ParquetExporter:
     def _empty_export_frame(self) -> DataFrame:
         return DataFrame(
             {
-                "datetime": asarray([], dtype="datetime64[ns]"),
-                "kind": asarray([], dtype=object),
-                "name": asarray([], dtype=object),
+                "time": asarray([], dtype="datetime64[ns]"),
+                "element_type": asarray([], dtype=object),
+                "element_name": asarray([], dtype=object),
                 "attribute": asarray([], dtype=object),
                 "value": asarray([], dtype="float32"),
             },
@@ -213,9 +213,9 @@ class _ParquetExporter:
         row_count, column_count = value_chunk.shape
         return DataFrame(
             {
-                "datetime": tile(datetime_values, column_count),
-                "kind": kind_values.repeat(row_count),
-                "name": name_values.repeat(row_count),
+                "time": tile(datetime_values, column_count),
+                "element_type": kind_values.repeat(row_count),
+                "element_name": name_values.repeat(row_count),
                 "attribute": attribute_values.repeat(row_count),
                 "value": asarray(value_chunk).reshape(-1, order="F"),
             },
@@ -379,7 +379,7 @@ class _ParquetExporter:
         partition_mode: str,
     ) -> DataFrame:
         partitioned = batch.copy()
-        datetime_parts = partitioned["datetime"].dt
+        datetime_parts = partitioned["time"].dt
         partitioned["year"] = datetime_parts.year
         if partition_mode in ("month", "day", "hour"):
             partitioned["month"] = datetime_parts.month
@@ -397,8 +397,8 @@ class _ParquetExporter:
         return cast(Timestamp, ts).strftime("%Y%m%d%H%M%S")
 
     def _partition_file_name(self, batch: DataFrame) -> str:
-        start = cast(Timestamp, batch["datetime"].min())
-        end = cast(Timestamp, batch["datetime"].max()) + timedelta(
+        start = cast(Timestamp, batch["time"].min())
+        end = cast(Timestamp, batch["time"].max()) + timedelta(
             seconds=self.out._report,
         )
         return (
