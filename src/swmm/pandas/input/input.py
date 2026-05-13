@@ -9,7 +9,7 @@ import re
 import warnings
 from io import StringIO
 from tokenize import String
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Self
 from venv import logger
 
 import pandas as pd
@@ -17,7 +17,7 @@ import swmm.pandas.input._section_classes as sc
 from swmm.pandas.input._section_classes import SectionBase, _sections
 
 if TYPE_CHECKING:
-    from typing import Optional, Self
+    from typing import Optional
 
     from geopandas import GeoDataFrame, GeoSeries
 
@@ -967,7 +967,7 @@ class InputFile:
                         vertices = vertices.tolist()
                     else:
                         raise TypeError(
-                            f"Unexpected type for vertices : {type(vertices)}"
+                            f"Unexpected type for vertices : {type(vertices)}",
                         )
                     # print("found")
                 except KeyError:

@@ -7,9 +7,10 @@ import textwrap
 import warnings
 from abc import ABC, abstractmethod
 from calendar import month_abbr
+from collections.abc import Mapping
 from dataclasses import dataclass
 from numbers import Number
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Self, SupportsIndex, TypeGuard, cast
 
 import numpy as np
 
@@ -18,7 +19,7 @@ from pandas._libs.missing import NAType
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
-    from typing import Any, Optional, Self, Type, TypeGuard, Union
+    from typing import Any, Optional, Type, Union
 
     TRowTypes = Union[str, float, int, pd.Timestamp, pd.Timedelta, NAType, None]
     TRow = list[TRowTypes]
@@ -121,12 +122,8 @@ def _is_data(line: str):
     return True
 
 
-def _is_nested_list(l: TRow | list[TRow]) -> TypeGuard[list[TRow]]:
-    return isinstance(l[0], list)
-
-
-def _is_not_nested_list(l: TRow | list[TRow]) -> TypeGuard[TRow]:
-    return not isinstance(l[0], list)
+def _is_nested_list(rows: TRow | list[TRow]) -> TypeGuard[list[TRow]]:
+    return isinstance(rows[0], list)
 
 
 def comment_formatter(line: str):
@@ -134,6 +131,22 @@ def comment_formatter(line: str):
         line = ";" + line.strip().strip("\n").strip()
         line = line.replace("\n", "\n;") + "\n"
     return line
+
+
+def _as_timeseries_time(value: object) -> pd.Timestamp | pd.Timedelta:
+    if value is pd.NaT:
+        raise ValueError("Error parsing Timeseries row time value")
+    if isinstance(value, (pd.Timestamp, pd.Timedelta)):
+        return value
+    raise TypeError(f"Unexpected timeseries time value {value!r}")
+
+
+def _get_frame_attrs(frame: pd.DataFrame) -> dict[str, object]:
+    return cast(dict[str, object], object.__getattribute__(frame, "attrs"))
+
+
+def _set_frame_attrs(frame: pd.DataFrame, attrs: Mapping[str, object]) -> None:
+    object.__setattr__(frame, "attrs", dict(attrs))
 
 
 class SectionSeries(pd.Series):
@@ -171,7 +184,7 @@ class SectionBase(ABC):
     def to_swmm_string(self) -> str: ...
 
     @abstractmethod
-    def _patch(self, abj: Any) -> None: ...
+    def _patch(self, obj: Any) -> None: ...
 
     @abstractmethod
     def _drop(self, obj: Any) -> None: ...
@@ -270,7 +283,7 @@ class SectionDf(SectionBase, pd.DataFrame):
         df = cls(obj)
         df._validate_headings()
         df = df.reset_index().reindex(cls.headings, axis=1).set_index(cls._index_col)
-        return df
+        return cast(Self, df)
 
     def _validate_headings(self) -> None:
         missing = []
@@ -357,23 +370,17 @@ class SectionDf(SectionBase, pd.DataFrame):
     ) -> list[TRow]:
         """Function to collapse multi object lines and add comments to each"""
 
-        _table_data: list[TRow]
-        if _is_nested_list(table_data):
-            _table_data = table_data
-        elif _is_not_nested_list(table_data):
-            _table_data = [table_data]
-        else:
-            raise Exception(f"Error parsing row {table_data}")
-
         rows: list[TRow] = []
-        for row in _table_data:
-            # create and empty row
-            row_data: TRow = [""] * (ncols + 1)
-            # assign data to row
-            row_data[:ncols] = row
-            # add comments to last column
-            row_data[-1] = line_comment.strip("\n")
-            rows.append(row_data)
+        if _is_nested_list(table_data):
+            for row in table_data:
+                row_data: TRow = [""] * (ncols + 1)
+                row_data[:ncols] = row
+                row_data[-1] = line_comment.strip("\n")
+                rows.append(row_data)
+        else:
+            single_row_data: TRow = cast("TRow", list(table_data) + [line_comment.strip("\n")])
+            single_row_data[-1] = line_comment.strip("\n")
+            rows.append(single_row_data)
         return rows
 
     @classmethod
@@ -397,7 +404,10 @@ class SectionDf(SectionBase, pd.DataFrame):
     def _new_empty(cls) -> Self:
         """Construct and empty instance"""
         df = cls(data=[], columns=cls.headings)
-        return df.set_index(cls._index_col) if cls._index_col else df
+        return cast(
+            Self,
+            df.set_index(cls._index_col) if cls._index_col else df,
+        )
 
     @classmethod
     def _newobj(cls, *args, **kwargs) -> Self:
@@ -1057,7 +1067,7 @@ class GWF(SectionDf):
     @classmethod
     def from_section_text(cls, text: str) -> Self:
         df = cls._from_section_text(text, cls._ncol)
-        return df.sort_index()
+        return cast(Self, df.sort_index())
 
 
 class Snowpack(SectionDf):
@@ -1077,7 +1087,7 @@ class Snowpack(SectionDf):
     @classmethod
     def from_section_text(cls, text: str) -> Self:
         df = cls._from_section_text(text, cls._ncol)
-        return df.sort_index()
+        return cast(Self, df.sort_index())
 
 
 class Junc(SectionDf):
@@ -1570,7 +1580,7 @@ class Timeseries(SectionBase):
 
         def to_swmm(self):
             desc = comment_formatter(self.desc)
-            return f"{self.desc}{self.name}  FILE  {self.Fname}\n\n"
+            return f"{desc}{self.name}  FILE  {self.Fname}\n\n"
 
     @staticmethod
     def _timeseries_to_swmm_dat(df, name):
@@ -1658,7 +1668,7 @@ class Timeseries(SectionBase):
                 if len(current_time_series_data) > 0:
                     df = pd.DataFrame(
                         current_time_series_data,
-                        columns=["time", "value", "desc"],
+                        columns=pd.Index(["time", "value", "desc"]),
                     ).set_index("time")
                     df.attrs["desc"] = ts_comment
                     timeseries[current_time_series_name] = df
@@ -1675,29 +1685,38 @@ class Timeseries(SectionBase):
                         desc=line_comment,
                     )
                     continue
-            time: pd.Timedelta | pd.Timestamp
             while len(split_data) > 0:
                 if isinstance(split_data[0], Number):
-                    time = pd.Timedelta(hours=float(split_data.pop(0)))
+                    time_value = pd.Timedelta(hours=float(split_data.pop(0)))
                     value = float(split_data.pop(0))
                 elif is_valid_time_format(split_data[0]):
                     hours, minutes = str(split_data.pop(0)).split(":")
-                    time = pd.Timedelta(hours=int(hours), minutes=int(minutes))
+                    time_value = pd.Timedelta(hours=int(hours), minutes=int(minutes))
                     value = float(split_data.pop(0))
                 elif is_valid_date(split_data[0]):
                     date = pd.to_datetime(split_data.pop(0))
+                    if pd.isna(date):
+                        raise ValueError(
+                            f"Error parsing timeseries {ts_name!r} date value",
+                        )
                     if not is_valid_time_format(split_data[0]):
                         raise ValueError(
                             f"Error parsing timeseries {ts_name!r} time: {split_data[0]}",
                         )
                     hours, minutes = str(split_data.pop(0)).split(":")
                     _time = pd.Timedelta(hours=int(hours), minutes=int(minutes))
-                    time = date + _time
+                    timestamp = pd.Timestamp(date)
+                    time_value = timestamp + _time
                     value = float(split_data.pop(0))
                 else:
                     raise ValueError(f"Error parsing Timeseries row {split_data}")
 
-                current_time_series_data.append([time, value, line_comment])
+                current_row: TRow = [
+                    _as_timeseries_time(time_value),
+                    value,
+                    line_comment,
+                ]
+                current_time_series_data.append(current_row)
 
             line_comment = ""
 
@@ -1782,7 +1801,7 @@ class Timeseries(SectionBase):
 
     def _patch(self, obj: Self) -> None: ...
 
-    def _drop(self, boj: str | list[str]) -> None: ...
+    def _drop(self, obj: str | list[str]) -> None: ...
 
 
 class Patterns(SectionDf):
@@ -1810,7 +1829,7 @@ class Patterns(SectionDf):
     def _new_empty(cls) -> Self:
         """Construct and empty instance"""
         df = cls(data=[], columns=cls.headings + ["Pattern_Index"])
-        return df.set_index([cls._index_col, "Pattern_Index"])
+        return cast(Self, df.set_index([cls._index_col, "Pattern_Index"]))
 
     @classmethod
     def _tabulate(cls, line: list[str | float]) -> TRow | list[TRow]:
@@ -1876,7 +1895,7 @@ class Patterns(SectionDf):
         # sort by name and index then drop the curve index field since swmm doesn't use it
         df = df.sort_index(ascending=[True, True])
         df.index = df.index.droplevel("Pattern_Index")
-        return super(Patterns, df).to_swmm_string()
+        return SectionDf.to_swmm_string(cast(SectionDf, df))
 
 
 class Inlet(SectionDf):
@@ -1899,7 +1918,7 @@ class Inlet(SectionDf):
     @classmethod
     def from_section_text(cls, text: str) -> Self:
         df = cls._from_section_text(text, cls._ncol)
-        return df.sort_index()
+        return cast(Self, df.sort_index())
 
 
 class Inlet_Usage(SectionDf):
@@ -1983,8 +2002,8 @@ class Controls(SectionBase):
         rules: dict[str, Controls.Control] = {}
         rule_start_pattern = R"(?m)(?:^;+.*\n)*^RULE.*"
         matches = list(re.finditer(rule_start_pattern, text))
-        start_char = 0
-        end_char = 0
+        start_char: SupportsIndex | None = 0
+        end_char: SupportsIndex | None = 0
         for imatch in range(len(matches)):
             if imatch == len(matches) - 1:
                 end_char = None
@@ -2140,7 +2159,7 @@ class Coverage(SectionDf):
     @classmethod
     def from_section_text(cls, text: str) -> Self:
         df = cls._from_section_text(text, cls._ncol)
-        return df.sort_index()
+        return cast(Self, df.sort_index())
 
 
 class Loading(SectionDf):
@@ -2169,7 +2188,7 @@ class Loading(SectionDf):
     @classmethod
     def from_section_text(cls, text: str) -> Self:
         df = cls._from_section_text(text, cls._ncol)
-        return df.sort_index()
+        return cast(Self, df.sort_index())
 
 
 class Buildup(SectionDf):
@@ -2188,7 +2207,7 @@ class Buildup(SectionDf):
     @classmethod
     def from_section_text(cls, text: str) -> Self:
         df = cls._from_section_text(text, cls._ncol)
-        return df.sort_index()
+        return cast(Self, df.sort_index())
 
 
 class Washoff(SectionDf):
@@ -2207,7 +2226,7 @@ class Washoff(SectionDf):
     @classmethod
     def from_section_text(cls, text: str) -> Self:
         df = cls._from_section_text(text, cls._ncol)
-        return df.sort_index()
+        return cast(Self, df.sort_index())
 
 
 class Treatment(SectionDf):
@@ -2234,7 +2253,7 @@ class Treatment(SectionDf):
     @classmethod
     def from_section_text(cls, text: str) -> Self:
         df = cls._from_section_text(text, cls._ncol)
-        return df.sort_index()
+        return cast(Self, df.sort_index())
 
 
 class Inflow(SectionDf):
@@ -2280,7 +2299,7 @@ class Inflow(SectionDf):
     @classmethod
     def from_section_text(cls, text: str) -> Self:
         df = cls._from_section_text(text, cls._ncol)
-        return df.sort_index()
+        return cast(Self, df.sort_index())
 
 
 class DWF(SectionDf):
@@ -2306,8 +2325,11 @@ class DWF(SectionDf):
 
     @classmethod
     def _tabulate(cls, line: list[str | float | int]) -> TRow | list[TRow]:
-        out = super()._tabulate(line)
-        out: TRow = [v.replace('"', "") if isinstance(v, str) else v for v in out]
+        raw_out = super()._tabulate(line)
+        if _is_nested_list(raw_out):
+            raise TypeError("Unexpected nested row data")
+        flat_out = cast("TRow", raw_out)
+        out: TRow = [v.replace('"', "") if isinstance(v, str) else v for v in flat_out]
         return out
 
     def to_swmm_string(self) -> str:
@@ -2329,7 +2351,7 @@ class DWF(SectionDf):
     @classmethod
     def from_section_text(cls, text: str) -> Self:
         df = cls._from_section_text(text, cls._ncol)
-        return df.sort_index()
+        return cast(Self, df.sort_index())
 
 
 class RDII(SectionDf):
@@ -2469,7 +2491,7 @@ class Curves(SectionDf):
     def _new_empty(cls) -> Self:
         """Construct and empty instance"""
         df = cls(data=[], columns=cls.headings + ["Curve_Index"])
-        return df.set_index([cls._index_col, "Curve_Index"])
+        return cast(Self, df.set_index([cls._index_col, "Curve_Index"]))
 
     @classmethod
     def _tabulate(cls, line: list[str | float]) -> TRow | list[TRow]:
@@ -2566,31 +2588,34 @@ class Curves(SectionDf):
         )
 
         df = pd.concat([self, df], axis=0)
-        attrs = self.attrs  # type: ignore
+        attrs = cast(dict[str, str], _get_frame_attrs(self))
         attrs[name] = curve_type
         Curves.__init__(self, df)
-        self.attrs = attrs
+        _set_frame_attrs(self, attrs)
 
     def _patch(
         self,
-        add: Optional[Self],
+        obj: Optional[SectionDf],
     ) -> None:
-        if isinstance(add, type(self)):
-            _to_add = add.index.get_level_values("Name").unique()
+        if isinstance(obj, type(self)):
+            _to_add = obj.index.get_level_values("Name").unique()
             self.drop(_to_add, errors="ignore", inplace=True)
-            df = pd.concat([self, add], axis=0)
-            attrs = {**self.attrs, **add.attrs}
+            df = pd.concat([self, obj], axis=0)
+            attrs = {
+                **_get_frame_attrs(self),
+                **_get_frame_attrs(obj),
+            }
             Curves.__init__(self, df)
-            self.attrs = attrs
+            _set_frame_attrs(self, attrs)
 
     def _drop(
         self,
-        drop: pd.Index | list[str] | list[tuple[str, ...]] | str = None,
+        obj: pd.Index | list[str] | list[tuple[str, ...]] | str | None = None,
     ) -> None:
-        if isinstance(drop, Curves):
-            drop = drop.index
-        if isinstance(drop, pd.Index | list | str):
-            self.drop(drop, errors="ignore", inplace=True)
+        if isinstance(obj, Curves):
+            obj = obj.index
+        if isinstance(obj, (pd.Index, list, str)):
+            self.drop(obj, errors="ignore", inplace=True)
 
 
 class Coordinates(SectionDf):
@@ -2623,15 +2648,18 @@ class Vertices(SectionDf):
 
     def _patch(
         self,
-        obj: Optional[Self],
+        obj: Optional[SectionDf],
     ) -> None:
         if isinstance(obj, type(self)):
             _to_add = obj.index.get_level_values("Link").unique()
             self.drop(_to_add, errors="ignore", inplace=True)
             df = pd.concat([self, obj], axis=0)
-            attrs = {**self.attrs, **obj.attrs}  # type: ignore
+            attrs = {
+                **_get_frame_attrs(self),
+                **_get_frame_attrs(obj),
+            }
             Vertices.__init__(self, df)
-            self.attrs = attrs
+            _set_frame_attrs(self, attrs)
 
 
 class Polygons(SectionDf):
@@ -2650,15 +2678,18 @@ class Polygons(SectionDf):
 
     def _patch(
         self,
-        obj: Optional[Self],
+        obj: Optional[SectionDf],
     ) -> None:
         if isinstance(obj, type(self)):
             _to_add = obj.index.get_level_values("Elem").unique()
             self.drop(_to_add, errors="ignore", inplace=True)
             df = pd.concat([self, obj], axis=0)
-            attrs = {**self.attrs, **obj.attrs}  # type: ignore
+            attrs = {
+                **_get_frame_attrs(self),
+                **_get_frame_attrs(obj),
+            }
             Polygons.__init__(self, df)
-            self.attrs = attrs
+            _set_frame_attrs(self, attrs)
 
 
 class Symbols(SectionDf):
@@ -2709,7 +2740,8 @@ class Labels(SectionDf):
 
             tok_index += 1
 
-        return [_coerce_numeric(v.strip()) for v in out]
+        row: TRow = [_coerce_numeric(v.strip()) for v in out]
+        return row
 
 
 class Tags(SectionDf):
@@ -2728,7 +2760,7 @@ class Tags(SectionDf):
     @classmethod
     def from_section_text(cls, text: str) -> Self:
         df = cls._from_section_text(text, cls._ncol)
-        return df.sort_index()
+        return cast(Self, df.sort_index())
 
 
 class Profile(SectionText):
@@ -2796,7 +2828,7 @@ class LID_Usage(SectionDf):
     @classmethod
     def from_section_text(cls, text: str) -> Self:
         df = cls._from_section_text(text, cls._ncol)
-        return df.sort_index()
+        return cast(Self, df.sort_index())
 
 
 class Adjustments(SectionDf):

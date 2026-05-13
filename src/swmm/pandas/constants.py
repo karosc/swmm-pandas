@@ -1,3 +1,5 @@
+"""Shared unit-conversion constants and example data paths."""
+
 import os.path
 
 _this_dir, _this_filename = os.path.split(__file__)

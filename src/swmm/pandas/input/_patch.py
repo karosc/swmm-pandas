@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-
-from typing import TypeVar, Union, overload
 import copy
 import re
 from io import StringIO
 from pathlib import Path
+from typing import TypeVar, Union, overload
 
 import yaml
 
@@ -52,10 +51,10 @@ class InpPatch:
             # Return empty dict and original content if YAML parsing fails
             return {}, content
 
-    def split_patch(self):
+    def split_patch(self) -> None:
 
-        drops = []
-        keeps = []
+        drops: list[str] = []
+        keeps: list[str] = []
         _section_re = re.compile(R"^\[[\s\S]*?(?=^\[|\Z)", re.MULTILINE)
         _section_keys = tuple(_sections.keys())
         with open(self._inp_patch) as f:

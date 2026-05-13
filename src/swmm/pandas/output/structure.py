@@ -1,12 +1,19 @@
+"""Structure-level aggregations built from SWMM output series."""
+
 from __future__ import annotations
 
 from collections.abc import Sequence
+from turtle import pd
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
 from pandas._libs.missing import NA
-from pandas.core.api import DataFrame
+from pandas.core.api import DataFrame, Index, Series
 from swmm.pandas.output.tools import arrayish
+
+if TYPE_CHECKING:
+    from swmm.pandas.output.output import Output
 
 volumeConstants = {
     "CFS": dict(multiplier=1 * (7.481 / 1e6), volumeUnits="MG"),
@@ -46,7 +53,7 @@ class Structure:
 
     def __init__(
         self,
-        outfile,
+        outfile: Output,
         link: str | Sequence[str],
         node: str | Sequence[str],
     ):
@@ -71,10 +78,13 @@ class Structure:
         if hasattr(self, "_floodFrame"):
             pass
         else:
-            self._floodFrame = self.out.node_series(
-                self.node,
-                "flooding_losses",
-                columns="elem",
+            self._floodFrame = cast(
+                DataFrame,
+                self.out.node_series(
+                    self.node,
+                    "flooding_losses",
+                    columns="elem",
+                ),
             )
 
         return self._floodFrame
@@ -93,10 +103,13 @@ class Structure:
         if hasattr(self, "_flowFrame"):
             pass
         else:
-            self._flowFrame = self.out.link_series(
-                self.link,
-                "flow_rate",
-                columns="elem",
+            self._flowFrame = cast(
+                DataFrame,
+                self.out.link_series(
+                    self.link,
+                    "flow_rate",
+                    columns="elem",
+                ),
             )
 
         return self._flowFrame
@@ -107,7 +120,7 @@ class Structure:
         useNegative: bool | Sequence[bool] = False,
         reverse: bool | int | Sequence[bool | int] = False,
         aggFunc: str = "sum",
-    ):
+    ) -> Series:
         """
         Aggregate a multi element time series into a single element time series.
         This function is used to calculate combined flow rates and flooding rates
@@ -147,7 +160,7 @@ class Structure:
 
         # reverse values if requested
         if isinstance(reverse, arrayish):
-            reverse = [-1 if col else 1 for col in reverse]
+            reverse = [-1 if col else 1 for col in list(reverse)]
         elif isinstance(reverse, bool):
             reverse = -1 if reverse else 1
         else:
@@ -179,7 +192,7 @@ class Structure:
         thresholdFlow: float = 0.01,
         useNegativeFlow: bool | Sequence[bool] = False,
         reverseFlow: bool | Sequence[bool] = False,
-    ):
+    ) -> DataFrame:
         """
         Bin flow data into discrete events based on an inter-event period and threshold flow rate.
         Maximum flowrates, total flow volumes, and duration of each event are returned in a DataFrame.
@@ -209,7 +222,7 @@ class Structure:
         # put series in DataFrame, and add event_num column
         q = DataFrame(
             series[series > thresholdFlow],
-            columns=["flow_rate"],
+            columns=Index(["flow_rate"]),
         ).reset_index()
         q["event_num"] = NA
         # initialize first event
@@ -260,7 +273,7 @@ class Structure:
         self,
         inter_event_period: float = 6,
         thresholdFood: float = 0.01,
-    ):
+    ) -> DataFrame:
         """
         Bins flooding data into discrete events based on an inter-event period and threshold flooding rate.
         Maximum flooding rates and duration of each flooding event are returned in a DataFrame.
@@ -287,7 +300,7 @@ class Structure:
         # put series in DataFrame, and add event_num column
         q = DataFrame(
             series[series > thresholdFood],
-            columns=["flooding_losses"],
+            columns=Index(["flooding_losses"]),
         ).reset_index()
         q["event_num"] = NA
         # initialize first event

@@ -6,10 +6,9 @@
 from __future__ import annotations
 
 import copy
+import importlib
 import pathlib
-import re
-import warnings
-from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Optional, Protocol, TypeVar, cast
 
 import pandas as pd
 import swmm.pandas.input._section_classes as sc
@@ -21,6 +20,19 @@ if TYPE_CHECKING:
     from networkx import MultiDiGraph
 
 T = TypeVar("T")
+
+
+class _FoliumHtmlContainer(Protocol):
+    def add_child(
+        self,
+        child: object,
+        name: str | None = None,
+        index: int | None = None,
+    ) -> object: ...
+
+
+class _FoliumRoot(Protocol):
+    html: _FoliumHtmlContainer
 
 
 def object_hasattr(obj: Any, name: str):
@@ -57,7 +69,7 @@ class NoAccessError(Exception):
 def no_setter_property(func: Callable[[Any], T]) -> property:
 
     def readonly_setter(self: Any, obj: Any) -> None:
-        raise NoAssignmentError(func.__name__)
+        raise NoAssignmentError(getattr(func, "__name__", func.__class__.__name__))
 
     return property(fget=func, fset=readonly_setter, doc=func.__doc__)
 
@@ -71,7 +83,7 @@ class Input:
     ):
         if isinstance(inpfile, InputFile):
             self._inp = inpfile
-        elif isinstance(inpfile, str | pathlib.Path):
+        elif isinstance(inpfile, (str, pathlib.Path)):
             self._inp = InputFile(inpfile, crs=crs)
 
     ##########################################################
@@ -127,7 +139,7 @@ class Input:
         return inp_df.dropna(how="all")
 
     # constructors
-    def _general_constructor(self, inp_frames: list[SectionDf]) -> pd.DataFrame:
+    def _general_constructor(self, inp_frames: list[pd.DataFrame]) -> pd.DataFrame:
         left = inp_frames.pop(0).drop("desc", axis=1, errors="ignore")
         for right in inp_frames:
             left = pd.merge(
@@ -955,15 +967,14 @@ class Input:
 
     # endregion non-component sections
 
-    def explore(self) -> None:
+    def explore(self):
 
         if not self._geo:
             raise ValueError("Input data does not have geometries.")
-        import folium
+        folium = importlib.import_module("folium")
         from jinja2 import Template
 
-        arrow_js = Template(
-            """
+        arrow_js = Template("""
             <script>
             document.addEventListener('DOMContentLoaded', function() {
             {{ geojson_name }}.eachLayer(function(layer){
@@ -985,12 +996,12 @@ class Input:
                 });
             });
             </script>
-            """
-        )
+            """)
         plugin_js = "https://cdn.jsdelivr.net/npm/leaflet-polylinedecorator@1.6.0/dist/leaflet.polylineDecorator.min.js"
         m = folium.Map()
-        m.get_root().html.add_child(
-            folium.Element(f'<script src="{plugin_js}"></script>'), index=-1
+        root = cast(_FoliumRoot, m.get_root())
+        root.html.add_child(
+            folium.Element(f'<script src="{plugin_js}"></script>'), index=-1,
         )
 
         def _link_style_function(x: dict) -> dict:
@@ -1019,7 +1030,7 @@ class Input:
             )
 
             geojson_name = list(m._children.values())[-1].get_name()
-            m.get_root().html.add_child(
+            root.html.add_child(
                 folium.Element(
                     arrow_js.render(
                         geojson_name=geojson_name,
@@ -1039,7 +1050,7 @@ class Input:
             )
 
             geojson_name = list(m._children.values())[-1].get_name()
-            m.get_root().html.add_child(
+            root.html.add_child(
                 folium.Element(
                     arrow_js.render(
                         geojson_name=geojson_name,
@@ -1060,7 +1071,7 @@ class Input:
             )
 
             geojson_name = list(m._children.values())[-1].get_name()
-            m.get_root().html.add_child(
+            root.html.add_child(
                 folium.Element(
                     arrow_js.render(
                         geojson_name=geojson_name,
@@ -1081,7 +1092,7 @@ class Input:
             )
 
             geojson_name = list(m._children.values())[-1].get_name()
-            m.get_root().html.add_child(
+            root.html.add_child(
                 folium.Element(
                     arrow_js.render(
                         geojson_name=geojson_name,
@@ -1102,7 +1113,7 @@ class Input:
             )
 
             geojson_name = list(m._children.values())[-1].get_name()
-            m.get_root().html.add_child(
+            root.html.add_child(
                 folium.Element(
                     arrow_js.render(
                         geojson_name=geojson_name,
@@ -1214,10 +1225,11 @@ class Input:
     def to_graph(self) -> MultiDiGraph:
         """Convert the input data to a NetworkX MultiDiGraph object.
 
-        Returns:
+        Returns
+        -------
             nx.MultiDiGraph: A directed graph representing the network.
         """
-        import networkx as nx
+        nx = importlib.import_module("networkx")
 
         G = nx.MultiDiGraph()
 

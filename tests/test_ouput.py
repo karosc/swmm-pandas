@@ -36,6 +36,15 @@ def _sorted_export_df(path):
     return df.sort_values(list(df.columns)).reset_index(drop=True)
 
 
+def _sorted_export_df_fs(path, filesystem):
+    import pyarrow.fs as pafs
+    import pyarrow.parquet as pq
+
+    arrow_fs = pafs.PyFileSystem(pafs.FSSpecHandler(filesystem))
+    df = pq.read_table(path, filesystem=arrow_fs).to_pandas()
+    return df.sort_values(list(df.columns)).reset_index(drop=True)
+
+
 def _dataset_files(path):
     return sorted(file.relative_to(path).as_posix() for file in path.rglob("*.parquet"))
 
@@ -481,6 +490,21 @@ def test_to_parquet_row_batch_size_one(outfile, tmp_path):
     assert df["name"].unique().tolist() == ["JUNC3"]
 
 
+def test_to_parquet_with_fsspec_filesystem(outfile):
+    fsspec = pytest.importorskip("fsspec")
+    filesystem = fsspec.filesystem("memory")
+    path = "container/streamed.parquet"
+
+    returned_path = outfile.to_parquet(path, filesystem=filesystem)
+
+    assert returned_path == path
+    assert filesystem.exists(path)
+
+    df = _sorted_export_df_fs(path, filesystem)
+    assert df.shape == (55584, 5)
+    assert df.columns.tolist() == ["datetime", "kind", "name", "attribute", "value"]
+
+
 @pytest.mark.parametrize(
     "partition_freq,expected_columns",
     [
@@ -515,6 +539,45 @@ def test_to_parquet_partition_columns(outfile, tmp_path, partition_freq, expecte
     assert files
     assert all(file.split("/")[-1].count("_") == 1 for file in files)
     assert all(file.endswith(".parquet") for file in files)
+
+
+def test_to_parquet_partitioned_with_fsspec_filesystem(outfile):
+    fsspec = pytest.importorskip("fsspec")
+    filesystem = fsspec.filesystem("memory")
+    path = "container/partitioned"
+
+    returned_path = outfile.to_parquet(
+        path,
+        node_attributes=["invert_depth"],
+        nodes=["JUNC3"],
+        link_attributes=[],
+        subcatchment_attributes=[],
+        system_attributes=[],
+        partition_freq="D",
+        row_batch_size=100,
+        filesystem=filesystem,
+    )
+
+    assert returned_path == path
+    files = sorted(file for file in filesystem.find(path) if file.endswith(".parquet"))
+    assert files == [
+        "container/partitioned/year=1900/month=1/day=1/19000101000500_19000101082500.parquet",
+        "container/partitioned/year=1900/month=1/day=1/19000101082500_19000101164500.parquet",
+        "container/partitioned/year=1900/month=1/day=1/19000101164500_19000102000000.parquet",
+        "container/partitioned/year=1900/month=1/day=2/19000102000000_19000102000500.parquet",
+    ]
+
+    df = _sorted_export_df_fs(path, filesystem)
+    assert df.columns.tolist() == [
+        "datetime",
+        "kind",
+        "name",
+        "attribute",
+        "value",
+        "year",
+        "month",
+        "day",
+    ]
 
 
 def test_to_parquet_partitioned_filenames_and_overwrite(outfile, tmp_path):

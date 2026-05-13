@@ -10,8 +10,12 @@ authors = [
     { name = "Constantine Karos", email = "ckaros@outlook.com" },
     { name = "See README.md" },
 ]
-dependencies = ["julian", "pandas>=2.1", "swmm-toolkit>=0.16.0"]
-requires-python = ">=3.9"
+dependencies = [
+    "julian",
+    "pandas>=2.1",
+    "swmm-toolkit>=0.16.0",
+]
+requires-python = ">=3.11"
 readme = "README.md"
 license = { text = "CC BY 4.0" }
 keywords = ["swmm5", "swmm", "stormwater", "hydraulics", "hydrology", ""]
@@ -22,7 +26,6 @@ classifiers = [
     "Operating System :: MacOS",
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -34,15 +37,22 @@ classifiers = [
 Homepage = "https://github.com/karosc/swmm-pandas"
 
 [project.optional-dependencies]
-geo = ["geopandas>=1.0.1"]
-
-
-[tool.uv.sources]
-swmm-toolkit = { index = "pypi" }
+geo = [
+    "folium>=0.20.0",
+    "geopandas>=1.0.1",
+]
+graph = [
+    "networkx>=3.6.1",
+]
 
 [[tool.uv.index]]
 name = "pypi"
 url = "https://pypi.org/simple"
+default = true
+
+
+[tool.uv.sources]
+swmm-toolkit = { index = "pypi" }
 
 
 [tool.uv.build-backend]
@@ -75,5 +85,6 @@ dev = [
     "sphinx>=7.4.7",
     "sphinx-autobuild>=2024.10.3",
     "types-pyyaml>=6.0.12.20250915",
+    "fsspec>=2024.0.0",
+
 ]
-geo = ["geopandas>=1.0.1"]

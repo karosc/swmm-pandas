@@ -1,13 +1,16 @@
+"""Shared helper utilities for SWMM output processing."""
+
 from __future__ import annotations
 
 import numpy as np
-from aenum import EnumMeta
+from aenum import Enum, EnumMeta
 
 arrayishNone = (list, tuple, set, np.ndarray, type(None))
 arrayish = (list, tuple, set, np.ndarray)
 
 
 def elements(path: str) -> dict[str, list[str]]:
+    """Parse element names from a sectioned text file."""
     with open(path) as fil:
         elements: dict[str, list[str]] = {}
         for lin in fil:

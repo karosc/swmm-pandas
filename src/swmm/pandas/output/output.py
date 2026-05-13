@@ -1,18 +1,27 @@
+"""SWMM binary output reader and query helpers."""
+
 from __future__ import annotations
 
-import importlib
-import logging
-import os
 import os.path
 import struct
 import warnings
-from collections.abc import Iterator, Sequence
-from dataclasses import dataclass
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 from functools import wraps
 from io import SEEK_END
 from itertools import product
-from typing import Any, Callable, Self, TypeVar, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Literal,
+    Protocol,
+    Self,
+    TypeAlias,
+    TypeVar,
+    cast,
+    runtime_checkable,
+)
 
 import numpy as np
 from aenum import Enum, EnumMeta, extend_enum
@@ -39,20 +48,24 @@ from pandas.core.api import (
     Timestamp,
     to_datetime,
 )
+from swmm.pandas.output.parquet import _ExportColumn, _ParquetExporter
 from swmm.pandas.output.structure import Structure
 from swmm.pandas.output.tools import _enum_get, _enum_keys, arrayish
 
-logger = logging.getLogger(__name__)
+if TYPE_CHECKING:
+    from fsspec.spec import AbstractFileSystem
 
 T = TypeVar("T")
 
 
-@dataclass(frozen=True)
-class _ExportColumn:
-    kind: str
+@runtime_checkable
+class AttributeEnumLike(Protocol):
     name: str
-    attribute: str
-    value_index: int
+    value: int
+
+
+AttributeToken: TypeAlias = int | str | AttributeEnumLike
+AttributeSpec: TypeAlias = AttributeToken | Sequence[AttributeToken] | None
 
 
 def output_open_handler(func: Callable[..., T]) -> Callable[..., T]:
@@ -65,7 +78,7 @@ def output_open_handler(func: Callable[..., T]) -> Callable[..., T]:
     """
 
     @wraps(func)
-    def inner_function(self: Output, *args: Any, **kwargs: Any) -> T:
+    def inner_function(self: Output, *args: object, **kwargs: object) -> T:
         if not self._loaded:
             self._open()
 
@@ -147,7 +160,7 @@ class Output:
         self._loaded: bool = False
         """Indicates if output file was loaded correctly"""
 
-        self.subcatch_attributes = Enum(
+        self.subcatch_attributes: EnumMeta = Enum(
             "subcatch_attributes",
             list(shared_enum.SubcatchAttribute.__members__.keys())[:-1],
             start=0,
@@ -173,7 +186,7 @@ class Output:
         # output objects opened in the same python session if they
         # have different pollutant names
 
-        self.node_attributes: shared_enum.NodeAttribute = Enum(
+        self.node_attributes: EnumMeta = Enum(
             "node_attributes",
             list(shared_enum.NodeAttribute.__members__.keys())[:-1],
             start=0,
@@ -187,7 +200,7 @@ class Output:
         'total_inflow',
         'flooding_losses'
         """
-        self.link_attributes: shared_enum.LinkAttribute = Enum(
+        self.link_attributes: EnumMeta = Enum(
             "link_attributes",
             list(shared_enum.LinkAttribute.__members__.keys())[:-1],
             start=0,
@@ -202,7 +215,7 @@ class Output:
 
         """
 
-        self.system_attributes = shared_enum.SystemAttribute
+        self.system_attributes: EnumMeta = shared_enum.SystemAttribute  # type: ignore
         """System attribute enumeration: By default has
 
         'air_temp',
@@ -271,9 +284,9 @@ class Output:
 
     @staticmethod
     def _validateAttribute(
-        attribute: int | str | Sequence[int | str] | None,
+        attribute: AttributeSpec | EnumMeta,
         validAttributes: EnumMeta,
-    ) -> tuple[list[str], list[int | EnumMeta | None]]:
+    ) -> tuple[list[str], list[AttributeEnumLike]]:
         """
         Function to validate attribute arguments of element_series, element_attribute,
         and element_result functions.
@@ -282,8 +295,8 @@ class Output:
         ----------
         attribute: Union[int, str, Sequence[Union[int, str]], None]
             The attribute to validate against validAttributes.
-        validAttributes: dict
-            THe dict of attributes against which to validate attribute.
+        validAttributes: EnumMeta
+            The enum of attributes against which to validate attribute.
 
         Returns
         -------
@@ -294,30 +307,38 @@ class Output:
         # this kind of logic was needed in the series and results functions.
         # not sure if this is the best way, but it felt a bit DRYer to
         # put it into a funciton
-        attributeArray: list[EnumMeta | str | int]
+        attributeArray: list[AttributeToken]
         if isinstance(attribute, (type(None), EnumMeta)):
             attributeArray = list(_enum_keys(validAttributes))
         elif isinstance(attribute, arrayish):
-            attributeArray = list(attribute)
-        elif isinstance(attribute, (int, str, Enum)):
+            attributeArray = cast(list[AttributeToken], list(attribute))
+        elif isinstance(attribute, (int, str)) or isinstance(
+            attribute,
+            AttributeEnumLike,
+        ):
             attributeArray = [attribute]
         else:
             raise ValueError(f"Error validating attribute {attribute!r}")
 
         # allow mixed input of attributes
         # accept string names, integers, or enums values in the same list
-        attributeIndexArray: list[int | EnumMeta | None] = []
+        attributeIndexArray: list[AttributeEnumLike] = []
         attributeNameArray: list[str] = []
-        for i, attrib in enumerate(attributeArray):
-            if isinstance(attrib, Enum):
+        for attrib in attributeArray:
+            if isinstance(attrib, AttributeEnumLike):
                 attributeNameArray.append(str(attrib.name.lower()))
                 attributeIndexArray.append(attrib)
 
             elif isinstance(attrib, (int, npint)):
                 # will raise index error if not in range
-                attribName = _enum_keys(validAttributes)[attrib]
+                attribName = _enum_keys(validAttributes)[int(attrib)]
+                index = _enum_get(validAttributes, attribName)
+                if index is None:
+                    raise ValueError(
+                        f"Attribute {attribName} not in valid attribute list",
+                    )
                 attributeNameArray.append(attribName)
-                attributeIndexArray.append(_enum_get(validAttributes, attribName))
+                attributeIndexArray.append(cast(AttributeEnumLike, index))
 
             elif isinstance(attrib, str):
                 index = _enum_get(validAttributes, attrib)
@@ -326,7 +347,7 @@ class Output:
                         f"Attribute {attrib} not in valid attribute list: {_enum_keys(validAttributes)}",
                     )
                 attributeNameArray.append(attrib)
-                attributeIndexArray.append(index)
+                attributeIndexArray.append(cast(AttributeEnumLike, index))
             else:
                 raise TypeError(
                     f"Input type: {type(attrib)} not valid. Must be one of int, str, or Enum",
@@ -362,26 +383,25 @@ class Output:
         # this kind of logic was needed in the series and results functions
         # not sure if this is the best way, but it felt a bit DRYer to
         # put it into a funciton
-        elementArray: list[str | int]
+        elementArray: list[Any]
         if element is None:
             elementArray = list(validElements)
         elif isinstance(element, arrayish):
             elementArray = list(element)
         else:
-            # ignore typing since types of this output list
-            # are reconciled in the next loop. mypy was complaining.
-            elementArray = [element]  # type: ignore
+            elementArray = [element]
 
-        elementIndexArray = []
-        elemNameArray = []
+        elementIndexArray: list[int] = []
+        elemNameArray: list[str] = []
         # allow mixed input of elements. string names can be mixed
         # with integer indicies in the same input list
-        for i, elem in enumerate(elementArray):
+        for elem in elementArray:
             if isinstance(elem, (int, npint)):
                 # will raise index error if not in range
-                elemName = validElements[elem]
+                elem_idx = int(elem)
+                elemName = validElements[elem_idx]
                 elemNameArray.append(elemName)
-                elementIndexArray.append(elem)
+                elementIndexArray.append(elem_idx)
 
             elif isinstance(elem, str):
                 elementIndexArray.append(Output._elementIndex(elem, validElements, ""))
@@ -442,9 +462,6 @@ class Output:
 
     def _open(self) -> bool:
         """Open a binary file.
-
-        Parameters
-        ----------
 
         Returns
         -------
@@ -508,7 +525,9 @@ class Output:
                     range(len(self.link_attributes)),
                 ),
             )
-            system = list(product(["sys"], ["sys"], range(len(self.system_attributes))))
+            system = list(
+                product(["sys"], ["sys"], range(len(self.system_attributes))),
+            )
 
             cols = subs + nodes + links + system
             cols.insert(0, ("datetime", 0, 0))
@@ -526,9 +545,6 @@ class Output:
 
     def _close(self) -> bool:
         """Close an opened binary file.
-
-        Parameters
-        ----------
 
         Returns
         -------
@@ -610,306 +626,6 @@ class Output:
             )
 
         return self.__result_record_dtype
-
-    def _build_export_plan(
-        self,
-        link_attributes: list[str | shared_enum.LinkAttribute] | None = None,
-        node_attributes: list[str | shared_enum.NodeAttribute] | None = None,
-        subcatchment_attributes: (
-            list[str | shared_enum.SubcatchAttribute] | None
-        ) = None,
-        system_attributes: list[str | shared_enum.SystemAttribute] | None = None,
-        links: list[str] | None = None,
-        nodes: list[str] | None = None,
-        subcatchments: list[str] | None = None,
-        system: bool = True,
-    ) -> tuple[_ExportColumn, ...]:
-        selected_subcatchments = set(
-            self._validateElement(subcatchments, self.subcatchments)[0],
-        )
-        selected_nodes = set(self._validateElement(nodes, self.nodes)[0])
-        selected_links = set(self._validateElement(links, self.links)[0])
-
-        selected_subcatch_attributes = set(
-            self._validateAttribute(
-                subcatchment_attributes,
-                self.subcatch_attributes,
-            )[0],
-        )
-        selected_node_attributes = set(
-            self._validateAttribute(node_attributes, self.node_attributes)[0],
-        )
-        selected_link_attributes = set(
-            self._validateAttribute(link_attributes, self.link_attributes)[0],
-        )
-        selected_system_attributes = set(
-            self._validateAttribute(system_attributes, self.system_attributes)[0],
-        )
-
-        selected_columns: list[_ExportColumn] = []
-        for column in self._result_columns:
-            if column.kind == "sub":
-                include = (
-                    column.name in selected_subcatchments
-                    and column.attribute in selected_subcatch_attributes
-                )
-            elif column.kind == "node":
-                include = (
-                    column.name in selected_nodes
-                    and column.attribute in selected_node_attributes
-                )
-            elif column.kind == "link":
-                include = (
-                    column.name in selected_links
-                    and column.attribute in selected_link_attributes
-                )
-            elif column.kind == "sys":
-                include = system and column.attribute in selected_system_attributes
-            else:
-                logger.warning(f"Unknown column kind: {column.kind}")
-                include = False
-            if include:
-                selected_columns.append(column)
-
-        return tuple(selected_columns)
-
-    @staticmethod
-    def _normalize_partition_freq(partition_freq: str | None) -> str | None:
-        if partition_freq is None:
-            return None
-
-        if not isinstance(partition_freq, str):
-            raise TypeError("partition_freq must be a pandas frequency string or None")
-
-        normalized = partition_freq.upper()
-        partition_modes = {
-            "A": "year",
-            "Y": "year",
-            "YE": "year",
-            "YS": "year",
-            "M": "month",
-            "MS": "month",
-            "D": "day",
-            "H": "hour",
-            "YEAR": "year",
-            "MONTH": "month",
-            "DAY": "day",
-            "HOUR": "hour",
-        }
-
-        if normalized not in partition_modes:
-            raise ValueError(
-                "partition_freq must be one of A, Y, YE, YS, M, MS, D, H, or h",
-            )
-
-        return partition_modes[normalized]
-
-    @staticmethod
-    def _partition_columns(partition_mode: str) -> list[str]:
-        partition_columns = {
-            "year": ["year"],
-            "month": ["year", "month"],
-            "day": ["year", "month", "day"],
-            "hour": ["year", "month", "day", "hour"],
-        }
-        return partition_columns[partition_mode]
-
-    def _empty_export_frame(self) -> DataFrame:
-        return DataFrame(
-            {
-                "datetime": asarray([], dtype="datetime64[ns]"),
-                "kind": asarray([], dtype=object),
-                "name": asarray([], dtype=object),
-                "attribute": asarray([], dtype=object),
-                "value": asarray([], dtype="float32"),
-            },
-        )
-
-    def _build_long_frame(
-        self,
-        export_columns: Sequence[_ExportColumn],
-        swmm_datetimes: ndarray,
-        value_chunk: ndarray,
-    ) -> DataFrame:
-        if len(export_columns) == 0 or len(swmm_datetimes) == 0:
-            return self._empty_export_frame()
-
-        datetime_values = asarray(
-            [self._datetime_from_swmm(value) for value in swmm_datetimes],
-            dtype="datetime64[ns]",
-        )
-
-        kind_values = asarray([column.kind for column in export_columns], dtype=object)
-        name_values = asarray([column.name for column in export_columns], dtype=object)
-        attribute_values = asarray(
-            [column.attribute for column in export_columns],
-            dtype=object,
-        )
-
-        row_count, column_count = value_chunk.shape
-        return DataFrame(
-            {
-                "datetime": tile(datetime_values, column_count),
-                "kind": kind_values.repeat(row_count),
-                "name": name_values.repeat(row_count),
-                "attribute": attribute_values.repeat(row_count),
-                "value": asarray(value_chunk).reshape(-1, order="F"),
-            },
-        )
-
-    def _iter_long_frame_batches(
-        self,
-        export_columns: Sequence[_ExportColumn],
-        row_batch_size: int,
-    ) -> Iterator[DataFrame]:
-        if row_batch_size < 1:
-            raise ValueError("row_batch_size must be greater than 0")
-
-        if len(export_columns) == 0 or self._period == 0:
-            yield self._empty_export_frame()
-            return
-
-        selected_value_indices = [column.value_index for column in export_columns]
-
-        if self._preload:
-            data_column_indices = [index + 1 for index in selected_value_indices]
-            for start in range(0, self._period, row_batch_size):
-                stop = min(start + row_batch_size, self._period)
-                swmm_datetimes = self.data.iloc[start:stop, 0].to_numpy(copy=False)
-                value_chunk = self.data.iloc[
-                    start:stop,
-                    data_column_indices,
-                ].to_numpy(copy=False)
-                yield self._build_long_frame(
-                    export_columns, swmm_datetimes, value_chunk
-                )
-            return
-
-        record_dtype = self._result_record_dtype
-        record_size = record_dtype.itemsize
-        with open(self._binfile, "rb") as fil:
-            for start in range(0, self._period, row_batch_size):
-                count = min(row_batch_size, self._period - start)
-                fil.seek(self._output_position + start * record_size, 0)
-                chunk = np.fromfile(fil, dtype=record_dtype, count=count)
-                swmm_datetimes = chunk["datetime"]
-                value_chunk = chunk["values"][:, selected_value_indices]
-                yield self._build_long_frame(
-                    export_columns, swmm_datetimes, value_chunk
-                )
-
-    @staticmethod
-    def _pyarrow_modules() -> tuple[Any, Any, Any]:
-        try:
-            pyarrow = importlib.import_module("pyarrow")
-            dataset = importlib.import_module("pyarrow.dataset")
-            parquet = importlib.import_module("pyarrow.parquet")
-        except ImportError as exc:
-            raise ImportError(
-                "pyarrow is required for Output.to_parquet(). Install it in your uv environment first.",
-            ) from exc
-
-        return pyarrow, dataset, parquet
-
-    def _write_parquet_file(
-        self,
-        path: str | os.PathLike[str],
-        batches: Iterator[DataFrame],
-    ) -> str:
-        pyarrow, _, parquet = self._pyarrow_modules()
-        path_str = os.fspath(path)
-        parent = os.path.dirname(path_str)
-        if parent:
-            os.makedirs(parent, exist_ok=True)
-
-        writer = None
-        try:
-            for batch in batches:
-                table = pyarrow.Table.from_pandas(batch, preserve_index=False)
-                if writer is None:
-                    writer = parquet.ParquetWriter(path_str, table.schema)
-                writer.write_table(table)
-        finally:
-            if writer is not None:
-                writer.close()
-
-        return path_str
-
-    def _add_partition_columns(
-        self,
-        batch: DataFrame,
-        partition_mode: str,
-    ) -> DataFrame:
-        partitioned = batch.copy()
-        datetime_parts = partitioned["datetime"].dt
-        partitioned["year"] = datetime_parts.year
-        if partition_mode in ("month", "day", "hour"):
-            partitioned["month"] = datetime_parts.month
-        if partition_mode in ("day", "hour"):
-            partitioned["day"] = datetime_parts.day
-        if partition_mode == "hour":
-            partitioned["hour"] = datetime_parts.hour
-        return partitioned
-
-    @staticmethod
-    def _format_partition_timestamp(timestamp: Timestamp | datetime) -> str:
-        return Timestamp(timestamp).strftime("%Y%m%d%H%M%S")
-
-    def _partition_file_name(self, batch: DataFrame) -> str:
-        start = cast(Timestamp, batch["datetime"].min())
-        end = cast(Timestamp, batch["datetime"].max()) + timedelta(seconds=self._report)
-        return (
-            f"{self._format_partition_timestamp(start)}_"
-            f"{self._format_partition_timestamp(end)}.parquet"
-        )
-
-    def _write_parquet_dataset(
-        self,
-        path: str | os.PathLike[str],
-        batches: Iterator[DataFrame],
-        partition_mode: str,
-    ) -> str:
-        pyarrow, _, parquet = self._pyarrow_modules()
-        path_str = os.fspath(path)
-
-        if os.path.exists(path_str):
-            if not os.path.isdir(path_str):
-                raise FileExistsError(
-                    f"Partitioned parquet path '{path_str}' already exists and is not a directory.",
-                )
-        else:
-            os.makedirs(path_str, exist_ok=True)
-
-        partition_columns = self._partition_columns(partition_mode)
-
-        for batch in batches:
-            partitioned = self._add_partition_columns(batch, partition_mode)
-            if partitioned.empty:
-                continue
-
-            for _, group in partitioned.groupby(partition_columns, sort=True):
-                if group.empty:
-                    continue
-
-                partition_values = group.iloc[0]
-                partition_path = os.path.join(
-                    path_str,
-                    *[
-                        f"{column}={int(partition_values[column])}"
-                        for column in partition_columns
-                    ],
-                )
-                os.makedirs(partition_path, exist_ok=True)
-
-                file_name = self._partition_file_name(group)
-                file_path = os.path.join(partition_path, file_name)
-                table = pyarrow.Table.from_pandas(
-                    group.drop(columns=partition_columns),
-                    preserve_index=False,
-                )
-                parquet.write_table(table, file_path)
-
-        return path_str
 
     @property
     @output_open_handler
@@ -1092,7 +808,9 @@ class Output:
             | Sequence[str | int | datetime | Timestamp | datetime64]
         ),
         ifNone: int = 0,
-        method: str = "nearest",
+        method: (
+            Literal["backfill", "bfill", "ffill", "pad", "nearest"] | None
+        ) = "nearest",
     ) -> list[int]:
         """Convert datetime value to SWMM timestep index. By deafult, this returns the nearest timestep to
         to the requested date, so it will always return a time index available in the binary output file.
@@ -1323,8 +1041,8 @@ class Output:
         if elemType == "sys":
 
             def getter(
-                _handle: Any,
-                Attr: EnumMeta,
+                _handle: object,
+                Attr: AttributeEnumLike,
                 startIndex: int,
                 endIndex: int,
             ) -> ndarray:
@@ -1341,9 +1059,9 @@ class Output:
         else:
 
             def getter(  # type: ignore[misc]
-                _handle: Any,
+                _handle: object,
                 elemIdx: int,
-                Attr: EnumMeta,
+                Attr: AttributeEnumLike,
                 startIndex: int,
                 endIndex: int,
             ) -> ndarray:
@@ -1362,7 +1080,7 @@ class Output:
     def _model_series(
         self,
         elementIndexArray: list[int],
-        attributeIndexArray: list[EnumMeta],
+        attributeIndexArray: list[AttributeEnumLike],
         startIndex: int,
         endIndex: int,
         columns: str | None,
@@ -1588,7 +1306,7 @@ class Output:
     def subcatch_series(
         self,
         subcatchment: int | str | Sequence[int | str] | None,
-        attribute: int | str | EnumMeta | Sequence[int | str | EnumMeta] | None = (
+        attribute: AttributeSpec = (
             "rainfall",
             "runoff_rate",
             "gw_outflow_rate",
@@ -1785,13 +1503,13 @@ class Output:
             endIndex,
             columns,
         )
-        return DataFrame(values, index=dfIndex, columns=cols)
+        return DataFrame(values, index=dfIndex, columns=Index(cols))
 
     @output_open_handler
     def node_series(
         self,
         node: int | str | Sequence[int | str] | None,
-        attribute: int | str | EnumMeta | Sequence[int | str | EnumMeta] | None = (
+        attribute: AttributeSpec = (
             "invert_depth",
             "flooding_losses",
             "total_inflow",
@@ -1984,13 +1702,13 @@ class Output:
             columns,
         )
 
-        return DataFrame(values, index=dfIndex, columns=cols)
+        return DataFrame(values, index=dfIndex, columns=Index(cols))
 
     @output_open_handler
     def link_series(
         self,
         link: int | str | Sequence[int | str] | None,
-        attribute: int | str | EnumMeta | Sequence[int | str | EnumMeta] | None = (
+        attribute: AttributeSpec = (
             "flow_rate",
             "flow_velocity",
             "flow_depth",
@@ -2185,12 +1903,12 @@ class Output:
             columns,
         )
 
-        return DataFrame(values, index=dfIndex, columns=cols)
+        return DataFrame(values, index=dfIndex, columns=Index(cols))
 
     @output_open_handler
     def system_series(
         self,
-        attribute: int | str | EnumMeta | Sequence[int | str | EnumMeta] | None = None,
+        attribute: AttributeSpec = None,
         start: str | int | datetime | None = None,
         end: str | int | datetime | None = None,
         asframe: bool = True,
@@ -2284,7 +2002,7 @@ class Output:
             return values
 
         dfIndex = Index(self.timeIndex[startIndex : endIndex + 1], name="datetime")
-        return DataFrame(values, index=dfIndex, columns=attributeArray)
+        return DataFrame(values, index=dfIndex, columns=Index(attributeArray))
 
     ####### attribute getters #######
 
@@ -2292,7 +2010,7 @@ class Output:
     def subcatch_attribute(
         self,
         time: str | int | datetime,
-        attribute: int | str | EnumMeta | Sequence[int | str | EnumMeta] | None = (
+        attribute: AttributeSpec = (
             "rainfall",
             "runoff_rate",
             "gw_outflow_rate",
@@ -2348,7 +2066,7 @@ class Output:
             self.subcatch_attributes,
         )
 
-        timeIndex = self._time2step([time])[0]
+        timeIndex = self._time2step(time)[0]
 
         values = stack(
             [
@@ -2363,13 +2081,13 @@ class Output:
 
         dfIndex = Index(self.subcatchments, name="subcatchment")
 
-        return DataFrame(values, index=dfIndex, columns=attributeArray)
+        return DataFrame(values, index=dfIndex, columns=Index(attributeArray))
 
     @output_open_handler
     def node_attribute(
         self,
         time: str | int | datetime,
-        attribute: int | str | EnumMeta | Sequence[int | str | EnumMeta] | None = (
+        attribute: AttributeSpec = (
             "invert_depth",
             "flooding_losses",
             "total_inflow",
@@ -2431,7 +2149,7 @@ class Output:
             self.node_attributes,
         )
 
-        timeIndex = self._time2step([time])[0]
+        timeIndex = self._time2step(time)[0]
 
         values = stack(
             [
@@ -2446,13 +2164,13 @@ class Output:
 
         dfIndex = Index(self.nodes, name="node")
 
-        return DataFrame(values, index=dfIndex, columns=attributeArray)
+        return DataFrame(values, index=dfIndex, columns=Index(attributeArray))
 
     @output_open_handler
     def link_attribute(
         self,
         time: str | int | datetime,
-        attribute: int | str | EnumMeta | Sequence[int | str | EnumMeta] | None = (
+        attribute: AttributeSpec = (
             "flow_rate",
             "flow_velocity",
             "flow_depth",
@@ -2512,7 +2230,7 @@ class Output:
             self.link_attributes,
         )
 
-        timeIndex = self._time2step([time])[0]
+        timeIndex = self._time2step(time)[0]
 
         values = stack(
             [
@@ -2527,13 +2245,13 @@ class Output:
 
         dfIndex = Index(self.links, name="link")
 
-        return DataFrame(values, index=dfIndex, columns=attributeArray)
+        return DataFrame(values, index=dfIndex, columns=Index(attributeArray))
 
     @output_open_handler
     def system_attribute(
         self,
         time: str | int | datetime,
-        attribute: int | str | EnumMeta | Sequence[int | str | EnumMeta] | None = None,
+        attribute: AttributeSpec = None,
         asframe: bool = True,
     ) -> DataFrame | ndarray:
         """For all nodes at given time, get a one or more attributes.
@@ -2598,7 +2316,7 @@ class Output:
             self.system_attributes,
         )
 
-        timeIndex = self._time2step([time])[0]
+        timeIndex = self._time2step(time)[0]
 
         values = asarray(
             [
@@ -2612,7 +2330,7 @@ class Output:
 
         dfIndex = Index(attributeArray, name="attribute")
 
-        return DataFrame(values, index=dfIndex, columns=["result"])
+        return DataFrame(values, index=dfIndex, columns=Index(["result"]))
 
     ####### result getters #######
 
@@ -2676,7 +2394,7 @@ class Output:
         elif isinstance(subcatchment, arrayish):
             label = "subcatchment"
             labels, indices = self._validateElement(subcatchment, self.subcatchments)
-            timeIndex = self._time2step([time])[0]
+            timeIndex = self._time2step(time)[0]
 
             values = vstack(
                 [
@@ -2687,7 +2405,10 @@ class Output:
 
         else:
             label = "datetime"
-            times = self.timeIndex if time is None else atleast_1d(time)
+            times: Sequence[str | int | datetime | Timestamp | datetime64]
+            times = (
+                self.timeIndex.to_list() if time is None else atleast_1d(time).tolist()
+            )
             indices = self._time2step(times)
 
             # since the timeIndex matches on nearst, we rebuild
@@ -2712,7 +2433,7 @@ class Output:
         return DataFrame(
             values,
             index=dfIndex,
-            columns=_enum_keys(self.subcatch_attributes),
+            columns=Index(_enum_keys(self.subcatch_attributes)),
         )
 
     @output_open_handler
@@ -2779,7 +2500,7 @@ class Output:
         elif isinstance(node, arrayish):
             label = "node"
             labels, indices = self._validateElement(node, self.nodes)
-            timeIndex = self._time2step([time])[0]
+            timeIndex = self._time2step(time)[0]
             values = vstack(
                 [
                     output.get_node_result(self._handle, timeIndex, idx)
@@ -2789,7 +2510,10 @@ class Output:
 
         else:
             label = "datetime"
-            times = self.timeIndex if time is None else atleast_1d(time)
+            times: Sequence[str | int | datetime | Timestamp | datetime64]
+            times = (
+                self.timeIndex.to_list() if time is None else atleast_1d(time).tolist()
+            )
             indices = self._time2step(times)
 
             # since the timeIndex matches on nearst, we rebuild
@@ -2814,7 +2538,7 @@ class Output:
         return DataFrame(
             values,
             index=dfIndex,
-            columns=_enum_keys(self.node_attributes),
+            columns=Index(_enum_keys(self.node_attributes)),
         )
 
     @output_open_handler
@@ -2879,7 +2603,7 @@ class Output:
         elif isinstance(link, arrayish):
             label = "link"
             labels, indices = self._validateElement(link, self.links)
-            timeIndex = self._time2step([time])[0]
+            timeIndex = self._time2step(time)[0]
 
             values = vstack(
                 [
@@ -2890,7 +2614,10 @@ class Output:
 
         else:
             label = "datetime"
-            times = self.timeIndex if time is None else atleast_1d(time)
+            times: Sequence[str | int | datetime | Timestamp | datetime64]
+            times = (
+                self.timeIndex.to_list() if time is None else atleast_1d(time).tolist()
+            )
             indices = self._time2step(times)
 
             # since the timeIndex matches on nearst, we rebuild
@@ -2915,7 +2642,7 @@ class Output:
         return DataFrame(
             values,
             index=dfIndex,
-            columns=_enum_keys(self.link_attributes),
+            columns=Index(_enum_keys(self.link_attributes)),
         )
 
     @output_open_handler
@@ -2965,7 +2692,7 @@ class Output:
             ptnl_evap_rate          0.000000
         """
 
-        timeIndex = self._time2step([time])[0]
+        timeIndex = self._time2step(time)[0]
 
         values = asarray(output.get_system_result(self._handle, timeIndex, 0))
 
@@ -2974,7 +2701,7 @@ class Output:
 
         dfIndex = Index(_enum_keys(self.system_attributes), name="attribute")
 
-        return DataFrame(values, index=dfIndex, columns=["result"])
+        return DataFrame(values, index=dfIndex, columns=Index(["result"]))
 
     @output_open_handler
     def to_parquet(
@@ -2991,6 +2718,7 @@ class Output:
         subcatchments: list[str] | None = None,
         row_batch_size: int = 100,
         partition_freq: str | None = None,
+        filesystem: AbstractFileSystem | None = None,
     ) -> str:
         """Export output results to a long-format parquet file or dataset.
 
@@ -2998,7 +2726,9 @@ class Output:
         ----------
         path: str | os.PathLike[str]
             Destination parquet path. When `partition_freq` is provided, this is
-            treated as a dataset root directory.
+            treated as a dataset root directory. When `filesystem` is provided,
+            this should be the remote path inside that filesystem, such as
+            `container/directory/parquet_file`.
         link_attributes, node_attributes, subcatchment_attributes, system_attributes:
             Attribute filters for each result category. `None` exports all
             attributes for the category and `[]` exports none.
@@ -3011,16 +2741,16 @@ class Output:
             Optional pandas-style partition frequency alias. Supported values are
             yearly (`A`, `Y`, `YE`, `YS`), monthly (`M`, `MS`), daily (`D`),
             and hourly (`H`, `h`).
+        filesystem: AbstractFileSystem | None
+            Optional fsspec-based filesystem used to write the parquet output.
 
         Returns
         -------
         str
             The parquet path that was written.
         """
-        if not isinstance(row_batch_size, (int, npint)) or row_batch_size < 1:
-            raise ValueError("row_batch_size must be a positive integer")
-
-        export_plan = self._build_export_plan(
+        return _ParquetExporter(self).write(
+            path=path,
             link_attributes=link_attributes,
             node_attributes=node_attributes,
             subcatchment_attributes=subcatchment_attributes,
@@ -3028,14 +2758,10 @@ class Output:
             links=links,
             nodes=nodes,
             subcatchments=subcatchments,
+            row_batch_size=row_batch_size,
+            partition_freq=partition_freq,
+            filesystem=filesystem,
         )
-        batches = self._iter_long_frame_batches(export_plan, int(row_batch_size))
-        partition_mode = self._normalize_partition_freq(partition_freq)
-
-        if partition_mode is None:
-            return self._write_parquet_file(path, batches)
-
-        return self._write_parquet_dataset(path, batches, partition_mode)
 
     def getStructure(
         self,
@@ -3081,7 +2807,7 @@ class Output:
         return self
 
     # method used for context manager with statement
-    def __exit__(self, *args: Any) -> None:
+    def __exit__(self, *args: object) -> None:
         self._close()
 
     def open(self) -> None:

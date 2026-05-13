@@ -1,3 +1,5 @@
+"""SWMM report parser utilities."""
+
 from __future__ import annotations
 
 import re
@@ -170,7 +172,7 @@ class Report:
 
         # substitute single spaces between words with underscores
         # replace asterisks or dashes with spaces
-        header = [
+        lheader = [
             re.sub(R"(?<=\w)[^\S\r\n](?=\w)", "_", field[1].dropna().str.cat(sep="_"))
             for field in read_fwf(
                 StringIO(re.sub(R"\*|-", " ", header)),
@@ -180,12 +182,12 @@ class Report:
 
         # split day and time into separate fields to be recombined in to datetime object
         # when parsing table
-        if "Time_of_Max_Occurrence_days_hr:min" in header:
-            max_idx = header.index("Time_of_Max_Occurrence_days_hr:min")
-            header[max_idx] = "days"
-            header.insert(max_idx + 1, "Time_of_Max")
+        if "Time_of_Max_Occurrence_days_hr:min" in lheader:
+            max_idx = lheader.index("Time_of_Max_Occurrence_days_hr:min")
+            lheader[max_idx] = "days"
+            lheader.insert(max_idx + 1, "Time_of_Max")
 
-        return header
+        return lheader
 
     @staticmethod
     def _parse_table(
@@ -236,7 +238,7 @@ class Report:
                 unit="D",
             ) + to_timedelta(
                 df["Time_of_Max"] + ":00",
-            )  # type: ignore
+            )
         return df
 
     @property
