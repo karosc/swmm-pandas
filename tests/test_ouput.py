@@ -423,13 +423,14 @@ def test_to_parquet_streamed_full_export(outfile, tmp_path):
     assert returned_path == str(path)
 
     df = _sorted_export_df(path)
-    assert df.shape == (55584, 5)
+    assert df.shape == (55584, 6)
     assert df.columns.tolist() == [
         "time",
         "element_type",
         "element_name",
         "attribute",
         "value",
+        "unit",
     ]
 
     first_row = df.iloc[0]
@@ -437,6 +438,8 @@ def test_to_parquet_streamed_full_export(outfile, tmp_path):
     assert first_row["element_type"] == "link"
     assert first_row["element_name"] == "COND1"
     assert first_row["attribute"] == "capacity"
+    assert first_row["unit"] == "fraction"
+    assert (df["unit"].dropna() == df["unit"].dropna().str.lower()).all()
 
 
 def test_to_parquet_preloaded_matches_streamed(outfile, preloaded_outfile, tmp_path):
@@ -466,7 +469,25 @@ def test_to_parquet_filtered_export(outfile, tmp_path):
     assert df["element_type"].unique().tolist() == ["link"]
     assert df["element_name"].unique().tolist() == ["COND4"]
     assert set(df["attribute"].unique()) == {"flow_rate", "flow_depth"}
+    assert set(df.loc[df["attribute"] == "flow_rate", "unit"].unique()) == {"cfs"}
+    assert set(df.loc[df["attribute"] == "flow_depth", "unit"].unique()) == {"ft"}
     assert len(df) == 288 * 2
+
+
+def test_to_parquet_pollutant_unit(outfile, tmp_path):
+    path = tmp_path / "pollutant.parquet"
+    outfile.to_parquet(
+        path,
+        link_attributes=["groundwater"],
+        links=["PUMP1"],
+        node_attributes=[],
+        subcatchment_attributes=[],
+        system_attributes=[],
+    )
+
+    df = _sorted_export_df(path)
+    assert df["attribute"].unique().tolist() == ["groundwater"]
+    assert df["unit"].unique().tolist() == ["mg/l"]
 
 
 def test_to_parquet_empty_export(outfile, tmp_path):
@@ -487,6 +508,7 @@ def test_to_parquet_empty_export(outfile, tmp_path):
         "element_name",
         "attribute",
         "value",
+        "unit",
     ]
 
 
@@ -506,6 +528,7 @@ def test_to_parquet_row_batch_size_one(outfile, tmp_path):
     assert len(df) == 288
     assert df["attribute"].unique().tolist() == ["invert_depth"]
     assert df["element_name"].unique().tolist() == ["JUNC3"]
+    assert df["unit"].unique().tolist() == ["ft"]
 
 
 def test_to_parquet_with_fsspec_filesystem(outfile):
@@ -519,13 +542,14 @@ def test_to_parquet_with_fsspec_filesystem(outfile):
     assert filesystem.exists(path)
 
     df = _sorted_export_df_fs(path, filesystem)
-    assert df.shape == (55584, 5)
+    assert df.shape == (55584, 6)
     assert df.columns.tolist() == [
         "time",
         "element_type",
         "element_name",
         "attribute",
         "value",
+        "unit",
     ]
 
 
@@ -556,6 +580,7 @@ def test_to_parquet_partition_columns(outfile, tmp_path, partition_freq, expecte
         "element_name",
         "attribute",
         "value",
+        "unit",
         *expected_columns,
     ]
 
@@ -602,6 +627,7 @@ def test_to_parquet_partitioned_with_fsspec_filesystem(outfile):
         "element_name",
         "attribute",
         "value",
+        "unit",
         "year",
         "month",
         "day",

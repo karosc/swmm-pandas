@@ -17,6 +17,7 @@ from swmm.toolkit import shared_enum
 
 import pandas as pd
 from pandas.core.api import DataFrame, Timestamp
+from swmm.pandas.units import build_pollutant_unit_map, resolve_output_unit
 
 if TYPE_CHECKING:
     from fsspec.spec import AbstractFileSystem
@@ -30,6 +31,7 @@ class _ExportColumn:
     name: str
     attribute: str
     value_index: int
+    unit: str | None = None
 
 
 class _ParquetExporter:
@@ -90,6 +92,11 @@ class _ParquetExporter:
         subcatchments: list[str] | None = None,
     ) -> tuple[_ExportColumn, ...]:
         out = self.out
+        unit_system, flow_unit, *pollutant_unit_names = out.units
+        pollutant_units = build_pollutant_unit_map(
+            out.pollutants,
+            pollutant_unit_names,
+        )
         selected_subcatchments = set(
             out._validateElement(subcatchments, out.subcatchments)[0],
         )
@@ -133,7 +140,21 @@ class _ParquetExporter:
                 include = column.attribute in selected_system_attributes
 
             if include:
-                selected_columns.append(column)
+                selected_columns.append(
+                    _ExportColumn(
+                        kind=column.kind,
+                        name=column.name,
+                        attribute=column.attribute,
+                        value_index=column.value_index,
+                        unit=resolve_output_unit(
+                            kind=column.kind,
+                            attribute=column.attribute,
+                            unit_system=unit_system,
+                            flow_unit=flow_unit,
+                            pollutant_units=pollutant_units,
+                        ),
+                    ),
+                )
 
         return tuple(selected_columns)
 
@@ -186,6 +207,7 @@ class _ParquetExporter:
                 "element_name": asarray([], dtype=object),
                 "attribute": asarray([], dtype=object),
                 "value": asarray([], dtype="float32"),
+                "unit": asarray([], dtype=object),
             },
         )
 
@@ -209,6 +231,7 @@ class _ParquetExporter:
             [column.attribute for column in export_columns],
             dtype=object,
         )
+        unit_values = asarray([column.unit for column in export_columns], dtype=object)
 
         row_count, column_count = value_chunk.shape
         return DataFrame(
@@ -218,6 +241,7 @@ class _ParquetExporter:
                 "element_name": name_values.repeat(row_count),
                 "attribute": attribute_values.repeat(row_count),
                 "value": asarray(value_chunk).reshape(-1, order="F"),
+                "unit": unit_values.repeat(row_count),
             },
         )
 

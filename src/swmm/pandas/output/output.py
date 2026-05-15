@@ -2722,6 +2722,10 @@ class Output:
     ) -> str:
         """Export output results to a long-format parquet file or dataset.
 
+        The exported rows contain `time`, `element_type`, `element_name`,
+        `attribute`, `value`, and a lower-case `unit` label resolved from the
+        output file's unit system.
+
         Parameters
         ----------
         path: str | os.PathLike[str]
