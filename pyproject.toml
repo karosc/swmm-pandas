@@ -4,17 +4,13 @@ build-backend = "uv_build"
 
 [project]
 name = "swmm-pandas"
-version = "0.12.0"
+version = "0.12.1"
 description = "Pandorable interface to SWMM5 input and output files"
 authors = [
     { name = "Constantine Karos", email = "ckaros@outlook.com" },
     { name = "See README.md" },
 ]
-dependencies = [
-    "julian",
-    "pandas>=2.1",
-    "swmm-toolkit>=0.16.0",
-]
+dependencies = ["julian", "pandas>=2.1", "swmm-toolkit>=0.16.0"]
 requires-python = ">=3.11"
 readme = "README.md"
 license = { text = "CC BY 4.0" }
@@ -37,12 +33,14 @@ classifiers = [
 Homepage = "https://github.com/karosc/swmm-pandas"
 
 [project.optional-dependencies]
-geo = [
+geo = ["folium>=0.20.0", "geopandas>=1.0.1"]
+graph = ["networkx>=3.6.1"]
+parquet = ["pyarrow>=24.0.0"]
+all = [
     "folium>=0.20.0",
     "geopandas>=1.0.1",
-]
-graph = [
     "networkx>=3.6.1",
+    "pyarrow>=24.0.0",
 ]
 
 [[tool.uv.index]]
