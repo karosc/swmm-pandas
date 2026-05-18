@@ -153,7 +153,7 @@ class InputFileTest(unittest.TestCase):
 
         # check columns excluded from inp file are added
         nptest.assert_equal(
-            inp.raingage.columns.values,
+            inp.raingage.columns.to_numpy(),
             [
                 "Format",
                 "Interval",
@@ -259,7 +259,7 @@ class InputFileTest(unittest.TestCase):
             14,
         )
         nptest.assert_equal(
-            inp.temperature.index.values,
+            inp.temperature.index.to_numpy(),
             ["TIMESERIES", "WINDSPEED", "SNOWMELT", "ADC", "ADC"],
         )
 
@@ -287,7 +287,7 @@ class InputFileTest(unittest.TestCase):
         # assert type and shape
         self.assertIsInstance(inp.adjustments, pd.DataFrame)
         nptest.assert_equal(
-            inp.adjustments.columns.values,
+            inp.adjustments.columns.to_numpy(),
             [
                 "Subcatchment",
                 "Pattern",
@@ -335,7 +335,7 @@ class InputFileTest(unittest.TestCase):
         self.assertIsInstance(inp.subcatchment, pd.DataFrame)
         self.assertEqual(inp.subcatchment.shape, (3, 9))
         nptest.assert_equal(
-            inp.subcatchment.columns.values,
+            inp.subcatchment.columns.to_numpy(),
             [
                 "RainGage",
                 "Outlet",
@@ -368,7 +368,7 @@ class InputFileTest(unittest.TestCase):
         self.assertIsInstance(inp.subarea, pd.DataFrame)
         self.assertEqual(inp.subarea.shape, (3, 8))
         nptest.assert_equal(
-            inp.subarea.columns.values,
+            inp.subarea.columns.to_numpy(),
             [
                 "Nimp",
                 "Nperv",
@@ -401,7 +401,7 @@ class InputFileTest(unittest.TestCase):
         self.assertIsInstance(inp.infil, pd.DataFrame)
         self.assertEqual(inp.infil.shape, (3, 7))
         nptest.assert_equal(
-            inp.infil.columns.values,
+            inp.infil.columns.to_numpy(),
             [
                 "param1",
                 "param2",
@@ -415,7 +415,7 @@ class InputFileTest(unittest.TestCase):
 
         # test differing methods are parsed
         nptest.assert_equal(
-            inp.infil.values,
+            inp.infil.to_numpy(),
             np.array(
                 [
                     [4.3, 0.86, 0.23, "", "", "", ""],
@@ -641,16 +641,14 @@ class InputFileTest(unittest.TestCase):
 
         self.assertMultiLineEqual(
             inp.outfall.to_swmm_string(),
-            dedent(
-                """\
+            dedent("""\
                     ;;Name  Elevation  Type        StageData    Gated  RouteTo  
                     ;;----  ---------  ----------  -----------  -----  -------  
                     ;changed to normal outfall
                     OUT1    0.1        FREE                     NO              
                     OUT2    -1.04      FREE                     NO              
                     OUT3    0          TIMESERIES  head_series  YES    SUB1     
-                """
-            ),
+                """),
         )
 
     def test_storage(self):
@@ -665,15 +663,13 @@ class InputFileTest(unittest.TestCase):
 
         self.assertMultiLineEqual(
             inp.storage.to_swmm_string(),
-            dedent(
-                """\
+            dedent("""\
                     ;;Name  Elev    MaxDepth  InitDepth  Shape       CurveName  A1_L  A2_W  A0_Z  SurDepth  Fevap  Psi  Ksat  IMD  
                     ;;----  ------  --------  ---------  ----------  ---------  ----  ----  ----  --------  -----  ---  ----  ---  
                     JUNC5   -6.5    13.2      0          TABULAR     Store1                       0         2      2    2     0.5  
                     ;shrunk store
                     STOR1   -15.25  21.75     0          FUNCTIONAL             200   1     2     10        3                      
-                """
-            ),
+                """),
         )
 
     def test_conduit(self):
@@ -688,8 +684,7 @@ class InputFileTest(unittest.TestCase):
 
         self.assertMultiLineEqual(
             inp.conduit.to_swmm_string(),
-            dedent(
-                """\
+            dedent("""\
                     ;;Name  FromNode  ToNode  Length   Roughness  InOffset  OutOffset  InitFlow  MaxFlow  
                     ;;----  --------  ------  -------  ---------  --------  ---------  --------  -------  
                     COND1   JUNC1     JUNC2   932.363  0.015      0         0.25       0         0        
@@ -702,8 +697,7 @@ class InputFileTest(unittest.TestCase):
                     COND6   JUNC6     OUT1    37.72    0.015      0         0          0         0        
                     COND7   JUNC5     STOR1   37.72    0.015      0         0          0         0        
                     COND8   JUNC5     STOR1   37.72    0.015      0         0          0         0        
-                """
-            ),
+                """),
         )
 
     def test_pump(self):
@@ -722,14 +716,12 @@ class InputFileTest(unittest.TestCase):
 
         self.assertMultiLineEqual(
             inp.pump.to_swmm_string(),
-            dedent(
-                """\
+            dedent("""\
                     ;;Name  FromNode  ToNode  PumpCurve  Status  Startup  Shutoff  
                     ;;----  --------  ------  ---------  ------  -------  -------  
                     PUMP1   STOR1     JUNC6   P1         OFF     1.3      0.3      
                     PUMP2   STOR1     JUNC6   P1         ON                        
-                """
-            ),
+                """),
         )
 
     def test_orifice(self):
@@ -751,15 +743,13 @@ class InputFileTest(unittest.TestCase):
 
         self.assertMultiLineEqual(
             inp.orifice.to_swmm_string(),
-            dedent(
-                """\
+            dedent("""\
                     ;;Name  FromNode  ToNode  Type  Offset  Qcoeff  Gated  CloseTime  
                     ;;----  --------  ------  ----  ------  ------  -----  ---------  
                     O1      SU1       J_out   SIDE  0       0.65    YES    0          
                     ;a new orifice!
                     O2      SU1       J_out   SIDE  1.25                   6          
-                """
-            ),
+                """),
         )
 
     def test_xsect(self):
@@ -771,8 +761,7 @@ class InputFileTest(unittest.TestCase):
 
         self.assertMultiLineEqual(
             inp.xsections.to_swmm_string(),
-            dedent(
-                """\
+            dedent("""\
                     ;;Link  Shape            Geom1  Curve        Geom2  Geom3  Geom4  Barrels  Culvert  
                     ;;----  ---------------  -----  -----------  -----  -----  -----  -------  -------  
                     COND1   CIRCULAR         1                   0      0      0      1        0        
@@ -785,8 +774,7 @@ class InputFileTest(unittest.TestCase):
                     COND7   CUSTOM           10     COND7_curve         0      0      1                 
                     COND8   IRREGULAR               Transect            0      0      1                 
                     WR1     RECT_OPEN        3.2                 3      0      0      1                 
-                """
-            ),
+                """),
         )
 
     def test_street(self):
@@ -799,15 +787,13 @@ class InputFileTest(unittest.TestCase):
 
         self.assertMultiLineEqual(
             inp.street.to_swmm_string(),
-            dedent(
-                """\
+            dedent("""\
                     ;;Name      Tcrown  Hcurb  Sroad  nRoad  Hdep  Wdep  Sides  Wback  Sback  nBack  
                     ;;--------  ------  -----  -----  -----  ----  ----  -----  -----  -----  -----  
                     HalfStreet  20      0.5    4      0.016  0     0     1      20     4      0.016  
                     ;lowered road n-value
                     FullStreet  20      0.5    4      0.012  0     0     2      20     4      0.016  
-                """
-            ),
+                """),
         )
 
     def test_inlet(self):
@@ -823,15 +809,13 @@ class InputFileTest(unittest.TestCase):
 
         self.assertMultiLineEqual(
             inp.inlet.to_swmm_string(),
-            dedent(
-                """\
+            dedent("""\
                     ;;Name      Type   param1  param2  param3      param4  param5  
                     ;;--------  -----  ------  ------  ----------  ------  ------  
                     ComboInlet  CURB   2       0.5     HORIZONTAL                  
                     ;update pct open and splace velocity of grate
                     ComboInlet  GRATE  2       2       P_BAR-50    0.5     0.3     
-                """
-            ),
+                """),
         )
 
     def test_inlet_usage(self):
@@ -844,8 +828,7 @@ class InputFileTest(unittest.TestCase):
 
         self.assertMultiLineEqual(
             inp.inlet_usage.to_swmm_string(),
-            dedent(
-                """\
+            dedent("""\
                     ;;Conduit  Inlet       Node  Number  %Clogged  MaxFlow  hDStore  wDStore  Placement  
                     ;;-------  ----------  ----  ------  --------  -------  -------  -------  ---------  
                     Street1    ComboInlet  J1    1       0         0        0        0                   
@@ -853,8 +836,7 @@ class InputFileTest(unittest.TestCase):
                     Street4    ComboInlet  J2    1       0         0        0        0                   
                     ;updated placement
                     Street5    ComboInlet  J11   2       0         0        0        0        ON_SAG     
-                """
-            ),
+                """),
         )
 
     def test_pollutant(self):
@@ -867,16 +849,14 @@ class InputFileTest(unittest.TestCase):
 
         self.assertMultiLineEqual(
             inp.pollutants.to_swmm_string(),
-            dedent(
-                """\
+            dedent("""\
                     ;;Name       Units  Crain  Cgw  Crdii  Kdecay  SnowOnly  CoPollutant  CoFrac  Cdwf  Cinit  
                     ;;---------  -----  -----  ---  -----  ------  --------  -----------  ------  ----  -----  
                     Groundwater  MG/L   0      100  0      0       NO        *            0.0     0     0      
                     Rainfall     MG/L   100    0    0      0       NO        *            0.0     0     0      
                     ;updated initial conc
                     Sewage       MG/L   0      0    0      0       NO        *            0.0     100   100    
-                """
-            ),
+                """),
         )
 
     def test_landuse(self):
@@ -891,8 +871,7 @@ class InputFileTest(unittest.TestCase):
 
         self.assertMultiLineEqual(
             inp.landuse.to_swmm_string(),
-            dedent(
-                """\
+            dedent("""\
                     ;;Name         SweepInterval  Availability  LastSweep  
                     ;;-----------  -------------  ------------  ---------  
                     ;set weekly street sweeping
@@ -900,8 +879,7 @@ class InputFileTest(unittest.TestCase):
                     Residential_2  0              0             0          
                     Commercial     0              0             0          
                     Undeveloped    0              0             0          
-                """
-            ),
+                """),
         )
 
     def test_coverage(self):
@@ -916,8 +894,7 @@ class InputFileTest(unittest.TestCase):
 
         self.assertMultiLineEqual(
             inp.coverage.to_swmm_string(),
-            dedent(
-                """\
+            dedent("""\
                     ;;Subcatchment  LandUse        Percent  
                     ;;------------  -------------  -------  
                     S1              Residential_1  100      
@@ -933,8 +910,7 @@ class InputFileTest(unittest.TestCase):
                     S6              Commercial     100      
                     ;added
                     S5              Residential_2  50       
-                """
-            ),
+                """),
         )
 
     def test_loadings(self):
@@ -947,8 +923,7 @@ class InputFileTest(unittest.TestCase):
 
         self.assertMultiLineEqual(
             inp.loading.to_swmm_string(),
-            dedent(
-                """\
+            dedent("""\
                     ;;Subcatchment  Pollutant  InitBuildup  
                     ;;------------  ---------  -----------  
                     SUB1            Rainfall   1            
@@ -956,8 +931,7 @@ class InputFileTest(unittest.TestCase):
                     SUB3            Rainfall   1.1          
                     ;bumped initial conc
                     SUB1            Ranfall    10           
-                """
-            ),
+                """),
         )
 
     def test_buildup(self):
@@ -978,8 +952,7 @@ class InputFileTest(unittest.TestCase):
         )
         self.assertMultiLineEqual(
             inp.buildup.to_swmm_string(),
-            dedent(
-                """\
+            dedent("""\
                     ;;Landuse      Pollutant  FuncType  C1    C2   C3   PerUnit  
                     ;;-----------  ---------  --------  ----  ---  ---  -------  
                     Commercial     TSS        EXP       0.15  0.2  0.0  CURB     
@@ -988,8 +961,7 @@ class InputFileTest(unittest.TestCase):
                     Residential_2  TSS        EXP       0.13  0.5  0.0  CURB     
                     Undeveloped    TSS        NONE      0.0   0.0  0.0  AREA     
                     Residential_3  TSS        SAT       0.1   0    1    AREA     
-                """
-            ),
+                """),
         )
 
     def test_washoff(self):
@@ -1004,8 +976,7 @@ class InputFileTest(unittest.TestCase):
         )
         self.assertMultiLineEqual(
             inp.washoff.to_swmm_string(),
-            dedent(
-                """\
+            dedent("""\
                     ;;Landuse      Pollutant  FuncType  C1   C2   SweepRmvl  BmpRmvl  
                     ;;-----------  ---------  --------  ---  ---  ---------  -------  
                     Commercial     TSS        EXP       4    2.2  0.0        0.0      
@@ -1014,8 +985,7 @@ class InputFileTest(unittest.TestCase):
                     Residential_2  TSS        EXP       4    2.2  0.0        0.0      
                     Undeveloped    TSS        RC        500  2    0.0        0.0      
                     Residential_3  TSS        EMC       55                            
-                """
-            ),
+                """),
         )
 
     def test_treatment(self):
@@ -1036,8 +1006,7 @@ class InputFileTest(unittest.TestCase):
 
         self.assertMultiLineEqual(
             inp.treatment.to_swmm_string(),
-            dedent(
-                """\
+            dedent("""\
                     ;;Node  Pollutant    Func                          
                     ;;----  -----------  ----------------------------  
                     ;groundwater removed with rainfall
@@ -1046,8 +1015,7 @@ class InputFileTest(unittest.TestCase):
                     STOR1   Rainfall     C = Rainfall * exp(-0.1*HRT)  
                     ;added treatment for sewage
                     STOR1   Sewage       R = 0.1 * R_Rainfall          
-                """
-            ),
+                """),
         )
 
     def test_inflows(self):
@@ -1066,8 +1034,7 @@ class InputFileTest(unittest.TestCase):
 
         self.assertMultiLineEqual(
             inp.inflow.to_swmm_string(),
-            dedent(
-                """\
+            dedent("""\
                     ;;Node  Constituent  TimeSeries       InflowType  Mfactor  Sfactor  Baseline  Pattern  
                     ;;----  -----------  ---------------  ----------  -------  -------  --------  -------  
                     JUNC1   FLOW         "inflow_series"  FLOW        1.0      1.0      0.25      HOURLY   
@@ -1076,8 +1043,7 @@ class InputFileTest(unittest.TestCase):
                     JUNC3   Sewage       ""               CONCEN      1.0      1.0      100       HOURLY   
                     ;new inflow!
                     JUNC4   FLOW         ""               FLOW        1.0      1.0      10                 
-                """
-            ),
+                """),
         )
 
     def test_dwf(self):
@@ -1096,8 +1062,7 @@ class InputFileTest(unittest.TestCase):
 
         self.assertMultiLineEqual(
             inp.dwf.to_swmm_string(),
-            dedent(
-                """\
+            dedent("""\
                     ;;Node  Constituent  AvgValue  Pat1      Pat2  Pat3      Pat4       
                     ;;----  -----------  --------  --------  ----  --------  ---------  
                     ;added second pattern
@@ -1105,8 +1070,7 @@ class InputFileTest(unittest.TestCase):
                     JUNC4   FLOW         0.7       "HOURLY"                             
                     ;testing a pattern addition
                     JUNC1   FLOW         1                         "HOURLY"             
-                """
-            ),
+                """),
         )
 
     def test_rdii(self):
@@ -1118,8 +1082,7 @@ class InputFileTest(unittest.TestCase):
 
         self.assertMultiLineEqual(
             inp.rdii.to_swmm_string(),
-            dedent(
-                """\
+            dedent("""\
                     ;;Node  UHgroup  SewerArea       
                     ;;----  -------  --------------  
                     JUNC1   HydrC    10              
@@ -1127,8 +1090,7 @@ class InputFileTest(unittest.TestCase):
                     JUNC2   HydrA    1244.282478391  
                     ;this rdii has high precision
                     JUNC3   HydrB    5.213837        
-                """
-            ),
+                """),
         )
 
     def test_hydrographs(self):
@@ -1140,8 +1102,7 @@ class InputFileTest(unittest.TestCase):
 
         self.assertMultiLineEqual(
             inp.hydrographs.loc["HydrB":"HydrB"].to_swmm_string(),
-            dedent(
-                """\
+            dedent("""\
                     ;;Name  Month_RG     Response  R  T           K          IA_max  IA_rec  IA_ini  
                     ;;----  -----------  --------  -  ----------  ---------  ------  ------  ------  
                     HydrB   RainGauge_C                                                              
@@ -1181,8 +1142,7 @@ class InputFileTest(unittest.TestCase):
                     HydrB   Dec          Short        0.575       0.825      0       0       0       
                     HydrB   Dec          Medium       5.5         7.275      0       0       0       
                     HydrB   Dec          Long         7           17         0       0       0       
-                """
-            ),
+                """),
         )
 
     def test_curves(self):
@@ -1193,8 +1153,7 @@ class InputFileTest(unittest.TestCase):
 
         self.assertMultiLineEqual(
             inp.curves.to_swmm_string(),
-            dedent(
-                """\
+            dedent("""\
                     ;;Name       Type     X_Value  Y_Value  
                     ;;---------  -------  -------  -------  
                     COND7_curve  SHAPE    0.1      2        
@@ -1208,8 +1167,7 @@ class InputFileTest(unittest.TestCase):
                     Store1       STORAGE  1        20       
                     Store1                2        30       
                     Store1                3        40       
-                """
-            ),
+                """),
         )
 
     def test_timeseries(self):
@@ -1244,14 +1202,12 @@ class InputFileTest(unittest.TestCase):
 
         self.assertMultiLineEqual(
             inp.weir.to_swmm_string(),
-            dedent(
-                """\
+            dedent("""\
                     ;;Name  FromNode  ToNode  Type  CrestHt  Qcoeff  Gated  EndCon  EndCoeff  Surcharge  RoadWidth  RoadSurf  CoeffCurve  
                     ;;----  --------  ------  ----  -------  ------  -----  ------  --------  ---------  ---------  --------  ----------  
                     ;changed weir type
                     WR1     JUNC2     OUT2    SIDE  3        3.33    NO     0       0         YES                                         
-                """
-            ),
+                """),
         )
 
     def test_divider(self):
@@ -1263,8 +1219,7 @@ class InputFileTest(unittest.TestCase):
 
         self.assertMultiLineEqual(
             inp.divider.to_swmm_string(),
-            dedent(
-                """\
+            dedent("""\
                     ;;Name   Elevation  DivLink  DivType   DivCurve  Qmin  Height  Cd    Ymax  Y0  Ysur  Apond  
                     ;;-----  ---------  -------  --------  --------  ----  ------  ----  ----  --  ----  -----  
                     KRO1003  594.73     C3       TABULAR   Outflow                       5     0   0     0      
@@ -1272,8 +1227,7 @@ class InputFileTest(unittest.TestCase):
                     KRO1004  584        C2       WEIR                0.2   5       3.33  100   0   0     0      
                     KRO1010  584.82     C1       CUTOFF              0.2                 11    0   0     0      
                     KRO4008  583.48     C4       OVERFLOW                                10    0   0     0      
-                """
-            ),
+                """),
         )
 
     def test_outlet(self):
@@ -1285,8 +1239,7 @@ class InputFileTest(unittest.TestCase):
 
         self.assertMultiLineEqual(
             inp.outlet.to_swmm_string(),
-            dedent(
-                """\
+            dedent("""\
                     ;;Name  FromNode  ToNode  Offset  Type              CurveName    Qcoeff  Qexpon  Gated  
                     ;;----  --------  ------  ------  ----------------  -----------  ------  ------  -----  
                     1030    10309     10208   0       TABULAR/HEAD      Outlet_head                  NO     
@@ -1294,8 +1247,7 @@ class InputFileTest(unittest.TestCase):
                     ;bumped Qcoeff
                     8060    80608     82309   0       FUNCTIONAL/DEPTH               100     0.5     NO     
                     8130    81309     15009   0       TABULAR/DEPTH     Outlet_head                  NO     
-                """
-            ),
+                """),
         )
 
     def test_losses(self):
@@ -1308,15 +1260,13 @@ class InputFileTest(unittest.TestCase):
 
         self.assertMultiLineEqual(
             inp.losses.to_swmm_string(),
-            dedent(
-                """\
+            dedent("""\
                     ;;Link  Kentry  Kexit  Kavg   FlapGate  Seepage  
                     ;;----  ------  -----  -----  --------  -------  
                     COND1   1       2      3      NO        4        
                     ;added outrageous losses
                     COND2   0       0      10000  YES       0        
-                """
-            ),
+                """),
         )
 
     def test_patterns(self):
@@ -1380,8 +1330,7 @@ class InputFileTest(unittest.TestCase):
 
         self.assertMultiLineEqual(
             inp.tags.to_swmm_string(),
-            dedent(
-                """\
+            dedent("""\
                     ;;Element  Name  Tag               
                     ;;-------  ----  ----------------  
                     Link       C1    Swale             
@@ -1396,8 +1345,7 @@ class InputFileTest(unittest.TestCase):
                     Link       C7    Culvert           
                     Link       C8    Swale             
                     Link       C9    Swale             
-                """
-            ),
+                """),
         )
 
     def test_rerun(self):
