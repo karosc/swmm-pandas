@@ -2,10 +2,18 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 import re
 from io import StringIO
 
-from pandas.core.api import DataFrame, Series, Timestamp, to_datetime, to_timedelta
+from pandas.core.api import (
+    DataFrame,
+    Series,
+    Timestamp,
+    to_datetime,
+    to_timedelta,
+    Timedelta,
+)
 from pandas.io.parsers import read_csv, read_fwf
 
 
@@ -818,3 +826,25 @@ class Report:
             else:
                 raise Exception("Error finding analysis end")
         return self._analysis_end
+
+    @property
+    def analysis_duration(self) -> timedelta:
+        """
+        Duration of the simulation in seconds
+
+        Returns
+        -------
+        timedelta
+            Simulation duration as a timedelta object
+        """
+        if not hasattr(self, "_analysis_duration"):
+            pattern = R"\s+Total elapsed time:\s+([^\n]+)$"
+            s = re.search(pattern, self._rpt_text, flags=re.MULTILINE)
+            if s:
+                if "< 1 sec" in s.group(1):
+                    self._analysis_duration = Timedelta(seconds=1)
+                else:
+                    self._analysis_duration = to_timedelta(s.group(1))
+            else:
+                raise Exception("Error finding analysis duration")
+        return self._analysis_duration
