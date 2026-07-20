@@ -411,6 +411,11 @@ class Report:
             header, data = self._split_section(
                 self._sections["Time-Step Critical Elements"],
             )
+            if data.strip() == "None":
+                return DataFrame(columns=["object_type", "name", "percent"]).set_index(
+                    "name"
+                )
+
             df = self._parse_table(
                 ["object_type", "name", "percent"],
                 data,

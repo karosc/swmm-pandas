@@ -662,3 +662,9 @@ def test_analysis_begun_and_end(rptfile):
 def test_node_inflow(rptfile2):
     inf = rptfile2.node_inflow_summary
     print("here")
+
+
+def test_no_timestep_critical_elements():
+    fil = str(_HERE / "data" / "no_timestep_critical.rpt")
+    rpt = Report(fil)
+    assert rpt.time_step_critical_elements.empty
