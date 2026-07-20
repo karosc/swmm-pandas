@@ -239,6 +239,7 @@ class Report:
             ) + to_timedelta(
                 df["Time_of_Max"] + ":00",
             )
+
         return df
 
     @property
@@ -562,6 +563,14 @@ class Report:
             self._node_inflow_summary = self._parse_table(
                 self._parse_header(header),
                 data,
+                sep=R"\s{2,}|\s:\s|\d\s\d",
+            )
+            self._node_inflow_summary["Flow_Balance_Error_Percent"] = (
+                self._node_inflow_summary["Flow_Balance_Error_Percent"]
+                .astype(str)
+                .str.replace("gal", "")
+                .str.replace("ltr", "")
+                .str.strip()
             )
         return self._node_inflow_summary
 

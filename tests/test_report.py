@@ -4,14 +4,19 @@ from swmm.pandas import Report
 from pandas import Timedelta, Timestamp, DataFrame
 from numpy import allclose, all, array, nan, float64
 
-
 _HERE = pathlib.Path(__file__).parent
 test_rpt_path = str(_HERE / "data" / "Model.rpt")
+test_rpt_path2 = str(_HERE / "data" / "raw.rpt")
 
 
 @pytest.fixture(scope="module")
 def rptfile():
     return Report(test_rpt_path)
+
+
+@pytest.fixture(scope="module")
+def rptfile2():
+    return Report(test_rpt_path2)
 
 
 def test_analysis_options(rptfile):
@@ -652,3 +657,8 @@ def test_link_pollutant_load_summary(rptfile):
 def test_analysis_begun_and_end(rptfile):
     assert type(rptfile.analysis_begun) == Timestamp
     assert type(rptfile.analysis_end) == Timestamp
+
+
+def test_node_inflow(rptfile2):
+    inf = rptfile2.node_inflow_summary
+    print("here")
