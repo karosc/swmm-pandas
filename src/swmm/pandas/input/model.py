@@ -78,7 +78,7 @@ class Input:
 
     def __init__(
         self,
-        inpfile: Optional[str | InputFile] = None,
+        inpfile: Optional[str | InputFile | pathlib.Path] = None,
         crs: str | None = None,
     ):
         if isinstance(inpfile, InputFile):
@@ -1001,7 +1001,8 @@ class Input:
         m = folium.Map()
         root = cast(_FoliumRoot, m.get_root())
         root.html.add_child(
-            folium.Element(f'<script src="{plugin_js}"></script>'), index=-1,
+            folium.Element(f'<script src="{plugin_js}"></script>'),
+            index=-1,
         )
 
         def _link_style_function(x: dict) -> dict:
