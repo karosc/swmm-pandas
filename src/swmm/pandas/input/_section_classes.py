@@ -378,7 +378,10 @@ class SectionDf(SectionBase, pd.DataFrame):
                 row_data[-1] = line_comment.strip("\n")
                 rows.append(row_data)
         else:
-            single_row_data: TRow = cast("TRow", list(table_data) + [line_comment.strip("\n")])
+            single_row_data: TRow = cast(
+                "TRow",
+                list(table_data) + [line_comment.strip("\n")],
+            )
             single_row_data[-1] = line_comment.strip("\n")
             rows.append(single_row_data)
         return rows
@@ -1627,8 +1630,14 @@ class Timeseries(SectionBase):
     @classmethod
     def from_section_text(cls, text: str):
         def is_valid_time_format(time_string):
-            pattern = r"^\d+:\d+$"
-            return bool(re.match(pattern, time_string))
+            pattern = r"^\s*\d+:\d+(?::\d+)?\s*$"
+            return bool(re.match(pattern, str(time_string)))
+
+        def parse_time_delta(time_string):
+            parts = [int(part) for part in str(time_string).split(":")]
+            hours, minutes = parts[:2]
+            seconds = parts[2] if len(parts) == 3 else 0
+            return pd.Timedelta(hours=hours, minutes=minutes, seconds=seconds)
 
         def is_valid_date(date_str):
             # Regex pattern to match mm/dd/yyyy, m/d/yyyy, m/dd/yyyy, or mm/d/yyyy
@@ -1646,9 +1655,27 @@ class Timeseries(SectionBase):
         ts_comment = ""
         current_time_series_name = ""
         current_time_series_data: list[TRow] = []
+
+        def collect_timeseries_data(
+            ts_name, ts_data, ts_comment, new_ts_name, line_comment
+        ):
+            if len(ts_data) > 0:
+                df = pd.DataFrame(
+                    ts_data,
+                    columns=pd.Index(["time", "value", "desc"]),
+                ).set_index("time")
+                df.attrs["desc"] = ts_comment
+                return df
+            if str(split_data[0]).upper() == "FILE" and len(split_data) == 2:
+                return cls.TimeseriesFile(
+                    name=new_ts_name,
+                    Fname=str(split_data[1]),
+                    desc=line_comment,
+                )
+
         for row in rows:
             # check if row contains data
-            if not _is_data(row):
+            if not _is_data(row) or len(row.strip()) == 0:
                 continue
 
             elif _is_line_comment(row):
@@ -1665,33 +1692,31 @@ class Timeseries(SectionBase):
             ts_name = str(split_data.pop(0))
             if ts_name != current_time_series_name:
 
-                if len(current_time_series_data) > 0:
-                    df = pd.DataFrame(
-                        current_time_series_data,
-                        columns=pd.Index(["time", "value", "desc"]),
-                    ).set_index("time")
-                    df.attrs["desc"] = ts_comment
-                    timeseries[current_time_series_name] = df
+                ts = collect_timeseries_data(
+                    current_time_series_name,
+                    current_time_series_data,
+                    ts_comment,
+                    ts_name,
+                    line_comment,
+                )
+                if isinstance(ts, pd.DataFrame):
+                    timeseries[current_time_series_name] = ts
 
                 current_time_series_name = ts_name
                 current_time_series_data = []
                 ts_comment = line_comment
                 line_comment = ""
 
-                if str(split_data[0]).upper() == "FILE" and len(split_data) == 2:
-                    timeseries[ts_name] = cls.TimeseriesFile(
-                        name=ts_name,
-                        Fname=str(split_data[1]),
-                        desc=line_comment,
-                    )
+                if isinstance(ts, cls.TimeseriesFile):
+                    timeseries[current_time_series_name] = ts
                     continue
+
             while len(split_data) > 0:
                 if isinstance(split_data[0], Number):
                     time_value = pd.Timedelta(hours=float(split_data.pop(0)))
                     value = float(split_data.pop(0))
                 elif is_valid_time_format(split_data[0]):
-                    hours, minutes = str(split_data.pop(0)).split(":")
-                    time_value = pd.Timedelta(hours=int(hours), minutes=int(minutes))
+                    time_value = parse_time_delta(split_data.pop(0))
                     value = float(split_data.pop(0))
                 elif is_valid_date(split_data[0]):
                     date = pd.to_datetime(split_data.pop(0))
@@ -1703,8 +1728,7 @@ class Timeseries(SectionBase):
                         raise ValueError(
                             f"Error parsing timeseries {ts_name!r} time: {split_data[0]}",
                         )
-                    hours, minutes = str(split_data.pop(0)).split(":")
-                    _time = pd.Timedelta(hours=int(hours), minutes=int(minutes))
+                    _time = parse_time_delta(split_data.pop(0))
                     timestamp = pd.Timestamp(date)
                     time_value = timestamp + _time
                     value = float(split_data.pop(0))
@@ -1719,6 +1743,14 @@ class Timeseries(SectionBase):
                 current_time_series_data.append(current_row)
 
             line_comment = ""
+
+        timeseries[current_time_series_name] = collect_timeseries_data(
+            current_time_series_name,
+            current_time_series_data,
+            ts_comment,
+            ts_name,
+            line_comment,
+        )
 
         # instantiate DataFrame
         return cls(ts=timeseries)
