@@ -1732,6 +1732,8 @@ class Timeseries(SectionBase):
                     timestamp = pd.Timestamp(date)
                     time_value = timestamp + _time
                     value = float(split_data.pop(0))
+                elif str(split_data[0]).upper() == "FILE" and len(split_data) == 2:
+                    break
                 else:
                     raise ValueError(f"Error parsing Timeseries row {split_data}")
 

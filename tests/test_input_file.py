@@ -1381,4 +1381,7 @@ class InputFileTest(unittest.TestCase):
             if not attr.startswith(("_", "analysis")):
                 bench = getattr(rptb, attr)
                 test = getattr(rptt, attr)
-                pd.testing.assert_frame_equal(bench, test)
+                if isinstance(bench, pd.DataFrame):
+                    pd.testing.assert_frame_equal(bench, test)
+                else:
+                    self.assertEqual(bench, test)
