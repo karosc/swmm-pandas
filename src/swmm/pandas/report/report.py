@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import timedelta
 import re
 from io import StringIO
@@ -17,7 +18,28 @@ from pandas.core.api import (
 from pandas.io.parsers import read_csv, read_fwf
 
 
+@dataclass(frozen=True)
+class ReportError:
+    code: str
+    message: str
+
+
+@dataclass(frozen=True)
+class ReportWarning:
+    code: str
+    message: str
+
+
 class Report:
+    _error_pattern = re.compile(
+        r"^\s*ERROR\s+(?P<code>\d+)\s*:\s*(?P<message>.*?)\s*$",
+        re.MULTILINE,
+    )
+    _warning_pattern = re.compile(
+        r"^\s*WARNING\s+(?P<code>\d+)\s*:\s*(?P<message>.*?)\s*$",
+        re.MULTILINE,
+    )
+
     _rptfile: str
     """path to swmm rpt file"""
 
@@ -259,6 +281,17 @@ class Report:
 
         return df
 
+    @staticmethod
+    def _parse_messages(
+        rpt_text: str,
+        pattern: re.Pattern[str],
+        message_type: type[ReportError] | type[ReportWarning],
+    ) -> list[ReportError] | list[ReportWarning]:
+        return [
+            message_type(match.group("code"), match.group("message"))
+            for match in pattern.finditer(rpt_text)
+        ]
+
     def _get_section_text(self, section_name: str) -> tuple[str, str]:
         """
         Get the text of a report section by name.
@@ -278,9 +311,34 @@ class Report:
         KeyError
             If the section name is not found in the report file
         """
-        if section_name not in self._sections:
-            return "", ""
+        # if section_name not in self._sections:
+        #     # return "", ""
+        #     raise KeyError(f"Section {section_name} not found in report file")
         return self._split_section(self._sections[section_name])
+
+    @property
+    def errors(self) -> list[ReportError]:
+        """SWMM report errors with code and message values."""
+        if not hasattr(self, "_errors"):
+            self._errors = self._parse_messages(
+                self._rpt_text,
+                self._error_pattern,
+                ReportError,
+            )
+
+        return self._errors
+
+    @property
+    def warnings(self) -> list[ReportWarning]:
+        """SWMM report warnings with code and message values."""
+        if not hasattr(self, "_warnings"):
+            self._warnings = self._parse_messages(
+                self._rpt_text,
+                self._warning_pattern,
+                ReportWarning,
+            )
+
+        return self._warnings
 
     @property
     def analysis_options(self) -> Series:
@@ -428,6 +486,10 @@ class Report:
             header, data = self._get_section_text(
                 "Highest Continuity Errors",
             )
+            if "no errors" in data.lower():
+                return DataFrame(
+                    columns=["object_type", "name", "percent_error"]
+                ).set_index("name")
 
             df = self._parse_table(
                 ["object_type", "name", "percent_error"],

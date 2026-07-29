@@ -1,6 +1,6 @@
 import pathlib
 import pytest
-from swmm.pandas import Report
+from swmm.pandas import Report, ReportError, ReportWarning
 from pandas import Timedelta, Timestamp, DataFrame
 from numpy import allclose, all, array, nan, float64
 
@@ -52,6 +52,29 @@ def test_analysis_options(rptfile):
     reference.index.name = "Option"
     opts = rptfile.analysis_options
     assert all(opts.sort_index() == reference.sort_index())
+
+
+def test_errors_and_warnings(tmp_path):
+    rpt_path = tmp_path / "messages.rpt"
+    rpt_path.write_text(
+        """
+            ERROR 209: undefined object *.
+        ERROR    209   :    undefined object *.
+        WARNING 02: maximum depth increased for Node 2883.
+        WARNING    02   :    maximum depth increased for Node N0195.   
+        Continuity Error (%) .....        -0.108
+        """,
+    )
+    rpt = Report(str(rpt_path))
+
+    assert rpt.errors == [
+        ReportError(code="209", message="undefined object *."),
+        ReportError(code="209", message="undefined object *."),
+    ]
+    assert rpt.warnings == [
+        ReportWarning(code="02", message="maximum depth increased for Node 2883."),
+        ReportWarning(code="02", message="maximum depth increased for Node N0195."),
+    ]
 
 
 def test_runoff_quantity_continuity(rptfile):

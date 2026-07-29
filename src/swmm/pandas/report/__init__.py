@@ -1,3 +1,3 @@
 """SWMM report parsing helpers."""
 
-from swmm.pandas.report.report import Report
+from swmm.pandas.report.report import Report, ReportError, ReportWarning
