@@ -64,8 +64,12 @@ class Report:
 
         self._rptfile = rptfile
 
-        with open(rptfile) as file:
-            self._rpt_text = file.read()
+        try:
+            with open(rptfile, encoding="utf-8") as file:
+                self._rpt_text = file.read()
+        except UnicodeDecodeError:
+            with open(rptfile, encoding="cp1252") as file:
+                self._rpt_text = file.read()
 
         self._sections = {
             self._find_title(section): section

@@ -77,6 +77,14 @@ def test_errors_and_warnings(tmp_path):
     ]
 
 
+def test_cp1252_report(tmp_path):
+    rpt_path = tmp_path / "cp1252.rpt"
+    rpt_path.write_bytes(b"ERROR 209: cubic ft\xb3\n")
+
+    assert Report(str(rpt_path)).errors == [
+        ReportError(code="209", message="cubic ft³"),
+    ]
+
 def test_runoff_quantity_continuity(rptfile):
     reference = array(
         [
