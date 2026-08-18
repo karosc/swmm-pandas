@@ -71,10 +71,7 @@ class Report:
             with open(rptfile, encoding="cp1252") as file:
                 self._rpt_text = file.read()
 
-        self._sections = {
-            self._find_title(section): section
-            for section in self._find_sections(self._rpt_text)
-        }
+        self._sections = {self._find_title(section): section for section in self._find_sections(self._rpt_text)}
 
     @staticmethod
     def _find_sections(rpt_text: str) -> list[str]:
@@ -82,9 +79,9 @@ class Report:
         Function to split the report file text into separate sections using a regex
         pattern match:
 
-        "^\s+$\s+(?=\*|A)": pattern matches blank lines followed by at least
-        1 white space followed by a lookhead for a asterisk (demarks section headers)
-        or the letter A (looks for the word Analysis at the end of the report file)
+        "(?:^[ \\t]*\\r?\\n)+^[ \\t]*(?=\\*+|Analysis begun on:)": pattern
+        matches one or more blank lines followed by an asterisk-delimited section
+        header or the final analysis timestamp block.
 
 
         Parameters
@@ -97,8 +94,8 @@ class Report:
         List[str]
             A list section texts
         """
-        # pattern to match blank lines preceding a line of asterisks
-        section_pattern = R"^\s+$\s+(?=\*|A)"
+        # match blank lines preceding a section header or the analysis timestamps
+        section_pattern = R"(?:^[ \t]*\r?\n)+^[ \t]*(?=\*+|Analysis begun on:)"
         section_comp = re.compile(section_pattern, re.MULTILINE)
         return list(
             map(lambda x: x.replace("\n  ", "\n"), section_comp.split(rpt_text)[2:-1]),
@@ -291,10 +288,7 @@ class Report:
         pattern: re.Pattern[str],
         message_type: type[ReportError] | type[ReportWarning],
     ) -> list[ReportError] | list[ReportWarning]:
-        return [
-            message_type(match.group("code"), match.group("message"))
-            for match in pattern.finditer(rpt_text)
-        ]
+        return [message_type(match.group("code"), match.group("message")) for match in pattern.finditer(rpt_text)]
 
     def _get_section_text(self, section_name: str) -> tuple[str, str]:
         """
@@ -491,9 +485,7 @@ class Report:
                 "Highest Continuity Errors",
             )
             if "no errors" in data.lower():
-                return DataFrame(
-                    columns=["object_type", "name", "percent_error"]
-                ).set_index("name")
+                return DataFrame(columns=["object_type", "name", "percent_error"]).set_index("name")
 
             df = self._parse_table(
                 ["object_type", "name", "percent_error"],
@@ -523,9 +515,7 @@ class Report:
                 "Time-Step Critical Elements",
             )
             if data.strip() == "None":
-                return DataFrame(columns=["object_type", "name", "percent"]).set_index(
-                    "name"
-                )
+                return DataFrame(columns=["object_type", "name", "percent"]).set_index("name")
 
             df = self._parse_table(
                 ["object_type", "name", "percent"],
@@ -688,12 +678,7 @@ class Report:
                 sep=R"\s{2,}|\s:\s|\d\s\d",
             )
             self._node_inflow_summary["Flow_Balance_Error_Percent"] = (
-                self._node_inflow_summary["Flow_Balance_Error_Percent"]
-                .astype(str)
-                .str.replace("gal", "")
-                .str.replace("ltr", "")
-                .str.strip()
-                .astype(float)
+                self._node_inflow_summary["Flow_Balance_Error_Percent"].astype(str).str.replace("gal", "").str.replace("ltr", "").str.strip().astype(float)
             )
         return self._node_inflow_summary
 

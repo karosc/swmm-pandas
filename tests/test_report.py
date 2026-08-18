@@ -85,6 +85,38 @@ def test_cp1252_report(tmp_path):
         ReportError(code="209", message="cubic ft³"),
     ]
 
+
+@pytest.mark.parametrize("blank_line", ["\n", "  \n"], ids=["runswmm", "openswmm"])
+def test_report_accepts_a_prefixed_rows_after_blank_lines(
+    tmp_path: pathlib.Path,
+    blank_line: str,
+) -> None:
+    rpt_path = tmp_path / "a-prefixed-row.rpt"
+    rpt_path.write_text(
+        "preamble\n"
+        "  \n"
+        "  ****************\n"
+        "  Analysis Options\n"
+        "  ****************\n"
+        "  Option  Setting\n"
+        "  ----------------\n"
+        "  Flow Units  CFS\n"
+        "  \n"
+        "  *********************\n"
+        "  Rainfall File Summary\n"
+        "  *********************\n"
+        "  Station  First Date\n"
+        "  -------------------\n"
+        "  AAAAAA0  11/04/2022\n"
+        f"{blank_line}"
+        "  AAAAAA1  11/05/2022\n"
+        "  \n"
+        "  Analysis begun on:  Tue Aug 18 10:43:15 2026\n",
+    )
+
+    Report(str(rpt_path))
+
+
 def test_runoff_quantity_continuity(rptfile):
     reference = array(
         [
