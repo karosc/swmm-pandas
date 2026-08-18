@@ -114,7 +114,9 @@ def test_report_accepts_a_prefixed_rows_after_blank_lines(
         "  Analysis begun on:  Tue Aug 18 10:43:15 2026\n",
     )
 
-    Report(str(rpt_path))
+    report = Report(str(rpt_path))
+
+    assert report.analysis_options["Flow Units"] == "CFS"
 
 
 def test_runoff_quantity_continuity(rptfile):

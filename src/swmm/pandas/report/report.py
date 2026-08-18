@@ -6,8 +6,9 @@ from dataclasses import dataclass
 from datetime import timedelta
 import re
 from io import StringIO
+from typing import TypeVar
 
-from pandas.core.api import (
+from pandas.core.api import (  # pyright: ignore[reportMissingImports]
     DataFrame,
     Series,
     Timestamp,
@@ -15,7 +16,7 @@ from pandas.core.api import (
     to_timedelta,
     Timedelta,
 )
-from pandas.io.parsers import read_csv, read_fwf
+from pandas.io.parsers import read_csv, read_fwf  # pyright: ignore[reportMissingImports]
 
 
 @dataclass(frozen=True)
@@ -28,6 +29,9 @@ class ReportError:
 class ReportWarning:
     code: str
     message: str
+
+
+_ReportMessage = TypeVar("_ReportMessage", ReportError, ReportWarning)
 
 
 class Report:
@@ -98,7 +102,7 @@ class Report:
         section_pattern = R"(?:^[ \t]*\r?\n)+^[ \t]*(?=\*+|Analysis begun on:)"
         section_comp = re.compile(section_pattern, re.MULTILINE)
         return list(
-            map(lambda x: x.replace("\n  ", "\n"), section_comp.split(rpt_text)[2:-1]),
+            map(lambda x: x.replace("\n  ", "\n"), section_comp.split(rpt_text)[1:-1]),
         )
 
     @staticmethod
@@ -286,8 +290,8 @@ class Report:
     def _parse_messages(
         rpt_text: str,
         pattern: re.Pattern[str],
-        message_type: type[ReportError] | type[ReportWarning],
-    ) -> list[ReportError] | list[ReportWarning]:
+        message_type: type[_ReportMessage],
+    ) -> list[_ReportMessage]:
         return [message_type(match.group("code"), match.group("message")) for match in pattern.finditer(rpt_text)]
 
     def _get_section_text(self, section_name: str) -> tuple[str, str]:
